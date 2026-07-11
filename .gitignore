@@ -1,10 +1,11 @@
 .worktrees/
 __pycache__/
+.venv/
 .pytest_cache/
 *.py[cod]
 *.egg-info/
 dist/
 build/
-plans/
-transactions/
+/plans/
+/transactions/
 
