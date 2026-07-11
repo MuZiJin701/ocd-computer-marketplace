@@ -90,6 +90,73 @@ class VSCodeFamilyAdapter:
             raise ValueError("editor settings must be a JSON object")
         return payload
 
+    def _extension_id(self) -> str:
+        return f"one-tone.one-tone-{self.target}"
+
+    def _installed_extension_dirs(self) -> list[Path]:
+        prefix = f"{self._extension_id()}-"
+        if not self.spec.extensions_dir.is_dir():
+            return []
+        return [
+            path
+            for path in self.spec.extensions_dir.iterdir()
+            if path.is_dir() and path.name.startswith(prefix)
+        ]
+
+    def _theme_file(self, extension_dir: Path) -> Path | None:
+        for candidate in (
+            extension_dir / "themes" / "one-tone-color-theme.json",
+            extension_dir / "extension" / "themes" / "one-tone-color-theme.json",
+            extension_dir / "one-tone-color-theme.json",
+        ):
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def _snapshot_extension_state(self, backup_dir: Path) -> None:
+        index = self.spec.extensions_dir / "extensions.json"
+        if index.is_file():
+            shutil.copy2(index, backup_dir / f"{self.target}-extensions.json")
+        obsolete = self.spec.extensions_dir / ".obsolete"
+        if obsolete.is_file():
+            shutil.copy2(obsolete, backup_dir / f"{self.target}-extensions-obsolete")
+        installed_backup = backup_dir / f"{self.target}-installed"
+        for extension_dir in self._installed_extension_dirs():
+            shutil.copytree(extension_dir, installed_backup / extension_dir.name)
+
+    def _restore_extension_state(self, backup_dir: Path) -> bool:
+        for extension_dir in self._installed_extension_dirs():
+            shutil.rmtree(extension_dir)
+        staging = self.spec.extensions_dir / f"one-tone-{self.target}"
+        if staging.exists():
+            shutil.rmtree(staging)
+
+        installed_backup = backup_dir / f"{self.target}-installed"
+        if installed_backup.is_dir():
+            for extension_dir in installed_backup.iterdir():
+                shutil.copytree(extension_dir, self.spec.extensions_dir / extension_dir.name)
+
+        index = self.spec.extensions_dir / "extensions.json"
+        index_backup = backup_dir / f"{self.target}-extensions.json"
+        if index_backup.is_file():
+            shutil.copy2(index_backup, index)
+        elif index.exists():
+            index.unlink()
+
+        obsolete = self.spec.extensions_dir / ".obsolete"
+        obsolete_backup = backup_dir / f"{self.target}-extensions-obsolete"
+        if obsolete_backup.is_file():
+            shutil.copy2(obsolete_backup, obsolete)
+        elif obsolete.exists():
+            obsolete.unlink()
+
+        current_names = {path.name for path in self._installed_extension_dirs()}
+        backup_names = {path.name for path in installed_backup.iterdir()} if installed_backup.is_dir() else set()
+        index_restored = (not index_backup.is_file() and not index.exists()) or (
+            index_backup.is_file() and index.read_bytes() == index_backup.read_bytes()
+        )
+        return current_names == backup_names and index_restored
+
     def detect(self) -> AdapterResult:
         if not self.spec.settings_path.is_file():
             return AdapterResult(self.target, "skipped", False, False, f"{self.target} settings not found: {self.spec.settings_path}")
@@ -103,6 +170,7 @@ class VSCodeFamilyAdapter:
         try:
             backup_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(self.spec.settings_path, backup_dir / f"{self.target}-settings.json")
+            self._snapshot_extension_state(backup_dir)
             return AdapterResult(self.target, "ok", False, True, f"{self.target} settings snapshot saved")
         except OSError as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} snapshot failed: {error}")
@@ -113,7 +181,8 @@ class VSCodeFamilyAdapter:
             artifacts_dir = self.spec.artifacts_dir or self.spec.extensions_dir.parent / ".one-tone-artifacts"
             vsix_path = build_vsix(plan, artifacts_dir / f"{self.target}-{plan.id}.vsix", self.spec)
             self.spec.extensions_dir.mkdir(parents=True, exist_ok=True)
-            self._extension_dir = self.spec.extensions_dir / f"one-tone-{self.target}"
+            staging_dir = self.spec.extensions_dir / f"one-tone-{self.target}"
+            self._extension_dir = staging_dir
             self._extension_dir.mkdir(parents=True, exist_ok=True)
             with zipfile.ZipFile(vsix_path) as archive:
                 for member in ("extension/package.json", "extension/themes/one-tone-color-theme.json"):
@@ -128,6 +197,11 @@ class VSCodeFamilyAdapter:
                 completed = self.command_runner(command, check=False, capture_output=True)
             if completed is not None and getattr(completed, "returncode", 0) not in (0, None):
                 return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install failed")
+            installed_dirs = self._installed_extension_dirs()
+            if installed_dirs:
+                self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
+                if staging_dir.exists() and staging_dir != self._extension_dir:
+                    shutil.rmtree(staging_dir)
             return AdapterResult(self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected")
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} apply failed: {error}")
@@ -136,7 +210,7 @@ class VSCodeFamilyAdapter:
         try:
             settings = self._read_settings()
             extension_dir = self._extension_dir or self.spec.extensions_dir / f"one-tone-{self.target}"
-            verified = settings.get("workbench.colorTheme") == self._theme_name and (extension_dir / "one-tone-color-theme.json").is_file()
+            verified = settings.get("workbench.colorTheme") == self._theme_name and self._theme_file(extension_dir) is not None
             if not verified:
                 return AdapterResult(self.target, "failed", False, False, f"{self.target} theme verification failed")
             if self.spec.ai_panel_supported:
@@ -164,10 +238,8 @@ class VSCodeFamilyAdapter:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} settings backup not found")
         try:
             shutil.copy2(backup, self.spec.settings_path)
-            extension_dir = self._extension_dir or self.spec.extensions_dir / f"one-tone-{self.target}"
-            if extension_dir.exists():
-                shutil.rmtree(extension_dir)
-            restored = self.spec.settings_path.read_bytes() == backup.read_bytes() and not extension_dir.exists()
+            extensions_restored = self._restore_extension_state(backup_dir)
+            restored = self.spec.settings_path.read_bytes() == backup.read_bytes() and extensions_restored
             return AdapterResult(self.target, "ok" if restored else "failed", True, restored, f"{self.target} settings and extension restored")
         except OSError as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} rollback failed: {error}")
