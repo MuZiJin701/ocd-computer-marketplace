@@ -1,5 +1,7 @@
 # One-Tone Codex Skill/Plugin Implementation Plan
 
+> **Superseded architecture note:** The initial local-wrapper plan kept the Python core at the repository root. The marketplace-ready correction is defined in `docs/superpowers/plans/2026-07-11-marketplace-runtime-architecture.md`: the Plugin now owns the runtime, the repository adds `.agents/plugins/marketplace.json`, and Skill execution uses a single Python launcher.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将已完成的 Python 核心包装成项目内可校验、可打包的 `one-tone-windows` Codex Plugin，并提供 `unify-windows-theme` Skill 的安全对话工作流。

@@ -24,22 +24,22 @@ Use the repository's Python core through `uv`; do not invent adapter behavior or
 
 ## Commands
 
-The PowerShell wrappers in `scripts/` emit JSON for automation:
+The Python launcher in `scripts/` resolves the installed Plugin runtime and emits JSON for automation:
 
 ```powershell
-& .\scripts\preview.ps1 '#7C3AED' 'windows,terminal,vscode,cursor,trae,codex,chrome'
-& .\scripts\apply.ps1 'plan-...' -ConfirmApply
-& .\scripts\verify.ps1 'plan-...' -ConfirmVerify
-& .\scripts\rollback.ps1 'tx-...'
+python .\scripts\run_one_tone.py preview '#7C3AED' --targets windows,terminal,vscode,cursor,trae,codex,chrome
+python .\scripts\run_one_tone.py apply plan-... --confirm
+python .\scripts\run_one_tone.py verify plan-... --confirm
+python .\scripts\run_one_tone.py rollback tx-...
 ```
 
-For direct use from the repository root:
+For direct use from the installed Plugin root:
 
 ```powershell
-uv run one-tone preview '#7C3AED' --targets windows,terminal --output json
-uv run one-tone apply plan-... --confirm --output json
-uv run one-tone verify plan-... --confirm --output json
-uv run one-tone rollback tx-... --output json
+uv run --project . one-tone preview '#7C3AED' --targets windows,terminal --output json
+uv run --project . one-tone apply plan-... --confirm --output json
+uv run --project . one-tone verify plan-... --confirm --output json
+uv run --project . one-tone rollback tx-... --output json
 ```
 
 Read [workflow.md](references/workflow.md) for the state and safety contract, and [target-matrix.md](references/target-matrix.md) before promising support for a target. The core's automated tests are fixture-based and do not prove a real machine's `FULL` status.
