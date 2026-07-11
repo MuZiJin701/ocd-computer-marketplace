@@ -3,6 +3,28 @@ import json
 from one_tone.cli import main
 
 
+def test_preview_json_output_contains_plan_id_and_targets(tmp_path, capsys):
+    code = main([
+        "preview", "#7C3AED", "--targets", "codex",
+        "--plans-dir", str(tmp_path / "plans"),
+        "--state-dir", str(tmp_path / "state"),
+        "--output", "json",
+    ])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "preview"
+    assert payload["plan_id"].startswith("plan-")
+    assert payload["targets"][0]["target"] == "codex"
+
+
+def test_apply_json_error_is_machine_readable(capsys):
+    assert main(["apply", "missing-plan", "--confirm", "--output", "json"]) == 1
+    error = json.loads(capsys.readouterr().err)
+    assert error["command"] == "apply"
+    assert error["error"] == "Plan not found: missing-plan"
+
+
 def test_preview_writes_plan_without_creating_transaction(tmp_path, capsys):
     plans = tmp_path / "plans"
     transactions = tmp_path / "transactions"
