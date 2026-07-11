@@ -21,7 +21,7 @@ Skill 只负责触发、参数收集、确认和结果解释；Palette、Plan、
 - Windows 桌面：生成 Palette 驱动的深色渐变壁纸，并支持 Snapshot、Apply、Verify、Rollback。
 - Windows Terminal：修改实际 `settings.json` 中当前默认 Profile。
 - VS Code、Cursor、TRAE：共用主题/VSIX 生成器，但分别检测、应用和回滚。
-- Codex：独立 Adapter；未验证真实配置格式时返回 `skipped`。
+- Codex：独立 `config.toml` Adapter；支持 `codex-config-v1` 的 Light/Dark ChromeTheme 字段，未知配置结构返回 `skipped`，修改后需要手动重启 Codex，因此完整验收通常为 `PARTIAL`。
 - Chrome：生成主题 ZIP；Apply 返回 `partial` 和 `requires_user_action`，要求用户加载/确认。
 
 不支持 Contrast Theme、JetBrains、Edge、Office 或其他未验证目标。VS Code Family 的 AI 专属面板不通过标准主题字段控制时返回 `partial`。
@@ -52,7 +52,7 @@ uv run one-tone rollback tx-...
 Detect → Snapshot → Apply → Verify → Restart → Verify Again → Rollback → Verify Restore
 ```
 
-只有八步完成、记录实际应用版本且没有用户操作要求时才标记 `FULL`；限制明确时为 `PARTIAL`；未安装或格式未验证时为 `SKIPPED`。
+只有八步完成、记录实际应用版本且没有用户操作要求时才标记 `FULL`；限制明确时为 `PARTIAL`；未安装或格式未验证时为 `SKIPPED`。Codex 使用 `%USERPROFILE%\\.codex\\config.toml`，只更新已验证的 v1 主题字段并保留未知配置。
 
 默认不关闭或启动应用。`--restart-apps` 会允许 Windows Terminal、编辑器等目标结束并重新启动进程；执行前请确认未保存的工作已处理。
 

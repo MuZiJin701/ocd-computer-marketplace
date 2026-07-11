@@ -3,7 +3,8 @@ import json
 from one_tone.cli import main
 
 
-def test_preview_json_output_contains_plan_id_and_targets(tmp_path, capsys):
+def test_preview_json_output_contains_plan_id_and_targets(tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("ONE_TONE_CODEX_THEME_CONFIG", str(tmp_path / "missing-config.toml"))
     code = main([
         "preview", "#7C3AED", "--targets", "codex",
         "--plans-dir", str(tmp_path / "plans"),
