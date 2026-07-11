@@ -1,6 +1,6 @@
 from one_tone.adapters import AdapterResult, FileAdapter, UnsupportedAdapter
 from one_tone.plan import create_plan
-from one_tone.transaction import TransactionStatus, TransactionStore, apply_plan
+from one_tone.transaction import TransactionStatus, TransactionStore, apply_plan, run_full_cycle
 
 
 def test_apply_creates_isolated_transaction_and_rollback_restores_only_it(tmp_path):
@@ -57,3 +57,20 @@ def test_apply_marks_mixed_success_and_skipped_targets_partial(tmp_path):
 
     assert record.status == TransactionStatus.PARTIAL
     assert "plan-test-006" in config.read_text(encoding="utf-8")
+
+
+def test_full_cycle_records_eight_operations_and_full_level(tmp_path):
+    config = tmp_path / "theme.json"
+    config.write_text('{"theme": "original"}', encoding="utf-8")
+    plan = create_plan("#7C3AED", ["file-demo"], plan_id="plan-cycle-001")
+    store = TransactionStore(tmp_path / "transactions")
+
+    class VersionedFileAdapter(FileAdapter):
+        def detect(self):
+            return AdapterResult(self.target, "ok", False, True, "fixture config detected", version="fixture-1")
+
+    record = run_full_cycle(plan, {"file-demo": VersionedFileAdapter("file-demo", config)}, store, True, False)
+    operations = [item["operation"] for item in record.results["file-demo"]]
+    assert operations == ["detect", "snapshot", "apply", "verify", "restart", "verify_again", "rollback", "verify_restore"]
+    assert record.support_levels["file-demo"] == "FULL"
+    assert record.status == TransactionStatus.ROLLED_BACK

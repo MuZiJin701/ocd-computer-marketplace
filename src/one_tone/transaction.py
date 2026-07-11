@@ -11,6 +11,8 @@ from typing import Any, Mapping
 from .adapters import AdapterResult, ThemeAdapter, UnsupportedAdapter
 from .plan import Plan
 
+SupportLevel = str
+
 
 class TransactionStatus(str, Enum):
     PENDING = "PENDING"
@@ -112,7 +114,7 @@ class TransactionStore:
             adapter = adapters.get(target, UnsupportedAdapter(target))
             result = adapter.rollback(backup_dir)
             _append_result(record, target, "rollback", result)
-            if result.status != "ok" or not result.verified:
+            if result.status not in {"ok", "partial"} or not result.verified:
                 failed = True
         record.status = TransactionStatus.FAILED if failed else TransactionStatus.ROLLED_BACK
         self.save(record)
@@ -137,6 +139,7 @@ def apply_plan(
     backup_dir = store.path_for(record.id) / "backup"
     modified_targets: list[str] = []
     skipped = False
+    partial = False
     failed = False
 
     for target in plan.targets:
@@ -146,13 +149,17 @@ def apply_plan(
         if detected.status == "skipped":
             skipped = True
             continue
-        if detected.status != "ok":
+        if detected.status == "partial":
+            partial = True
+        if detected.status not in {"ok", "partial"}:
             failed = True
             break
 
         snapshot = adapter.snapshot(backup_dir)
         _append_result(record, target, "snapshot", snapshot)
-        if snapshot.status != "ok":
+        if snapshot.status == "partial":
+            partial = True
+        if snapshot.status not in {"ok", "partial"}:
             failed = True
             break
 
@@ -160,13 +167,17 @@ def apply_plan(
         _append_result(record, target, "apply", applied)
         if applied.changed and target not in modified_targets:
             modified_targets.append(target)
-        if applied.status != "ok":
+        if applied.status == "partial" or applied.requires_user_action:
+            partial = True
+        if applied.status not in {"ok", "partial"}:
             failed = True
             break
 
         verified = adapter.verify(plan)
         _append_result(record, target, "verify", verified)
-        if verified.status != "ok" or not verified.verified:
+        if verified.status == "partial" or verified.requires_user_action:
+            partial = True
+        if verified.status not in {"ok", "partial"} or not verified.verified:
             failed = True
             break
 
@@ -176,9 +187,74 @@ def apply_plan(
             restored = adapter.rollback(backup_dir)
             _append_result(record, target, "auto_rollback", restored)
         record.status = TransactionStatus.FAILED
-    elif skipped:
+    elif skipped or partial:
         record.status = TransactionStatus.PARTIAL
     else:
         record.status = TransactionStatus.APPLIED
+    store.save(record)
+    return record
+
+
+def _operation_results(record: TransactionRecord, target: str) -> list[dict[str, Any]]:
+    return record.results.get(target, [])
+
+
+def _record_support_level(record: TransactionRecord, target: str) -> str:
+    operations = _operation_results(record, target)
+    if not operations or any(item.get("status") == "skipped" for item in operations):
+        return "SKIPPED"
+    if any(item.get("status") == "failed" or item.get("requires_user_action") for item in operations):
+        return "PARTIAL"
+    detected = next((item for item in operations if item.get("operation") == "detect"), {})
+    if not detected.get("version"):
+        return "PARTIAL"
+    if not all(item.get("verified") for item in operations if item.get("operation") != "apply"):
+        return "PARTIAL"
+    return "FULL"
+
+
+def run_full_cycle(
+    plan: Plan,
+    adapters: Mapping[str, ThemeAdapter],
+    store: TransactionStore,
+    confirm: bool,
+    restart_apps: bool,
+) -> TransactionRecord:
+    """Run the eight-step validation flow and leave the target restored."""
+    record = apply_plan(plan, adapters, store, confirm=confirm)
+    if record.status == TransactionStatus.FAILED:
+        for target in plan.targets:
+            record.support_levels[target] = "PARTIAL"
+        store.save(record)
+        return record
+
+    backup_dir = store.path_for(record.id) / "backup"
+    for target in plan.targets:
+        operation_results = _operation_results(record, target)
+        if any(item.get("status") == "skipped" for item in operation_results):
+            record.support_levels[target] = "SKIPPED"
+            continue
+        adapter = adapters.get(target, UnsupportedAdapter(target))
+        restarted = adapter.restart()
+        _append_result(record, target, "restart", restarted)
+        verified_again = adapter.verify_again(plan)
+        _append_result(record, target, "verify_again", verified_again)
+        restored = adapter.rollback(backup_dir)
+        _append_result(record, target, "rollback", restored)
+        verify_restore = AdapterResult(
+            target,
+            restored.status,
+            False,
+            restored.verified,
+            "restore verification reused Adapter rollback verification",
+            restored.requires_user_action,
+            restored.version,
+        )
+        _append_result(record, target, "verify_restore", verify_restore)
+        record.support_levels[target] = _record_support_level(record, target)
+        if not restart_apps and restarted.status == "partial":
+            record.support_levels[target] = "PARTIAL"
+
+    record.status = TransactionStatus.ROLLED_BACK if all(level != "SKIPPED" for level in record.support_levels.values()) else TransactionStatus.PARTIAL
     store.save(record)
     return record
