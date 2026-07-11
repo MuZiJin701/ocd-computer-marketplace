@@ -1,6 +1,7 @@
 import json
+from pathlib import Path
 
-from one_tone.cli import main
+from one_tone.cli import build_target_adapters, main
 
 
 def test_preview_json_output_contains_plan_id_and_targets(tmp_path, capsys, monkeypatch):
@@ -72,3 +73,11 @@ def test_apply_consumes_saved_plan_for_file_adapter(tmp_path, capsys):
 def test_verify_cli_reports_missing_plan(capsys):
     assert main(["verify", "plan-cycle-002", "--confirm"]) != 0
     assert "Plan not found" in capsys.readouterr().err
+
+
+def test_cursor_adapter_uses_user_extension_directory_for_cli_installs(tmp_path, monkeypatch):
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+
+    adapter = build_target_adapters(("cursor",), tmp_path / "state")["cursor"]
+
+    assert adapter.spec.extensions_dir == Path(tmp_path) / ".cursor" / "extensions"

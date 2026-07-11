@@ -97,17 +97,32 @@ class VSCodeFamilyAdapter:
         prefix = f"{self._extension_id()}-"
         if not self.spec.extensions_dir.is_dir():
             return []
-        return [
+        candidates = [
             path
             for path in self.spec.extensions_dir.iterdir()
             if path.is_dir() and path.name.startswith(prefix)
         ]
+        index = self.spec.extensions_dir / "extensions.json"
+        if index.is_file():
+            try:
+                entries = json.loads(index.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                entries = []
+            for entry in entries if isinstance(entries, list) else []:
+                identifier = entry.get("identifier", {})
+                if identifier.get("id") != self._extension_id():
+                    continue
+                relative = entry.get("relativeLocation")
+                if isinstance(relative, str):
+                    candidate = self.spec.extensions_dir / relative
+                    if candidate.is_dir():
+                        candidates.append(candidate)
+        return list(dict.fromkeys(candidates))
 
     def _theme_file(self, extension_dir: Path) -> Path | None:
         for candidate in (
             extension_dir / "themes" / "one-tone-color-theme.json",
             extension_dir / "extension" / "themes" / "one-tone-color-theme.json",
-            extension_dir / "one-tone-color-theme.json",
         ):
             if candidate.is_file():
                 return candidate
@@ -157,6 +172,33 @@ class VSCodeFamilyAdapter:
         )
         return current_names == backup_names and index_restored
 
+    def _remove_installed_extension_state(self) -> None:
+        installed_dirs = self._installed_extension_dirs()
+        installed_names = {path.name for path in installed_dirs}
+        for extension_dir in installed_dirs:
+            shutil.rmtree(extension_dir)
+        staging = self.spec.extensions_dir / f"one-tone-{self.target}"
+        if staging.exists():
+            shutil.rmtree(staging)
+
+        index = self.spec.extensions_dir / "extensions.json"
+        if not index.is_file():
+            return
+        try:
+            entries = json.loads(index.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        if not isinstance(entries, list):
+            return
+        filtered = [
+            entry
+            for entry in entries
+            if entry.get("identifier", {}).get("id") != self._extension_id()
+            and entry.get("relativeLocation") not in installed_names
+        ]
+        if filtered != entries:
+            index.write_text(json.dumps(filtered, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
     def detect(self) -> AdapterResult:
         if not self.spec.settings_path.is_file():
             return AdapterResult(self.target, "skipped", False, False, f"{self.target} settings not found: {self.spec.settings_path}")
@@ -181,13 +223,7 @@ class VSCodeFamilyAdapter:
             artifacts_dir = self.spec.artifacts_dir or self.spec.extensions_dir.parent / ".one-tone-artifacts"
             vsix_path = build_vsix(plan, artifacts_dir / f"{self.target}-{plan.id}.vsix", self.spec)
             self.spec.extensions_dir.mkdir(parents=True, exist_ok=True)
-            staging_dir = self.spec.extensions_dir / f"one-tone-{self.target}"
-            self._extension_dir = staging_dir
-            self._extension_dir.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(vsix_path) as archive:
-                for member in ("extension/package.json", "extension/themes/one-tone-color-theme.json"):
-                    destination = self._extension_dir / Path(member).name
-                    destination.write_bytes(archive.read(member))
+            self._remove_installed_extension_state()
             settings["workbench.colorTheme"] = self._theme_name
             self.spec.settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             command = [str(self.spec.executable), "--install-extension", str(vsix_path), "--force"]
@@ -198,10 +234,9 @@ class VSCodeFamilyAdapter:
             if completed is not None and getattr(completed, "returncode", 0) not in (0, None):
                 return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install failed")
             installed_dirs = self._installed_extension_dirs()
-            if installed_dirs:
-                self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
-                if staging_dir.exists() and staging_dir != self._extension_dir:
-                    shutil.rmtree(staging_dir)
+            if not installed_dirs:
+                return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install produced no registered extension")
+            self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
             return AdapterResult(self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected")
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} apply failed: {error}")

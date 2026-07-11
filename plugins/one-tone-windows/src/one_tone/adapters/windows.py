@@ -21,7 +21,28 @@ except ImportError:  # pragma: no cover - the production target is Windows.
 PERSONALIZE_KEY = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
 CURRENT_VERSION_KEY = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 DESKTOP_KEY = r"Control Panel\Desktop"
-THEME_VALUES = ("AppsUseLightTheme", "SystemUsesLightTheme")
+EXPLORER_ACCENT_KEY = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent"
+DWM_KEY = r"Software\Microsoft\Windows\DWM"
+THEME_VALUES = (
+    "AppsUseLightTheme",
+    "SystemUsesLightTheme",
+    "ColorPrevalence",
+    "AccentColorMenu",
+    "StartColorMenu",
+    "AccentColor",
+    "ColorizationColor",
+    "ColorizationAfterglow",
+)
+REGISTRY_PATHS = {
+    "AppsUseLightTheme": PERSONALIZE_KEY,
+    "SystemUsesLightTheme": PERSONALIZE_KEY,
+    "ColorPrevalence": PERSONALIZE_KEY,
+    "AccentColorMenu": EXPLORER_ACCENT_KEY,
+    "StartColorMenu": EXPLORER_ACCENT_KEY,
+    "AccentColor": DWM_KEY,
+    "ColorizationColor": DWM_KEY,
+    "ColorizationAfterglow": DWM_KEY,
+}
 
 
 class RegistryBackend(Protocol):
@@ -38,6 +59,8 @@ class DesktopBackend(Protocol):
     def get_wallpaper(self) -> str: ...
 
     def set_wallpaper(self, path: str) -> bool: ...
+
+    def refresh_theme(self) -> None: ...
 
 
 class InMemoryRegistryBackend:
@@ -72,12 +95,15 @@ class InMemoryDesktopBackend:
         self.wallpaper = path
         return True
 
+    def refresh_theme(self) -> None:
+        return None
+
 
 class WindowsRegistryBackend:
     def _key_for(self, name: str):
         if winreg is None:
             raise OSError("Windows registry is only available on Windows")
-        path = CURRENT_VERSION_KEY if name in {"CurrentBuild", "ProductName"} else PERSONALIZE_KEY
+        path = CURRENT_VERSION_KEY if name in {"CurrentBuild", "ProductName"} else REGISTRY_PATHS.get(name, PERSONALIZE_KEY)
         return winreg.HKEY_LOCAL_MACHINE if path == CURRENT_VERSION_KEY else winreg.HKEY_CURRENT_USER, path
 
     def get_value(self, name: str, default: Any = None) -> Any:
@@ -91,7 +117,8 @@ class WindowsRegistryBackend:
     def set_value(self, name: str, value: Any) -> None:
         if winreg is None:
             raise OSError("Windows registry is only available on Windows")
-        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, PERSONALIZE_KEY) as key:
+        root, path = self._key_for(name)
+        with winreg.CreateKey(root, path) as key:
             winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, int(value))
 
     def snapshot_values(self, names: tuple[str, ...]) -> dict[str, Any]:
@@ -118,6 +145,20 @@ class WindowsDesktopBackend:
             raise OSError("System wallpaper API is only available on Windows")
         result = ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
         return bool(result)
+
+    def refresh_theme(self) -> None:
+        if not hasattr(ctypes, "windll"):
+            raise OSError("Windows theme API is only available on Windows")
+        result = ctypes.c_ulong()
+        ctypes.windll.user32.SendMessageTimeoutW(
+            0xFFFF,
+            0x001A,
+            0,
+            "ImmersiveColorSet",
+            0x0002,
+            1000,
+            ctypes.byref(result),
+        )
 
 
 @dataclass(frozen=True)
@@ -169,6 +210,30 @@ def generate_wallpaper(palette: Mapping[str, str], path: Path, width: int = 1920
     return path
 
 
+def windows_color_value(color: str, alpha: int = 0xFF) -> int:
+    red, green, blue = parse_hex_color(color)
+    return (alpha << 24) | (blue << 16) | (green << 8) | red
+
+
+def windows_colorization_value(color: str, alpha: int = 0xC4) -> int:
+    red, green, blue = parse_hex_color(color)
+    return (alpha << 24) | (red << 16) | (green << 8) | blue
+
+
+def _theme_registry_values(plan: Plan) -> dict[str, int]:
+    accent = windows_color_value(plan.palette["accent"])
+    return {
+        "AppsUseLightTheme": 0,
+        "SystemUsesLightTheme": 0,
+        "ColorPrevalence": 1,
+        "AccentColorMenu": accent,
+        "StartColorMenu": accent,
+        "AccentColor": accent,
+        "ColorizationColor": windows_colorization_value(plan.palette["accent"]),
+        "ColorizationAfterglow": windows_colorization_value(plan.palette["accent"]),
+    }
+
+
 class WindowsAdapter:
     target = "windows"
 
@@ -210,19 +275,21 @@ class WindowsAdapter:
         try:
             self.config.wallpaper_dir.mkdir(parents=True, exist_ok=True)
             self._wallpaper_path = generate_wallpaper(plan.palette, self.config.wallpaper_dir / f"{plan.id}.png")
-            self.registry.set_value("AppsUseLightTheme", 0)
-            self.registry.set_value("SystemUsesLightTheme", 0)
+            for name, value in _theme_registry_values(plan).items():
+                self.registry.set_value(name, value)
             if not self.desktop.set_wallpaper(str(self._wallpaper_path)):
                 return AdapterResult(self.target, "failed", True, False, "Windows wallpaper API rejected the generated wallpaper")
+            self.desktop.refresh_theme()
             return AdapterResult(self.target, "ok", True, False, "dark theme and generated wallpaper applied", version=self._version)
         except (OSError, KeyError, ValueError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Windows apply failed: {error}")
 
     def verify(self, plan: Plan) -> AdapterResult:
         expected_path = self._wallpaper_path
-        dark = all(self.registry.get_value(name) == 0 for name in THEME_VALUES)
+        expected_registry = _theme_registry_values(plan)
+        colors_ok = all(self.registry.get_value(name) == value for name, value in expected_registry.items())
         wallpaper_ok = expected_path is not None and Path(expected_path).is_file() and self.desktop.get_wallpaper() == str(expected_path)
-        verified = dark and wallpaper_ok
+        verified = colors_ok and wallpaper_ok
         return AdapterResult(self.target, "ok" if verified else "failed", False, verified, "Windows theme and wallpaper verified" if verified else "Windows theme or wallpaper mismatch", version=self._version)
 
     def restart(self) -> AdapterResult:

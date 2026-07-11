@@ -90,8 +90,8 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
     if mode != "dark":
         raise ValueError("Only dark mode is supported in this phase")
     seed = _to_hex(parse_hex_color(seed_color))
-    background = "#111318"
-    surface = "#1B1D24"
+    background = _blend("#000000", seed, 0.12)
+    surface = _blend("#000000", seed, 0.18)
     foreground = "#F7F7FA"
     accent = _contrast_safe_accent(seed, background)
     selection_background = _blend(accent, background, 0.8)

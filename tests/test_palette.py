@@ -35,3 +35,11 @@ def test_palette_validation_reports_contrast_failure():
     palette["foreground"] = palette["background"]
 
     assert "foreground/background" in validate_palette(palette)[0]
+
+
+def test_green_seed_tints_background_and_surface():
+    palette = generate_palette("#00A86B")
+
+    assert palette["background"] != "#111318"
+    assert palette["surface"] != "#1B1D24"
+    assert int(palette["background"][3:5], 16) > int(palette["background"][5:7], 16)

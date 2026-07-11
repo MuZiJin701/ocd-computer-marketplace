@@ -5,7 +5,9 @@ from one_tone.adapters.windows import (
     WindowsConfig,
     detect_windows_version,
     generate_wallpaper,
+    windows_color_value,
 )
+import one_tone.adapters.windows as windows_module
 from one_tone.plan import create_plan
 
 
@@ -43,3 +45,56 @@ def test_windows_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert registry.values["AppsUseLightTheme"] == 1
     assert desktop.wallpaper == str(old_wallpaper)
+
+
+def test_windows_apply_sets_green_accent_and_taskbar_prevalence(tmp_path):
+    registry = InMemoryRegistryBackend({"CurrentBuild": "26200"})
+    desktop = InMemoryDesktopBackend()
+    adapter = WindowsAdapter(WindowsConfig(tmp_path), registry, desktop)
+    plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-accent-001")
+
+    assert adapter.apply(plan).status == "ok"
+    assert registry.values["ColorPrevalence"] == 1
+    assert registry.values["AccentColorMenu"] == windows_color_value(plan.palette["accent"])
+    assert registry.values["ColorizationColor"] == 0xC4005436
+
+
+def test_windows_registry_writes_each_value_to_its_declared_hive_path(monkeypatch):
+    class FakeKey:
+        def __init__(self, owner, root, path):
+            self.owner = owner
+            self.root = root
+            self.path = path
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def set_value(self, name, reserved, kind, value):
+            self.owner.writes.append((self.root, self.path, name, kind, value))
+
+    class FakeWinreg:
+        HKEY_CURRENT_USER = "HKCU"
+        HKEY_LOCAL_MACHINE = "HKLM"
+        REG_DWORD = "REG_DWORD"
+
+        def __init__(self):
+            self.writes = []
+
+        def CreateKey(self, root, path):
+            return FakeKey(self, root, path)
+
+        def OpenKey(self, *args):
+            raise AssertionError("OpenKey is not expected in this test")
+
+        def SetValueEx(self, key, name, reserved, kind, value):
+            key.set_value(name, reserved, kind, value)
+
+    fake = FakeWinreg()
+    monkeypatch.setattr(windows_module, "winreg", fake)
+
+    windows_module.WindowsRegistryBackend().set_value("AccentColor", 123)
+
+    assert fake.writes == [("HKCU", windows_module.DWM_KEY, "AccentColor", "REG_DWORD", 123)]

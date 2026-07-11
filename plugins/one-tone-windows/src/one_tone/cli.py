@@ -132,7 +132,7 @@ def build_target_adapters(targets, state_dir: Path, restart_apps: bool = False):
         "cursor",
         _first_path([Path(r"D:\software\scoop\apps\cursor\current\resources\app\bin\cursor.cmd"), Path("cursor")]),
         _first_path([Path(r"D:\software\scoop\apps\cursor\current\data\user-data\User\settings.json"), appdata / "Cursor/User/settings.json"]),
-        _first_path([Path(r"D:\software\scoop\apps\cursor\current\data\extensions"), userprofile / ".cursor/extensions"]),
+        userprofile / ".cursor/extensions",
         allow_restart=restart_apps,
         artifacts_dir=state_dir / "cursor-artifacts",
     )

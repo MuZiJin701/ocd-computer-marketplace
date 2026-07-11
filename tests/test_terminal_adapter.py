@@ -12,6 +12,40 @@ def test_null_default_uses_first_local_profile():
     assert resolve_default_profile(settings) == (0, "profiles.default is null; first local profile selected")
 
 
+def test_root_default_profile_is_used_when_profiles_default_is_missing():
+    settings = {"defaultProfile": "{two}", "profiles": {"list": [
+        {"name": "Windows PowerShell", "guid": "{one}"},
+        {"name": "PowerShell", "guid": "{two}"},
+    ]}}
+    assert resolve_default_profile(settings) == (1, "defaultProfile resolved by GUID/name")
+
+
+def test_terminal_apply_registers_and_selects_a_valid_scheme(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    settings = {
+        "defaultProfile": "{two}",
+        "profiles": {
+            "defaults": {"colorScheme": "Missing Scheme"},
+            "list": [
+                {"name": "Windows PowerShell", "guid": "{one}"},
+                {"name": "PowerShell", "guid": "{two}"},
+            ],
+        },
+        "schemes": [],
+    }
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    adapter = TerminalAdapter(settings_path)
+    plan = create_plan("#00A86B", ["terminal"], plan_id="plan-terminal-scheme-001")
+
+    assert adapter.apply(plan).status == "ok"
+    changed = json.loads(settings_path.read_text(encoding="utf-8"))
+    scheme = next(item for item in changed["schemes"] if item["name"] == "One Tone")
+    assert changed["profiles"]["defaults"]["colorScheme"] == "One Tone"
+    assert changed["profiles"]["list"][1]["colorScheme"] == "One Tone"
+    assert scheme["background"] == plan.palette["background"]
+    assert adapter.verify(plan).verified is True
+
+
 def test_terminal_adapter_only_changes_selected_profile_and_restores(tmp_path):
     settings_path = tmp_path / "settings.json"
     original = {"profiles": {"default": "{two}", "list": [
