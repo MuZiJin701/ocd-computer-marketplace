@@ -174,8 +174,9 @@ class VSCodeFamilyAdapter:
 
     def _remove_installed_extension_state(self) -> None:
         installed_dirs = self._installed_extension_dirs()
-        installed_names = {path.name for path in installed_dirs}
-        for extension_dir in installed_dirs:
+        removable_dirs = [path for path in installed_dirs if self._theme_file(path) is None]
+        removable_names = {path.name for path in removable_dirs}
+        for extension_dir in removable_dirs:
             shutil.rmtree(extension_dir)
         staging = self.spec.extensions_dir / f"one-tone-{self.target}"
         if staging.exists():
@@ -194,7 +195,7 @@ class VSCodeFamilyAdapter:
             entry
             for entry in entries
             if entry.get("identifier", {}).get("id") != self._extension_id()
-            and entry.get("relativeLocation") not in installed_names
+            or entry.get("relativeLocation") not in removable_names
         ]
         if filtered != entries:
             index.write_text(json.dumps(filtered, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -225,6 +226,8 @@ class VSCodeFamilyAdapter:
             self.spec.extensions_dir.mkdir(parents=True, exist_ok=True)
             self._remove_installed_extension_state()
             settings["workbench.colorTheme"] = self._theme_name
+            settings["workbench.preferredDarkColorTheme"] = self._theme_name
+            settings["workbench.preferredLightColorTheme"] = self._theme_name
             self.spec.settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             command = [str(self.spec.executable), "--install-extension", str(vsix_path), "--force"]
             if self.command_runner is None:
@@ -245,7 +248,12 @@ class VSCodeFamilyAdapter:
         try:
             settings = self._read_settings()
             extension_dir = self._extension_dir or self.spec.extensions_dir / f"one-tone-{self.target}"
-            verified = settings.get("workbench.colorTheme") == self._theme_name and self._theme_file(extension_dir) is not None
+            verified = (
+                settings.get("workbench.colorTheme") == self._theme_name
+                and settings.get("workbench.preferredDarkColorTheme") == self._theme_name
+                and settings.get("workbench.preferredLightColorTheme") == self._theme_name
+                and self._theme_file(extension_dir) is not None
+            )
             if not verified:
                 return AdapterResult(self.target, "failed", False, False, f"{self.target} theme verification failed")
             if self.spec.ai_panel_supported:

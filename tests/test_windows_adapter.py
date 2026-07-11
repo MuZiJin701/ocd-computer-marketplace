@@ -7,6 +7,7 @@ from one_tone.adapters.windows import (
     WindowsConfig,
     detect_windows_version,
     generate_wallpaper,
+    generate_accent_palette,
     windows_color_value,
 )
 import one_tone.adapters.windows as windows_module
@@ -59,6 +60,13 @@ def test_windows_apply_sets_green_accent_and_taskbar_prevalence(tmp_path):
     assert registry.values["ColorPrevalence"] == 1
     assert registry.values["AccentColorMenu"] == windows_color_value(plan.palette["accent"])
     assert registry.values["ColorizationColor"] == 0xC4005436
+
+
+def test_windows_accent_palette_is_an_eight_color_bgra_binary_value():
+    palette = generate_accent_palette("#005436")
+
+    assert len(palette) == 32
+    assert palette[:4] == bytes((0x36, 0x54, 0x00, 0x00))
 
 
 def test_windows_registry_writes_each_value_to_its_declared_hive_path(monkeypatch):

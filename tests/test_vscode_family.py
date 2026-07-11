@@ -34,6 +34,9 @@ def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     result = adapter.verify(plan)
     assert result.verified is True
     assert result.status == "partial"
+    changed = json.loads(settings.read_text(encoding="utf-8"))
+    assert changed["workbench.preferredDarkColorTheme"] == "One Tone trae"
+    assert changed["workbench.preferredLightColorTheme"] == "One Tone trae"
     assert adapter.rollback(tmp_path / "backup").verified is True
 
 
@@ -46,6 +49,25 @@ def test_editor_verify_does_not_accept_uninstalled_flat_theme(tmp_path):
 
     assert adapter.snapshot(tmp_path / "backup").status == "ok"
     assert adapter.apply(plan).status == "failed"
+
+
+def test_editor_apply_leaves_valid_installed_extension_for_cli_force(tmp_path):
+    settings = tmp_path / "settings.json"
+    extensions = tmp_path / "extensions"
+    actual = extensions / "one-tone.one-tone-trae-0.1.0"
+    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
+    (actual / "themes").mkdir(parents=True)
+    (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
+    spec = EditorSpec("trae", "trae", settings, extensions, ai_panel_supported=False)
+
+    def command_runner(command, **kwargs):
+        assert actual.exists()
+        return subprocess.CompletedProcess(command, 0)
+
+    adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
+    plan = create_plan("#00A86B", ["trae"], plan_id="plan-editor-existing-001")
+
+    assert adapter.apply(plan).status == "ok"
 
 
 def test_editor_adapter_tracks_and_uninstalls_actual_extension_directory(tmp_path):

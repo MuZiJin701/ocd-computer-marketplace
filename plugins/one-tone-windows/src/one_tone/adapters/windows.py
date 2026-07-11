@@ -29,6 +29,7 @@ THEME_VALUES = (
     "ColorPrevalence",
     "AccentColorMenu",
     "StartColorMenu",
+    "AccentPalette",
     "AccentColor",
     "ColorizationColor",
     "ColorizationAfterglow",
@@ -39,6 +40,7 @@ REGISTRY_PATHS = {
     "ColorPrevalence": PERSONALIZE_KEY,
     "AccentColorMenu": EXPLORER_ACCENT_KEY,
     "StartColorMenu": EXPLORER_ACCENT_KEY,
+    "AccentPalette": EXPLORER_ACCENT_KEY,
     "AccentColor": DWM_KEY,
     "ColorizationColor": DWM_KEY,
     "ColorizationAfterglow": DWM_KEY,
@@ -119,7 +121,8 @@ class WindowsRegistryBackend:
             raise OSError("Windows registry is only available on Windows")
         root, path = self._key_for(name)
         with winreg.CreateKey(root, path) as key:
-            winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, int(value))
+            value_type = winreg.REG_BINARY if isinstance(value, (bytes, bytearray)) else winreg.REG_DWORD
+            winreg.SetValueEx(key, name, 0, value_type, value if isinstance(value, (bytes, bytearray)) else int(value))
 
     def snapshot_values(self, names: tuple[str, ...]) -> dict[str, Any]:
         return {name: self.get_value(name) for name in names}
@@ -220,7 +223,30 @@ def windows_colorization_value(color: str, alpha: int = 0xC4) -> int:
     return (alpha << 24) | (red << 16) | (green << 8) | blue
 
 
-def _theme_registry_values(plan: Plan) -> dict[str, int]:
+def _blend_color(first: str, second: str, second_weight: float) -> str:
+    first_rgb = parse_hex_color(first)
+    second_rgb = parse_hex_color(second)
+    return "#" + "".join(
+        f"{round(left * (1 - second_weight) + right * second_weight):02X}"
+        for left, right in zip(first_rgb, second_rgb)
+    )
+
+
+def generate_accent_palette(accent: str) -> bytes:
+    colors = [
+        accent,
+        _blend_color(accent, "#FFFFFF", 0.2),
+        _blend_color(accent, "#FFFFFF", 0.4),
+        _blend_color(accent, "#FFFFFF", 0.6),
+        _blend_color(accent, "#FFFFFF", 0.8),
+        _blend_color(accent, "#000000", 0.2),
+        _blend_color(accent, "#000000", 0.4),
+        _blend_color(accent, "#000000", 0.6),
+    ]
+    return b"".join(bytes((*reversed(parse_hex_color(color)), 0)) for color in colors)
+
+
+def _theme_registry_values(plan: Plan) -> dict[str, int | bytes]:
     accent = windows_color_value(plan.palette["accent"])
     return {
         "AppsUseLightTheme": 0,
@@ -228,6 +254,7 @@ def _theme_registry_values(plan: Plan) -> dict[str, int]:
         "ColorPrevalence": 1,
         "AccentColorMenu": accent,
         "StartColorMenu": accent,
+        "AccentPalette": generate_accent_palette(plan.palette["accent"]),
         "AccentColor": accent,
         "ColorizationColor": windows_colorization_value(plan.palette["accent"]),
         "ColorizationAfterglow": windows_colorization_value(plan.palette["accent"]),
