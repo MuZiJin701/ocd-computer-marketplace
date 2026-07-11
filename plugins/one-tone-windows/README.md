@@ -9,3 +9,5 @@ python .\skills\unify-windows-theme\scripts\run_one_tone.py preview '#7C3AED' --
 ```
 
 See `skills/unify-windows-theme/references/` for the safety contract and target matrix. Validate the package from the repository root with the official plugin and Skill validators.
+
+Codex uses `%USERPROFILE%\\.codex\\config.toml`. The adapter recognizes schema `codex-config-v1`, updates both Light and Dark ChromeTheme colors, preserves unrelated TOML content, and requires a manual Codex restart after Apply. Unknown configuration shapes remain `SKIPPED`.

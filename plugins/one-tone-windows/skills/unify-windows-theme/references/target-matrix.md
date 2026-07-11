@@ -7,7 +7,7 @@
 | `vscode` | VS Code user settings and generated theme artifact | Standard theme fields do not control every extension or AI panel | Same cycle with the installed VS Code version recorded |
 | `cursor` | Cursor user settings and generated theme artifact | Standard theme fields do not control every Cursor surface | Same cycle with the installed Cursor version recorded |
 | `trae` | TRAE user settings and generated theme artifact | Path and version are installation-specific | Same cycle with the installed TRAE version recorded |
-| `codex` | Independent Codex adapter | Unknown or unverified configuration is `SKIPPED`; never treat it as VS Code-compatible | A real, versioned Codex configuration must be verified independently |
+| `codex` | Independent adapter for `%USERPROFILE%\\.codex\\config.toml` | `codex-config-v1` updates Light/Dark ChromeTheme colors; unknown schemas are `SKIPPED`; restart is manual | Real v1 config Apply/Verify/Rollback plus manual restart evidence; normally `PARTIAL` because restart is user action |
 | `chrome` | Generated Chrome theme ZIP and user load instructions | Loading/confirming the theme is a user action, so automated flow is normally `PARTIAL` | Only after the user loads and confirms the generated theme and the rollback path is documented |
 
 Explicitly out of scope: JetBrains, Edge, Office, contrast themes, and other unverified targets.

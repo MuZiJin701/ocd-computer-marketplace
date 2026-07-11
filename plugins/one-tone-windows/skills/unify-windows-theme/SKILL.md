@@ -19,7 +19,7 @@ Use the repository's Python core through `uv`; do not invent adapter behavior or
 3. Show the Plan ID, target detection results, warnings, and support limitations. Do not proceed to Apply without explicit user confirmation.
 4. Apply by Plan ID only, with `--confirm`. The core creates a new transaction and snapshots each target before applying it. Never regenerate a Palette during Apply.
 5. Verify with `--confirm`; use `--restart-apps` only after the user confirms that unsaved editor/terminal work is safe to close. Verify performs Detect → Snapshot → Apply → Verify → Restart → Verify Again → Rollback → Verify Restore.
-6. Report `FULL`, `PARTIAL`, or `SKIPPED` per target. Chrome normally remains `PARTIAL` because loading the generated theme is a user action; an unverified Codex configuration remains `SKIPPED`.
+6. Report `FULL`, `PARTIAL`, or `SKIPPED` per target. Chrome normally remains `PARTIAL` because loading the generated theme is a user action; Codex `codex-config-v1` requires a manual restart and is normally `PARTIAL`, while unknown Codex schemas remain `SKIPPED`.
 7. If a user asks to undo a real Apply, require the exact transaction ID and run Rollback. Restore only that transaction's backup and report the restore verification.
 
 ## Commands
