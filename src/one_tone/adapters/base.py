@@ -17,6 +17,8 @@ class AdapterResult:
     changed: bool
     verified: bool
     message: str
+    requires_user_action: bool = False
+    version: str | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "partial", "failed", "skipped"}:
@@ -33,6 +35,10 @@ class ThemeAdapter(Protocol):
     def apply(self, plan: Plan) -> AdapterResult: ...
 
     def verify(self, plan: Plan) -> AdapterResult: ...
+
+    def restart(self) -> AdapterResult: ...
+
+    def verify_again(self, plan: Plan) -> AdapterResult: ...
 
     def rollback(self, backup_dir: Path) -> AdapterResult: ...
 
@@ -55,6 +61,12 @@ class UnsupportedAdapter:
 
     def verify(self, plan: Plan) -> AdapterResult:
         return self._skipped("verify")
+
+    def restart(self) -> AdapterResult:
+        return self._skipped("restart")
+
+    def verify_again(self, plan: Plan) -> AdapterResult:
+        return self._skipped("verify_again")
 
     def rollback(self, backup_dir: Path) -> AdapterResult:
         return self._skipped("rollback")

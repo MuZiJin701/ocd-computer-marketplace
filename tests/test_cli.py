@@ -44,3 +44,8 @@ def test_apply_consumes_saved_plan_for_file_adapter(tmp_path, capsys):
         "--state-dir", str(state),
     ]) == 0
     assert "APPLIED" in capsys.readouterr().out
+
+
+def test_verify_cli_reports_missing_plan(capsys):
+    assert main(["verify", "plan-cycle-002", "--confirm"]) != 0
+    assert "Plan not found" in capsys.readouterr().err
