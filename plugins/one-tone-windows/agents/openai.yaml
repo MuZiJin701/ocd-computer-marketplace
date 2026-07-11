@@ -1,0 +1,6 @@
+interface:
+  display_name: "统一 Windows 主题"
+  short_description: "从单个主色安全统一 Windows 应用主题"
+  default_prompt: "Use $unify-windows-theme to preview a high-contrast theme from my preferred color."
+policy:
+  allow_implicit_invocation: true

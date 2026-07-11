@@ -1,0 +1,18 @@
+{
+  "name": "one-tone-windows",
+  "version": "0.1.0",
+  "description": "Preview, apply, verify, and roll back a shared Windows theme.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "统一 Windows 主题",
+    "shortDescription": "从单个主色安全统一 Windows 应用主题",
+    "longDescription": "Preview, apply, verify, and roll back one Palette across the supported Windows targets.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use $unify-windows-theme to preview and safely apply one Palette to selected Windows targets."
+  }
+}
