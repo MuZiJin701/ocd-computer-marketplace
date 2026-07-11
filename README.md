@@ -2,6 +2,19 @@
 
 One-Tone 将同一个 Seed Color 生成的 Palette 应用于 Windows 10/11、Windows Terminal、VS Code Family、Codex 和 Chrome，并通过 Plan、Transaction 和回滚保持可验证。
 
+## 本地插件市场与运行边界
+
+本仓库同时是 repo-scoped Plugin Marketplace 和开发测试仓库。市场目录为 `.agents/plugins/marketplace.json`，当前目录中唯一的可安装插件为 `plugins/one-tone-windows`。
+
+`one-tone-windows` 自包含 Python runtime；安装到 Codex cache 后不依赖仓库根目录的 `src/`。开发根目录的 `pyproject.toml` 只是测试/开发入口，实际插件运行可使用：
+
+```powershell
+uv run --project plugins/one-tone-windows one-tone preview '#7C3AED' --targets windows,terminal --output json
+python plugins/one-tone-windows/skills/unify-windows-theme/scripts/run_one_tone.py preview '#7C3AED' --targets windows,terminal
+```
+
+Skill 只负责触发、参数收集、确认和结果解释；Palette、Plan、Adapter、Transaction、Verify 和 Rollback 均由插件自身 Python runtime 实现。
+
 ## 支持范围
 
 - Windows 10 22H2+ 与 Windows 11 22H2+ 普通深色模式。

@@ -21,7 +21,7 @@ wheels = [
 ]
 
 [[package]]
-name = "one-tone-marketplace-dev"
+name = "one-tone"
 version = "0.1.0"
 source = { editable = "." }
 
