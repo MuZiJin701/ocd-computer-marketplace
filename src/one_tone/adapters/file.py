@@ -56,6 +56,12 @@ class FileAdapter:
             "configuration verified" if verified else "configuration does not match Plan",
         )
 
+    def restart(self) -> AdapterResult:
+        return AdapterResult(self.target, "ok", False, True, "file target does not require process restart")
+
+    def verify_again(self, plan: Plan) -> AdapterResult:
+        return self.verify(plan)
+
     def rollback(self, backup_dir: Path) -> AdapterResult:
         backup_path = backup_dir / self.backup_name
         if not backup_path.is_file():

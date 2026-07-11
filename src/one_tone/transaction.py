@@ -28,6 +28,7 @@ class TransactionRecord:
     created_at: str
     targets: tuple[str, ...]
     results: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    support_levels: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -37,6 +38,7 @@ class TransactionRecord:
             "created_at": self.created_at,
             "targets": list(self.targets),
             "results": self.results,
+            "support_levels": self.support_levels,
         }
 
     @classmethod
@@ -48,6 +50,7 @@ class TransactionRecord:
             created_at=payload["created_at"],
             targets=tuple(payload["targets"]),
             results={key: list(value) for key, value in payload.get("results", {}).items()},
+            support_levels=dict(payload.get("support_levels", {})),
         )
 
 
@@ -82,6 +85,9 @@ class TransactionStore:
             json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
             encoding="utf-8",
         )
+
+    def append_operation(self, record: TransactionRecord, target: str, operation: str, result: AdapterResult) -> None:
+        _append_result(record, target, operation, result)
 
     def load(self, transaction_id: str) -> TransactionRecord:
         path = self.path_for(transaction_id) / "transaction.json"
