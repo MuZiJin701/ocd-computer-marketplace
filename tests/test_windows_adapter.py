@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from one_tone.adapters.windows import (
     InMemoryDesktopBackend,
     InMemoryRegistryBackend,
@@ -98,3 +100,14 @@ def test_windows_registry_writes_each_value_to_its_declared_hive_path(monkeypatc
     windows_module.WindowsRegistryBackend().set_value("AccentColor", 123)
 
     assert fake.writes == [("HKCU", windows_module.DWM_KEY, "AccentColor", "REG_DWORD", 123)]
+
+
+def test_windows_apply_persists_an_absolute_wallpaper_path(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    registry = InMemoryRegistryBackend({"CurrentBuild": "26200"})
+    desktop = InMemoryDesktopBackend()
+    adapter = WindowsAdapter(WindowsConfig(Path("relative-wallpapers")), registry, desktop)
+    plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-absolute-wallpaper-001")
+
+    assert adapter.apply(plan).status == "ok"
+    assert Path(desktop.wallpaper).is_absolute()

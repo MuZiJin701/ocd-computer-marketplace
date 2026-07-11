@@ -274,7 +274,8 @@ class WindowsAdapter:
     def apply(self, plan: Plan) -> AdapterResult:
         try:
             self.config.wallpaper_dir.mkdir(parents=True, exist_ok=True)
-            self._wallpaper_path = generate_wallpaper(plan.palette, self.config.wallpaper_dir / f"{plan.id}.png")
+            wallpaper_path = (self.config.wallpaper_dir / f"{plan.id}.png").resolve()
+            self._wallpaper_path = generate_wallpaper(plan.palette, wallpaper_path)
             for name, value in _theme_registry_values(plan).items():
                 self.registry.set_value(name, value)
             if not self.desktop.set_wallpaper(str(self._wallpaper_path)):
