@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .palette import generate_palette, parse_hex_color
+from .storage import atomic_write_text, validate_safe_component
 
 
 class PlanIntegrityError(ValueError):
@@ -61,12 +62,17 @@ def create_plan(
     created_at: datetime | None = None,
 ) -> Plan:
     normalized_seed = "#" + "".join(f"{channel:02X}" for channel in parse_hex_color(seed_color))
-    normalized_targets = tuple(sorted({target.strip() for target in targets if target.strip()}))
+    normalized_targets = tuple(sorted({
+        validate_safe_component(target.strip(), "target")
+        for target in targets
+        if target.strip()
+    }))
     if not normalized_targets:
         raise ValueError("At least one target is required")
     timestamp = (created_at or datetime.now(timezone.utc)).isoformat()
+    safe_plan_id = validate_safe_component(plan_id, "plan_id") if plan_id else _new_id("plan")
     payload = {
-        "id": plan_id or _new_id("plan"),
+        "id": safe_plan_id,
         "seed_color": normalized_seed,
         "mode": "dark",
         "targets": list(normalized_targets),
@@ -85,6 +91,7 @@ def create_plan(
 
 
 def save_plan(plan: Plan, plans_dir: Path) -> Path:
+    validate_safe_component(plan.id, "plan_id")
     payload = plan.to_dict(include_hash=False)
     computed_hash = compute_plan_hash(payload)
     if plan.hash and plan.hash != computed_hash:
@@ -92,11 +99,12 @@ def save_plan(plan: Plan, plans_dir: Path) -> Path:
     plan = replace(plan, hash=computed_hash)
     plans_dir.mkdir(parents=True, exist_ok=True)
     path = plans_dir / f"{plan.id}.json"
-    path.write_text(_canonical_json(plan.to_dict()) + "\n", encoding="utf-8")
+    atomic_write_text(path, _canonical_json(plan.to_dict()) + "\n")
     return path
 
 
 def load_plan(plan_id: str, plans_dir: Path) -> Plan:
+    validate_safe_component(plan_id, "plan_id")
     path = plans_dir / f"{plan_id}.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -106,5 +114,10 @@ def load_plan(plan_id: str, plans_dir: Path) -> Plan:
     actual_hash = compute_plan_hash(payload)
     if expected_hash != actual_hash:
         raise PlanIntegrityError(f"Plan Hash mismatch for {plan_id}")
+    if payload["id"] != plan_id:
+        raise PlanIntegrityError(f"Plan ID mismatch for {plan_id}")
+    validate_safe_component(payload["id"], "plan_id")
+    for target in payload["targets"]:
+        validate_safe_component(target, "target")
     payload["targets"] = tuple(payload["targets"])
     return Plan(**payload)

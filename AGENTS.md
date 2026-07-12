@@ -32,10 +32,13 @@ Preview → Apply → Verify → Rollback
 - Apply 只接受已有 `plan_id`，应用前必须校验 Plan Hash。
 - 每个目标修改前必须 Snapshot。
 - 目标失败时只回滚失败目标；其他成功目标保持修改。
-- Apply 失败结果必须保留清晰的 `partial` 或 `failed` 信息。
+- Apply 每个操作后必须持久化事务记录；补偿回滚失败必须报告 `failed`。
+- 至少一个目标成功且其他目标失败或 skipped 时才报告 `partial`；没有成功目标时报告 `failed`。
 - Verify 只读取当前配置并与 Plan 对比，不创建事务、不 Snapshot、不 Apply、不 Restart、不 Rollback。
-- Rollback 必须接受明确的 `transaction_id`，只能恢复该事务自己的快照，并验证恢复结果。
+- Rollback 必须接受明确的 `transaction_id`，只能恢复该事务自己的快照或产物元数据，并验证恢复结果。
 - 只修改用户明确选择的目标，不猜测未知目标兼容性。
+- Plan ID、Transaction ID 和 target 必须是安全路径组件；未知 target 仍可 `skipped`，但不得创建越界路径。
+- Plan、事务和目标配置 JSON 使用同目录临时文件加原子替换，避免中断造成截断文件。
 - 事务快照默认保留最近 5 个已完成事务；只清理工具生成的数据。
 
 ## 技术约束
@@ -53,7 +56,7 @@ uv run pytest
 
 测试放在仓库根目录，最终 Plugin/Skill 分发包不包含测试。默认测试使用 fixture；真实桌面测试必须单独标记并明确风险。
 
-修改完成后运行与风险相称的测试、CLI 冒烟和 `git diff --check`，报告实际结果。保留无关的已有修改，不主动推送远程仓库。
+修改完成后运行与风险相称的测试、CLI 冒烟和 `git diff --check`，报告实际结果。保留无关的已有修改；只有用户明确要求时才提交或推送远程仓库。
 
 ## 文档同步
 

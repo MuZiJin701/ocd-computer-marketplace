@@ -178,3 +178,32 @@ def test_editor_adapter_tracks_and_uninstalls_actual_extension_directory(tmp_pat
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert actual.exists() is False
     assert index.read_text(encoding="utf-8") == "[]"
+
+
+def test_editor_verify_discovers_extension_after_new_adapter_instance(tmp_path):
+    settings = tmp_path / "settings.json"
+    extensions = tmp_path / "extensions"
+    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
+    extensions.mkdir()
+    actual = extensions / "one-tone.one-tone-trae-0.1.0"
+
+    def command_runner(command, **kwargs):
+        actual.mkdir(parents=True)
+        (actual / "themes").mkdir()
+        (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
+        (extensions / "extensions.json").write_text(json.dumps([{
+            "identifier": {"id": "one-tone.one-tone-trae"},
+            "relativeLocation": actual.name,
+        }]), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0)
+
+    plan = create_plan("#7C3AED", ["trae"], plan_id="plan-editor-cross-process-001")
+    spec = EditorSpec("trae", "trae", settings, extensions)
+    first_adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
+    assert first_adapter.snapshot(tmp_path / "backup").status == "ok"
+    assert first_adapter.apply(plan).status == "ok"
+
+    second_adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
+    result = second_adapter.verify(plan)
+
+    assert result.verified is True

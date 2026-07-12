@@ -11,6 +11,7 @@ from typing import Any, Mapping, Protocol
 
 from ..palette import parse_hex_color
 from ..plan import Plan
+from ..storage import atomic_write_text
 from .base import AdapterResult
 
 try:
@@ -331,7 +332,7 @@ class WindowsAdapter:
                 "registry": {name: _json_safe_registry_value(value) for name, value in registry_values.items()},
                 "wallpaper": old_path,
             }
-            (backup_dir / "windows.json").write_text(json.dumps(metadata, sort_keys=True), encoding="utf-8")
+            atomic_write_text(backup_dir / "windows.json", json.dumps(metadata, sort_keys=True))
             if old_path and Path(old_path).is_file():
                 import shutil
 
@@ -362,7 +363,7 @@ class WindowsAdapter:
         verified = colors_ok and wallpaper_ok
         return AdapterResult(self.target, "ok" if verified else "failed", False, verified, "Windows theme and wallpaper verified" if verified else "Windows theme or wallpaper mismatch", version=self._version)
 
-    def rollback(self, backup_dir: Path) -> AdapterResult:
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         try:
             metadata = json.loads((backup_dir / "windows.json").read_text(encoding="utf-8"))
             registry_values = {name: _registry_value_from_json(value) for name, value in metadata["registry"].items()}

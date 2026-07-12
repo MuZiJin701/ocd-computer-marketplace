@@ -4,10 +4,11 @@ import json
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from ..palette import parse_hex_color
 from ..plan import Plan
+from ..storage import atomic_write_text, validate_safe_component
 from .base import AdapterResult
 
 
@@ -45,9 +46,9 @@ def build_chrome_theme(plan: Plan, output_path: Path) -> Path:
 
 def build_chrome_theme_directory(plan: Plan, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "manifest.json").write_text(
+    atomic_write_text(
+        output_dir / "manifest.json",
         json.dumps(_manifest(plan), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
     )
     return output_dir
 
@@ -87,6 +88,10 @@ class ChromeAdapter:
                 False,
                 f"Chrome theme generated at {self._unpacked_dir}; load it in Chrome and confirm activation",
                 True,
+                metadata={
+                    "artifact": self._artifact.name,
+                    "unpacked_dir": self._unpacked_dir.name,
+                },
             )
         except OSError as error:
             return AdapterResult(self.target, "failed", False, False, f"Chrome theme generation failed: {error}")
@@ -109,12 +114,25 @@ class ChromeAdapter:
         except (OSError, KeyError, json.JSONDecodeError, zipfile.BadZipFile) as error:
             return AdapterResult(self.target, "failed", False, False, f"Chrome verify failed: {error}")
 
-    def rollback(self, backup_dir: Path) -> AdapterResult:
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         try:
-            if self._artifact is not None and self._artifact.exists():
-                self._artifact.unlink()
-            if self._unpacked_dir is not None and self._unpacked_dir.exists():
-                shutil.rmtree(self._unpacked_dir)
+            artifact = self._artifact
+            unpacked_dir = self._unpacked_dir
+            if metadata:
+                artifact_name = metadata.get("artifact")
+                unpacked_name = metadata.get("unpacked_dir")
+                if isinstance(artifact_name, str):
+                    validate_safe_component(artifact_name, "Chrome artifact")
+                    artifact = self.output_dir / artifact_name
+                if isinstance(unpacked_name, str):
+                    validate_safe_component(unpacked_name, "Chrome unpacked directory")
+                    unpacked_dir = self.output_dir / unpacked_name
+            if artifact is None and unpacked_dir is None:
+                return AdapterResult(self.target, "failed", False, False, "Chrome artifact metadata not found")
+            if artifact is not None and artifact.exists():
+                artifact.unlink()
+            if unpacked_dir is not None and unpacked_dir.exists():
+                shutil.rmtree(unpacked_dir)
             if self.preferences_path is not None and self._preferences_backup is not None and self._preferences_backup.is_file():
                 shutil.copy2(self._preferences_backup, self.preferences_path)
             return AdapterResult(self.target, "partial", True, True, "Generated Chrome theme removed; restoring a previously activated Chrome theme requires user action", True)

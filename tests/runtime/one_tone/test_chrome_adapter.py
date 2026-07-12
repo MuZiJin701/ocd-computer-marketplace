@@ -4,6 +4,7 @@ import zipfile
 from one_tone.adapters.chrome import ChromeAdapter, build_chrome_theme, build_chrome_theme_directory
 from one_tone.palette import parse_hex_color
 from one_tone.plan import create_plan
+from one_tone.transaction import TransactionStore, apply_plan
 
 
 def test_chrome_theme_zip_has_manifest_and_palette_colors(tmp_path):
@@ -48,3 +49,18 @@ def test_chrome_rollback_removes_zip_and_unpacked_artifacts(tmp_path):
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert not (tmp_path / "output" / "one-tone-plan-chrome-rollback-001").exists()
     assert not (tmp_path / "output" / "one-tone-plan-chrome-rollback-001.zip").exists()
+
+
+def test_chrome_rollback_removes_artifacts_after_new_adapter_instance(tmp_path):
+    plan = create_plan("#7C3AED", ["chrome"], plan_id="plan-chrome-cross-process-001")
+    store = TransactionStore(tmp_path / "transactions")
+    first_adapter = ChromeAdapter(tmp_path / "output")
+    record = apply_plan(plan, {"chrome": first_adapter}, store, confirm=True)
+    assert record.status.value == "PARTIAL"
+
+    second_adapter = ChromeAdapter(tmp_path / "output")
+    result = store.rollback(record.id, {"chrome": second_adapter})
+
+    assert result.status.value == "ROLLED_BACK"
+    assert not (tmp_path / "output" / "one-tone-plan-chrome-cross-process-001").exists()
+    assert not (tmp_path / "output" / "one-tone-plan-chrome-cross-process-001.zip").exists()

@@ -11,6 +11,7 @@ from typing import Any, Mapping
 
 from .adapters import AdapterResult, ThemeAdapter, UnsupportedAdapter
 from .plan import Plan
+from .storage import atomic_write_text, validate_safe_component
 
 SupportLevel = str
 
@@ -32,6 +33,7 @@ class TransactionRecord:
     targets: tuple[str, ...]
     results: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     support_levels: dict[str, str] = field(default_factory=dict)
+    target_metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -42,10 +44,15 @@ class TransactionRecord:
             "targets": list(self.targets),
             "results": self.results,
             "support_levels": self.support_levels,
+            "target_metadata": self.target_metadata,
         }
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> TransactionRecord:
+        validate_safe_component(payload["id"], "transaction_id")
+        validate_safe_component(payload["plan_id"], "plan_id")
+        for target in payload["targets"]:
+            validate_safe_component(target, "target")
         return cls(
             id=payload["id"],
             plan_id=payload["plan_id"],
@@ -54,6 +61,7 @@ class TransactionRecord:
             targets=tuple(payload["targets"]),
             results={key: list(value) for key, value in payload.get("results", {}).items()},
             support_levels=dict(payload.get("support_levels", {})),
+            target_metadata={key: dict(value) for key, value in payload.get("target_metadata", {}).items()},
         )
 
 
@@ -67,9 +75,11 @@ class TransactionStore:
         self.root = root
 
     def path_for(self, transaction_id: str) -> Path:
+        validate_safe_component(transaction_id, "transaction_id")
         return self.root / transaction_id
 
     def backup_path_for(self, transaction_id: str, target: str) -> Path:
+        validate_safe_component(target, "target")
         path = self.path_for(transaction_id) / target / "snapshot"
         path.mkdir(parents=True, exist_ok=True)
         return path
@@ -88,13 +98,16 @@ class TransactionStore:
     def save(self, record: TransactionRecord) -> None:
         path = self.path_for(record.id)
         path.mkdir(parents=True, exist_ok=True)
-        (path / "transaction.json").write_text(
+        atomic_write_text(
+            path / "transaction.json",
             json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
-            encoding="utf-8",
         )
 
     def append_operation(self, record: TransactionRecord, target: str, operation: str, result: AdapterResult) -> None:
         _append_result(record, target, operation, result)
+        if result.metadata:
+            record.target_metadata.setdefault(target, {}).update(result.metadata)
+        self.save(record)
 
     def load(self, transaction_id: str) -> TransactionRecord:
         path = self.path_for(transaction_id) / "transaction.json"
@@ -102,7 +115,10 @@ class TransactionStore:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError as error:
             raise FileNotFoundError(f"Transaction not found: {transaction_id}") from error
-        return TransactionRecord.from_dict(payload)
+        record = TransactionRecord.from_dict(payload)
+        if record.id != transaction_id:
+            raise ValueError(f"Transaction ID mismatch for {transaction_id}")
+        return record
 
     def prune(self, keep: int = 5, preserve: set[str] | None = None) -> list[str]:
         if keep < 1:
@@ -134,14 +150,24 @@ class TransactionStore:
         for target in record.targets:
             operation_results = record.results.get(target, [])
             has_snapshot = any(
-                item.get("operation") == "snapshot" and item.get("status") == "ok"
+                item.get("operation") == "snapshot" and item.get("status") in {"ok", "partial"}
                 for item in operation_results
             )
             if not has_snapshot:
+                self.append_operation(
+                    record,
+                    target,
+                    "rollback",
+                    AdapterResult(target, "failed", False, False, "no restorable snapshot recorded"),
+                )
+                failed = True
                 continue
             adapter = adapters.get(target, UnsupportedAdapter(target))
-            result = adapter.rollback(self.backup_path_for(transaction_id, target))
-            _append_result(record, target, "rollback", result)
+            result = adapter.rollback(
+                self.backup_path_for(transaction_id, target),
+                record.target_metadata.get(target),
+            )
+            self.append_operation(record, target, "rollback", result)
             if result.status not in {"ok", "partial"} or not result.verified:
                 failed = True
         record.status = TransactionStatus.FAILED if failed else TransactionStatus.ROLLED_BACK
@@ -165,49 +191,68 @@ def apply_plan(
         raise ValueError("Apply requires confirm=True")
     record = store.create(plan)
     partial = False
+    successful_targets = 0
+    unsuccessful_targets = False
+    compensation_failed = False
 
     for target in plan.targets:
         adapter = adapters.get(target, UnsupportedAdapter(target))
         target_backup = store.backup_path_for(record.id, target)
         detected = adapter.detect()
-        _append_result(record, target, "detect", detected)
+        store.append_operation(record, target, "detect", detected)
         if detected.status == "skipped":
             partial = True
+            unsuccessful_targets = True
             continue
         if detected.status == "partial":
             partial = True
         if detected.status not in {"ok", "partial"}:
             partial = True
+            unsuccessful_targets = True
             continue
 
         snapshot = adapter.snapshot(target_backup)
-        _append_result(record, target, "snapshot", snapshot)
+        store.append_operation(record, target, "snapshot", snapshot)
         if snapshot.status == "partial":
             partial = True
         if snapshot.status not in {"ok", "partial"}:
             partial = True
+            unsuccessful_targets = True
             continue
 
         applied = adapter.apply(plan)
-        _append_result(record, target, "apply", applied)
+        store.append_operation(record, target, "apply", applied)
         if applied.status == "partial" or applied.requires_user_action:
             partial = True
         if applied.status not in {"ok", "partial"}:
-            restored = adapter.rollback(target_backup)
-            _append_result(record, target, "auto_rollback", restored)
+            restored = adapter.rollback(target_backup, record.target_metadata.get(target))
+            store.append_operation(record, target, "auto_rollback", restored)
             partial = True
+            unsuccessful_targets = True
+            if restored.status not in {"ok", "partial"} or not restored.verified:
+                compensation_failed = True
             continue
 
         verified = adapter.verify(plan)
-        _append_result(record, target, "verify", verified)
+        store.append_operation(record, target, "verify", verified)
         if verified.status == "partial" or verified.requires_user_action:
             partial = True
         if verified.status not in {"ok", "partial"} or not verified.verified:
-            restored = adapter.rollback(target_backup)
-            _append_result(record, target, "auto_rollback", restored)
+            restored = adapter.rollback(target_backup, record.target_metadata.get(target))
+            store.append_operation(record, target, "auto_rollback", restored)
             partial = True
+            unsuccessful_targets = True
+            if restored.status not in {"ok", "partial"} or not restored.verified:
+                compensation_failed = True
+            continue
+        successful_targets += 1
 
-    record.status = TransactionStatus.PARTIAL if partial else TransactionStatus.APPLIED
+    if compensation_failed or successful_targets == 0:
+        record.status = TransactionStatus.FAILED
+    elif unsuccessful_targets or partial:
+        record.status = TransactionStatus.PARTIAL
+    else:
+        record.status = TransactionStatus.APPLIED
     store.save(record)
     return record
 

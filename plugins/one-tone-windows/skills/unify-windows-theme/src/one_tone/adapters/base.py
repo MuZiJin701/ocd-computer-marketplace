@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Mapping, Protocol
 
 from ..plan import Plan
 
@@ -19,6 +19,7 @@ class AdapterResult:
     message: str
     requires_user_action: bool = False
     version: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "partial", "failed", "skipped"}:
@@ -36,7 +37,7 @@ class ThemeAdapter(Protocol):
 
     def verify(self, plan: Plan) -> AdapterResult: ...
 
-    def rollback(self, backup_dir: Path) -> AdapterResult: ...
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult: ...
 
 
 class UnsupportedAdapter:
@@ -58,10 +59,14 @@ class UnsupportedAdapter:
     def verify(self, plan: Plan) -> AdapterResult:
         return self._skipped("verify")
 
-    def rollback(self, backup_dir: Path) -> AdapterResult:
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         return self._skipped("rollback")
 
 
 def write_json(path: Path, payload: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    from ..storage import atomic_write_text
+
+    atomic_write_text(
+        path,
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+    )

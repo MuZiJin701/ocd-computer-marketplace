@@ -80,12 +80,43 @@ def test_verify_cli_rejects_confirmation_flag(capsys):
     assert "unrecognized arguments" in capsys.readouterr().err
 
 
+def test_vscode_family_adapter_resolves_path_cli_fallback(monkeypatch, tmp_path):
+    from one_tone.adapters.vscode_family import EditorSpec, VSCodeFamilyAdapter
+
+    settings_path = tmp_path / 'settings.json'
+    settings_path.write_text('{}', encoding='utf-8')
+    extensions_dir = tmp_path / 'extensions'
+    spec = EditorSpec('vscode', Path('code'), settings_path, extensions_dir)
+
+    monkeypatch.setattr(
+        'one_tone.adapters.vscode_family.shutil.which',
+        lambda command: r'C:\bin\code.cmd' if command == 'code' else None,
+    )
+
+    assert VSCodeFamilyAdapter(spec).detect().status == 'ok'
+
+
 def test_cursor_adapter_uses_user_extension_directory_for_cli_installs(tmp_path, monkeypatch):
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
 
     adapter = build_target_adapters(("cursor",), tmp_path / "state")["cursor"]
 
     assert adapter.spec.extensions_dir == Path(tmp_path) / ".cursor" / "extensions"
+
+
+def test_vscode_adapter_accepts_environment_path_overrides(tmp_path, monkeypatch):
+    executable = tmp_path / "bin" / "code.cmd"
+    settings = tmp_path / "portable" / "settings.json"
+    extensions = tmp_path / "portable" / "extensions"
+    monkeypatch.setenv("ONE_TONE_VSCODE_EXECUTABLE", str(executable))
+    monkeypatch.setenv("ONE_TONE_VSCODE_SETTINGS", str(settings))
+    monkeypatch.setenv("ONE_TONE_VSCODE_EXTENSIONS", str(extensions))
+
+    adapter = build_target_adapters(("vscode",), tmp_path / "state")["vscode"]
+
+    assert adapter.spec.executable == executable
+    assert adapter.spec.settings_path == settings
+    assert adapter.spec.extensions_dir == extensions
 
 
 def test_cli_defaults_runtime_data_to_single_project_directory():

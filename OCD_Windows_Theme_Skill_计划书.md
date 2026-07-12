@@ -21,12 +21,14 @@
 - `uv run pytest` 通过。
 - Preview 不修改目标。
 - Apply 使用已有 Plan Hash，并按目标独立 Snapshot、Apply、内部检查和补偿回滚。
+- Apply 每个操作后持久化事务记录；补偿失败为 `failed`，没有成功目标时不返回成功。
 - `verify <plan_id>` 只检查当前配置。
-- `rollback <transaction_id>` 只恢复自身快照并验证结果。
+- `rollback <transaction_id>` 只恢复自身快照/产物元数据并验证结果，支持跨进程执行。
+- Plan、Transaction 和 target 标识不能穿越运行时目录；配置写入使用原子替换。
 - 目标限制明确报告为 `ok`、`partial` 或 `skipped`。
 
 ## 下一步
 
-完成 Skill 自包含迁移、事务保留策略、文档归档和真实 Windows 10/11 目标验证。
+下一阶段聚焦真实 Windows 10/11 目标验证，并记录 VS Code/Cursor/TRAE、Windows Terminal、Codex 和 Chrome 的实际兼容性结果。编辑器路径可通过 `ONE_TONE_<TARGET>_*` 环境变量覆盖。
 
 历史方案和实施记录保存在 `docs/archive/`。

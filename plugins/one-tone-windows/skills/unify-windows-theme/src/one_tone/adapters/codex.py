@@ -6,9 +6,10 @@ import re
 import shutil
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from ..plan import Plan
+from ..storage import atomic_write_text
 from .base import AdapterResult
 
 CODEX_CONFIG_SCHEMA_V1 = "codex-config-v1"
@@ -189,8 +190,7 @@ class CodexAdapter:
         original, _ = document
         updated = _replace_verified_values(original, plan.palette)
         try:
-            with self.config_path.open("w", encoding="utf-8", newline="") as handle:
-                handle.write(updated)
+            atomic_write_text(self.config_path, updated, newline="")
             return AdapterResult(self.target, "ok", updated != original, False, "Codex config.toml theme written", version=CODEX_CONFIG_SCHEMA_V1)
         except OSError as error:
             return AdapterResult(self.target, "failed", False, False, f"Codex apply failed: {error}", version=CODEX_CONFIG_SCHEMA_V1)
@@ -209,7 +209,7 @@ class CodexAdapter:
             version=CODEX_CONFIG_SCHEMA_V1,
         )
 
-    def rollback(self, backup_dir: Path) -> AdapterResult:
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         if self.config_path is None:
             return _skip_result(f"Codex config.toml does not match {CODEX_CONFIG_SCHEMA_V1}")
         backup = backup_dir / "codex-config.toml"

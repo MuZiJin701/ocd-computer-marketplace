@@ -22,8 +22,13 @@ Marketplace
 
 - `palette.py`: Seed Color and contrast-safe Palette.
 - `plan.py`: immutable Plan, serialization and Hash validation.
-- `transaction.py`: per-target Apply compensation, Verify and snapshot retention.
+- `storage.py`: safe path-component validation and atomic text/JSON persistence.
+- `transaction.py`: per-target Apply journaling, compensation, Verify, rollback metadata and snapshot retention.
 - `adapters/`: target-specific Detect, Snapshot, Apply, Verify and Rollback.
 - `cli.py`: Preview, Apply, Verify and Rollback command wiring.
 
 The runtime has no database, background service or plugin runtime framework.
+
+Transaction records are persisted after each target operation. Adapter results may carry JSON-safe target metadata; Chrome uses this to remove generated artifacts in a later Rollback process. VS Code-family Verify discovers the installed extension from the persisted extension directory rather than relying on adapter instance state.
+
+`APPLIED` means every selected target completed successfully. `PARTIAL` means at least one target completed while another target was skipped, failed, or requires user action. `FAILED` means no target completed or compensation failed.

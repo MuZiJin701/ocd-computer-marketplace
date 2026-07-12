@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Mapping, Any
 
 from ..plan import Plan
 from .base import AdapterResult, ThemeAdapter, write_json
@@ -56,7 +57,7 @@ class FileAdapter:
             "configuration verified" if verified else "configuration does not match Plan",
         )
 
-    def rollback(self, backup_dir: Path) -> AdapterResult:
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         backup_path = backup_dir / self.backup_name
         if not backup_path.is_file():
             return AdapterResult(self.target, "failed", False, False, "backup not found")

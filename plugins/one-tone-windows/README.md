@@ -34,3 +34,7 @@ uv run --project . one-tone --help
 ```
 
 Codex Plugin 元数据位于 `.codex-plugin/plugin.json`；Python runtime 不依赖该元数据。
+
+默认路径会根据 Windows 用户目录和 PATH 探测；不同安装方式可使用 `ONE_TONE_VSCODE_*`、`ONE_TONE_CURSOR_*`、`ONE_TONE_TRAE_*`、`ONE_TONE_TERMINAL_SETTINGS` 或 `ONE_TONE_CHROME_PREFERENCES` 环境变量覆盖。
+
+事务记录会在每个操作后持久化。VS Code 系列 Verify 和 Chrome 主题产物 Rollback 支持 Apply、Verify/Rollback 分属不同进程的场景。

@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from ..plan import Plan
+from ..storage import atomic_write_text
 from .base import AdapterResult
 
 _SCHEME_NAME = "One Tone"
@@ -143,7 +144,10 @@ class TerminalAdapter:
             themes.append(_theme_colors(plan))
             settings["themes"] = themes
             settings["theme"] = _THEME_NAME
-            self.settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            atomic_write_text(
+                self.settings_path,
+                json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
+            )
             return AdapterResult(self.target, "ok", True, False, f"Terminal Profile updated; {self._resolution_message}")
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Terminal apply failed: {error}")
@@ -174,7 +178,7 @@ class TerminalAdapter:
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Terminal verify failed: {error}")
 
-    def rollback(self, backup_dir: Path) -> AdapterResult:
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         backup = backup_dir / "terminal-settings.json"
         if not backup.is_file():
             return AdapterResult(self.target, "failed", False, False, "Terminal backup not found")

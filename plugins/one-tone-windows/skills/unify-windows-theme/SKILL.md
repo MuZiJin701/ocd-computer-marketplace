@@ -13,9 +13,9 @@ description: >-
 1. 确认 Seed Color 和目标列表。
 2. 运行 Preview，展示 Plan ID 和检测结果。
 3. 用户明确确认后，使用该 Plan ID 执行 Apply。
-4. Apply 对每个目标独立 Snapshot、Apply 和内部检查；失败目标自动回滚，其他成功目标保留。
-5. 用户需要重启应用时手动重启，然后运行 `verify <plan_id>`。
-6. 用户要求撤销时，要求准确的 transaction ID，再运行 Rollback。
+4. Apply 对每个目标独立 Snapshot、Apply 和内部检查，并在每个操作后持久化事务记录；失败目标自动回滚，其他成功目标保留。补偿失败报告为 `failed`；无成功目标时整体为 `failed`，混合成功/失败或需要用户操作时为 `partial`。
+5. 用户需要重启应用时手动重启，然后运行 `verify <plan_id>`。VS Code、Cursor、TRAE Verify 会重新扫描持久化扩展目录，不依赖 Apply 进程内状态。
+6. 用户要求撤销时，要求准确的 transaction ID，再运行 Rollback；Chrome 生成的 ZIP/unpacked 产物通过事务元数据跨进程清理。
 
 Windows 会同时设置 Start/Taskbar 和标题栏/窗口边框的强调色开关。Windows Terminal 会更新 Profile、Color Scheme 和窗口顶部 `theme`。VS Code、Cursor、TRAE 只保证标准 Workbench 主题字段；专属 AI 面板仍可能返回 `partial`。
 
@@ -31,3 +31,5 @@ python .\scripts\run_one_tone.py rollback tx-...
 ```
 
 `verify` 只读取当前目标并与 Plan 对比，不创建事务、不 Snapshot、不 Apply、不 Restart、不 Rollback。
+
+Plan ID、Transaction ID 和 target 必须是安全路径组件。编辑器和 Terminal 的实际路径会优先使用用户目录与 PATH 探测，也可通过 `ONE_TONE_<TARGET>_...` 环境变量覆盖。fixture 测试不代表真实 Windows 桌面目标已验证。

@@ -25,12 +25,13 @@ uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone ro
 ```
 
 - `preview` 生成带 Hash 的 Plan，不修改目标。
-- `apply` 只接受已有 `plan_id`。每个目标独立 Snapshot、Apply、内部检查；失败目标自动回滚，成功目标保留。
+- `apply` 只接受已有 `plan_id`。每个目标独立 Snapshot、Apply、内部检查；每个操作都会写入事务记录，失败目标自动回滚，成功目标保留。
+- 自动回滚失败会报告 `failed`；至少一个目标成功且其他目标失败或 skipped 才报告 `partial`，没有成功目标时报告 `failed`。
 - `windows` 同时设置 Start/Taskbar 和标题栏/窗口边框强调色开关；`terminal` 覆盖 Profile、Tab 和窗口顶部区域。
 - `vscode`、`cursor`、`trae` 覆盖标准工作台主题字段，但专属 AI 界面可能返回 `partial`。
-- `verify <plan_id>` 只读取当前配置并与 Plan 对比，不创建事务、不重启应用。
+- `verify <plan_id>` 只读取当前配置并与 Plan 对比，不创建事务、不重启应用；VS Code、Cursor、TRAE 会从持久化扩展目录重新发现主题。
 - 用户手动重启应用后，再次执行同一个 `verify <plan_id>`。
-- `rollback <transaction_id>` 恢复该事务快照并验证恢复结果。
+- `rollback <transaction_id>` 只恢复该事务快照和产物元数据并验证恢复结果；Chrome 生成的主题包可跨进程清理。
 - `chrome` 生成 ZIP 和可加载目录；Chrome 主题仍需用户在 `chrome://extensions` 手动加载。
 - 目标结果使用 `ok`、`partial`、`failed` 或 `skipped`。
 
@@ -49,6 +50,8 @@ tests/
 ```
 
 Skill 包自带 Python runtime，可独立使用；Codex Plugin 元数据只是可选兼容层。根项目只提供测试入口。运行期 Plan、主题产物和事务快照保存在当前工作目录的 `.one-tone/`，默认保留最近 5 个已完成事务。
+
+VS Code、Cursor、TRAE 的可执行文件、设置文件和扩展目录可通过 `ONE_TONE_<TARGET>_EXECUTABLE`、`ONE_TONE_<TARGET>_SETTINGS` 和 `ONE_TONE_<TARGET>_EXTENSIONS` 覆盖；Terminal 使用 `ONE_TONE_TERMINAL_SETTINGS`，Chrome 使用 `ONE_TONE_CHROME_PREFERENCES`。
 
 ## 测试
 

@@ -6,9 +6,10 @@ import subprocess
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from ..plan import Plan
+from ..storage import atomic_write_text
 from .base import AdapterResult
 
 
@@ -131,7 +132,11 @@ class VSCodeFamilyAdapter:
 
     def _executable_available(self) -> bool:
         if isinstance(self.spec.executable, Path):
-            return self.spec.executable.exists()
+            if self.spec.executable.exists():
+                return True
+            # CLI fallbacks such as ``Path("code")`` should still resolve
+            # through PATH when the executable is not a file in cwd.
+            return shutil.which(str(self.spec.executable)) is not None
         return shutil.which(str(self.spec.executable)) is not None
 
     def _read_settings(self) -> dict[str, Any]:
@@ -248,7 +253,7 @@ class VSCodeFamilyAdapter:
             or entry.get("relativeLocation") not in removable_names
         ]
         if filtered != entries:
-            index.write_text(json.dumps(filtered, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            atomic_write_text(index, json.dumps(filtered, ensure_ascii=False, separators=(",", ":")))
 
     def _cli_requires_restart(self, completed: Any) -> bool:
         output = b"\n".join(
@@ -317,7 +322,7 @@ class VSCodeFamilyAdapter:
             ]
             if not any(entry.get("identifier", {}).get("id") == extension_id for entry in entries):
                 entries.append(replacement)
-            index.write_text(json.dumps(entries, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            atomic_write_text(index, json.dumps(entries, ensure_ascii=False, separators=(",", ":")))
             return True
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, zipfile.BadZipFile):
             return False
@@ -353,10 +358,13 @@ class VSCodeFamilyAdapter:
             settings["workbench.colorTheme"] = self._theme_name
             settings["workbench.preferredDarkColorTheme"] = self._theme_name
             settings["workbench.preferredLightColorTheme"] = self._theme_name
-            self.spec.settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            atomic_write_text(
+                self.spec.settings_path,
+                json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
+            )
             command = [str(self.spec.executable), "--install-extension", str(vsix_path), "--force"]
             if self.command_runner is None:
-                completed = subprocess.run(command, check=False, capture_output=True)
+                completed = subprocess.run(command, check=False, capture_output=True, timeout=30)
             else:
                 completed = self.command_runner(command, check=False, capture_output=True)
             if completed is not None and getattr(completed, "returncode", 0) not in (0, None):
@@ -367,18 +375,24 @@ class VSCodeFamilyAdapter:
                 return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install produced no registered extension")
             self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
             return AdapterResult(self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected")
-        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile) as error:
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile, subprocess.TimeoutExpired) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} apply failed: {error}")
 
     def verify(self, plan: Plan) -> AdapterResult:
         try:
             settings = self._read_settings()
-            extension_dir = self._extension_dir or self.spec.extensions_dir / f"one-tone-{self.target}"
+            candidates = [
+                path for path in self._installed_extension_dirs()
+                if self._theme_file(path) is not None
+            ]
+            extension_dir = self._extension_dir if self._extension_dir and self._theme_file(self._extension_dir) else (
+                max(candidates, key=lambda path: path.stat().st_mtime) if candidates else None
+            )
             verified = (
                 settings.get("workbench.colorTheme") == self._theme_name
                 and settings.get("workbench.preferredDarkColorTheme") == self._theme_name
                 and settings.get("workbench.preferredLightColorTheme") == self._theme_name
-                and self._theme_file(extension_dir) is not None
+                and extension_dir is not None
             )
             if not verified:
                 return AdapterResult(self.target, "failed", False, False, f"{self.target} theme verification failed")
@@ -388,7 +402,7 @@ class VSCodeFamilyAdapter:
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} verify failed: {error}")
 
-    def rollback(self, backup_dir: Path) -> AdapterResult:
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         backup = backup_dir / f"{self.target}-settings.json"
         if not backup.is_file():
             return AdapterResult(self.target, "failed", False, False, f"{self.target} settings backup not found")

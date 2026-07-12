@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 from one_tone.adapters import AdapterResult, FileAdapter, UnsupportedAdapter
 from one_tone.plan import create_plan
 from one_tone.transaction import TransactionRecord, TransactionStatus, TransactionStore, apply_plan
@@ -109,3 +113,81 @@ def test_transaction_store_rejects_zero_retention(tmp_path):
         pass
     else:
         raise AssertionError("prune(keep=0) must raise ValueError")
+
+
+def test_apply_persists_operation_results_incrementally(tmp_path):
+    config = tmp_path / "theme.json"
+    config.write_text('{"theme": "original"}', encoding="utf-8")
+    plan = create_plan("#7C3AED", ["file-demo"], plan_id="plan-journal-001")
+
+    class RecordingStore(TransactionStore):
+        def __init__(self, root):
+            super().__init__(root)
+            self.save_count = 0
+
+        def save(self, record):
+            self.save_count += 1
+            super().save(record)
+
+    store = RecordingStore(tmp_path / "transactions")
+    record = apply_plan(plan, {"file-demo": FileAdapter("file-demo", config)}, store, confirm=True)
+
+    assert record.status == TransactionStatus.APPLIED
+    assert store.save_count >= 6
+
+
+def test_apply_marks_failed_when_compensation_fails(tmp_path):
+    config = tmp_path / "theme.json"
+    config.write_text('{"theme": "original"}', encoding="utf-8")
+    plan = create_plan("#7C3AED", ["file-demo"], plan_id="plan-compensation-failed-001")
+
+    class FailingVerifyAndRollbackAdapter(FileAdapter):
+        def verify(self, plan):
+            return AdapterResult(self.target, "failed", True, False, "forced verify failure")
+
+        def rollback(self, backup_dir, metadata=None):
+            return AdapterResult(self.target, "failed", True, False, "forced rollback failure")
+
+    store = TransactionStore(tmp_path / "transactions")
+    record = apply_plan(
+        plan,
+        {"file-demo": FailingVerifyAndRollbackAdapter("file-demo", config)},
+        store,
+        confirm=True,
+    )
+
+    assert record.status == TransactionStatus.FAILED
+
+
+def test_all_skipped_apply_and_rollback_are_not_reported_as_success(tmp_path):
+    plan = create_plan("#7C3AED", ["unknown"], plan_id="plan-all-skipped-001")
+    store = TransactionStore(tmp_path / "transactions")
+    adapter = UnsupportedAdapter("unknown")
+
+    record = apply_plan(plan, {"unknown": adapter}, store, confirm=True)
+    rolled_back = store.rollback(record.id, {"unknown": adapter})
+
+    assert record.status == TransactionStatus.FAILED
+    assert rolled_back.status == TransactionStatus.FAILED
+
+
+def test_transaction_store_rejects_path_like_ids_and_targets(tmp_path):
+    store = TransactionStore(tmp_path / "transactions")
+
+    with pytest.raises(ValueError, match="safe"):
+        store.path_for("../escaped")
+    with pytest.raises(ValueError, match="safe"):
+        store.backup_path_for("tx-safe-001", "../../escaped")
+
+
+def test_transaction_store_rejects_filename_and_payload_id_mismatch(tmp_path):
+    plan = create_plan("#7C3AED", ["file-demo"], plan_id="plan-transaction-id-001")
+    store = TransactionStore(tmp_path / "transactions")
+    record = store.create(plan)
+    path = store.path_for(record.id) / "transaction.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["id"] = "tx-payload-id-002"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ID mismatch"):
+        store.load(record.id)

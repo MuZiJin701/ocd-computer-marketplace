@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -112,6 +113,11 @@ def _emit(payload: dict[str, object], output: str, *, error: bool = False) -> No
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True), file=sys.stderr if error else sys.stdout)
 
 
+def _optional_path(name: str) -> Path | None:
+    value = os.environ.get(name)
+    return Path(value) if value else None
+
+
 def _first_path(candidates: list[Path]) -> Path:
     for candidate in candidates:
         if candidate.exists():
@@ -119,37 +125,54 @@ def _first_path(candidates: list[Path]) -> Path:
     return candidates[0]
 
 
+def _configured_or_first(name: str, candidates: list[Path]) -> Path:
+    return _optional_path(name) or _first_path(candidates)
+
+
+def _first_executable(name: str, command: str, candidates: list[Path]) -> Path:
+    configured = _optional_path(name)
+    if configured is not None:
+        return configured
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    resolved = shutil.which(command)
+    return Path(resolved) if resolved else Path(command)
+
+
 def build_target_adapters(targets, state_dir: Path):
     appdata = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
     localappdata = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
     userprofile = Path(os.environ.get("USERPROFILE", Path.home()))
-    terminal_settings = _first_path([
-        Path(r"D:\software\scoop\apps\windows-terminal\current\settings\settings.json"),
+    terminal_settings = _configured_or_first("ONE_TONE_TERMINAL_SETTINGS", [
         localappdata / "Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
     ])
     vscode_spec = EditorSpec(
         "vscode",
-        _first_path([Path(r"D:\software\scoop\apps\vscode\current\bin\code.cmd"), Path("code")]),
-        _first_path([Path(r"D:\software\scoop\apps\vscode\current\data\user-data\User\settings.json"), appdata / "Code/User/settings.json"]),
-        _first_path([Path(r"D:\software\scoop\apps\vscode\current\data\extensions"), userprofile / ".vscode/extensions"]),
+        _first_executable("ONE_TONE_VSCODE_EXECUTABLE", "code", []),
+        _configured_or_first("ONE_TONE_VSCODE_SETTINGS", [appdata / "Code/User/settings.json"]),
+        _configured_or_first("ONE_TONE_VSCODE_EXTENSIONS", [userprofile / ".vscode/extensions"]),
         artifacts_dir=state_dir / "vscode-artifacts",
     )
     cursor_spec = EditorSpec(
         "cursor",
-        _first_path([Path(r"D:\software\scoop\apps\cursor\current\resources\app\bin\cursor.cmd"), Path("cursor")]),
-        _first_path([Path(r"D:\software\scoop\apps\cursor\current\data\user-data\User\settings.json"), appdata / "Cursor/User/settings.json"]),
-        userprofile / ".cursor/extensions",
+        _first_executable("ONE_TONE_CURSOR_EXECUTABLE", "cursor", []),
+        _configured_or_first("ONE_TONE_CURSOR_SETTINGS", [appdata / "Cursor/User/settings.json"]),
+        _configured_or_first("ONE_TONE_CURSOR_EXTENSIONS", [userprofile / ".cursor/extensions"]),
         artifacts_dir=state_dir / "cursor-artifacts",
     )
     trae_spec = EditorSpec(
         "trae",
-        _first_path([Path(r"D:\software\scoop\apps\trae\current\IDE\bin\trae.cmd"), Path("trae")]),
-        _first_path([appdata / "TRAE/User/settings.json", appdata / "Trae/User/settings.json"]),
-        userprofile / ".trae/extensions",
+        _first_executable("ONE_TONE_TRAE_EXECUTABLE", "trae", []),
+        _configured_or_first("ONE_TONE_TRAE_SETTINGS", [appdata / "TRAE/User/settings.json", appdata / "Trae/User/settings.json"]),
+        _configured_or_first("ONE_TONE_TRAE_EXTENSIONS", [userprofile / ".trae/extensions"]),
         artifacts_dir=state_dir / "trae-artifacts",
     )
     codex_path = os.environ.get("ONE_TONE_CODEX_THEME_CONFIG")
-    chrome_preferences = localappdata / "Google/Chrome/User Data/Default/Preferences"
+    chrome_preferences = _configured_or_first(
+        "ONE_TONE_CHROME_PREFERENCES",
+        [localappdata / "Google/Chrome/User Data/Default/Preferences"],
+    )
     registry = {}
     for target in targets:
         if target == "file-demo":
