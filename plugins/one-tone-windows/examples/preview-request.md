@@ -1,11 +1,11 @@
-# Preview example
+# Preview 示例
 
-User request:
+用户请求：
 
-> Preview a dark theme from `#7C3AED` for Windows, Windows Terminal, and VS Code. Do not apply it yet.
+> 使用 `#7C3AED` 为 Windows、Windows Terminal 和 VS Code 预览深色主题，暂时不要 Apply。
 
-Expected Skill behavior:
+Skill 的预期行为：
 
-1. Run `preview` with `windows,terminal,vscode`.
-2. Show the saved Plan ID, detected versions, contrast result, and any `PARTIAL`/`SKIPPED` warnings.
-3. Ask for explicit confirmation before any Apply or Verify command.
+1. 使用 `windows,terminal,vscode` 运行 `preview`。
+2. 展示保存的 Plan ID、检测到的版本、对比度结果，以及所有 `PARTIAL`/`SKIPPED` 警告。
+3. 在执行任何 Apply 或 Verify 命令前，要求用户明确确认。

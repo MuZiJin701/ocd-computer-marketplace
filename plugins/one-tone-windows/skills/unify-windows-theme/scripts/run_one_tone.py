@@ -9,9 +9,9 @@ def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if "--output" not in args:
         args.extend(["--output", "json"])
-    plugin_root = Path(__file__).resolve().parents[3]
+    skill_root = Path(__file__).resolve().parents[1]
     return subprocess.run(
-        ["uv", "run", "--project", str(plugin_root), "one-tone", *args],
+        ["uv", "run", "--project", str(skill_root), "one-tone", *args],
         check=False,
     ).returncode
 

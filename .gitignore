@@ -1,12 +1,8 @@
-.worktrees/
-__pycache__/
 .venv/
+__pycache__/
 .pytest_cache/
-.pytest-tmp/
-*.py[cod]
-*.egg-info/
+.one-tone/
+plugins/one-tone-windows/plans/
 dist/
 build/
-/plans/
-/transactions/
-
+*.egg-info/

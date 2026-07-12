@@ -1,45 +1,29 @@
 ---
 name: unify-windows-theme
 description: >-
-  Use when a user wants one seed color applied consistently to supported Windows
-  targets, or wants to preview, verify, or roll back a theme. The workflow is
-  safety-gated: Preview creates a hashed Plan without changing files, Apply
-  accepts only that Plan after explicit confirmation, Verify runs the eight-step
-  validation cycle, and Rollback restores one transaction's own backup.
+  当用户希望使用一个主色统一受支持的 Windows 目标，或希望预览、验证、回滚主题时使用。
 ---
 
-# Unify Windows Theme
+# 统一 Windows 主题
 
-Use the repository's Python core through `uv`; do not invent adapter behavior or write directly to target configuration files. The supported targets are `windows`, `terminal`, `vscode`, `cursor`, `trae`, `codex`, and `chrome`. Unknown targets must be rejected or reported as skipped.
+支持目标和限制见 [references/targets.md](references/targets.md)。未知目标必须报告为 `skipped`，不得猜测兼容性。
 
-## Workflow
+## 安全流程
 
-1. Confirm the seed color, selected targets, and whether the user wants a preview or a real change. A real Apply changes only explicitly selected targets and may create a generated wallpaper or Chrome theme ZIP.
-2. Run Preview first. It generates a Palette and a hash-checked Plan under `plans/`; it must not modify system or application configuration.
-3. Show the Plan ID, target detection results, warnings, and support limitations. Do not proceed to Apply without explicit user confirmation.
-4. Apply by Plan ID only, with `--confirm`. The core creates a new transaction and snapshots each target before applying it. Never regenerate a Palette during Apply.
-5. Verify with `--confirm`; use `--restart-apps` only after the user confirms that unsaved editor/terminal work is safe to close. Verify performs Detect → Snapshot → Apply → Verify → Restart → Verify Again → Rollback → Verify Restore.
-6. Report `FULL`, `PARTIAL`, or `SKIPPED` per target. Chrome normally remains `PARTIAL` because loading the generated theme is a user action; Codex `codex-config-v1` requires a manual restart and is normally `PARTIAL`, while unknown Codex schemas remain `SKIPPED`.
-7. If a user asks to undo a real Apply, require the exact transaction ID and run Rollback. Restore only that transaction's backup and report the restore verification.
+1. 确认 Seed Color 和目标列表。
+2. 运行 Preview，展示 Plan ID 和检测结果。
+3. 用户明确确认后，使用该 Plan ID 执行 Apply。
+4. Apply 对每个目标独立 Snapshot、Apply 和内部检查；失败目标自动回滚，其他成功目标保留。
+5. 用户需要重启应用时手动重启，然后运行 `verify <plan_id>`。
+6. 用户要求撤销时，要求准确的 transaction ID，再运行 Rollback。
 
-## Commands
-
-The Python launcher in `scripts/` resolves the installed Plugin runtime and emits JSON for automation:
+## 命令
 
 ```powershell
-python .\scripts\run_one_tone.py preview '#7C3AED' --targets windows,terminal,vscode,cursor,trae,codex,chrome
+python .\scripts\run_one_tone.py preview '#7C3AED' --targets windows,terminal
 python .\scripts\run_one_tone.py apply plan-... --confirm
-python .\scripts\run_one_tone.py verify plan-... --confirm
+python .\scripts\run_one_tone.py verify plan-...
 python .\scripts\run_one_tone.py rollback tx-...
 ```
 
-For direct use from the installed Plugin root:
-
-```powershell
-uv run --project . one-tone preview '#7C3AED' --targets windows,terminal --output json
-uv run --project . one-tone apply plan-... --confirm --output json
-uv run --project . one-tone verify plan-... --confirm --output json
-uv run --project . one-tone rollback tx-... --output json
-```
-
-Read [workflow.md](references/workflow.md) for the state and safety contract, and [target-matrix.md](references/target-matrix.md) before promising support for a target. The core's automated tests are fixture-based and do not prove a real machine's `FULL` status.
+`verify` 只读取当前目标并与 Plan 对比，不创建事务、不 Snapshot、不 Apply、不 Restart、不 Rollback。

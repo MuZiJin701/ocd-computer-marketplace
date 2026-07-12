@@ -1,13 +1,28 @@
-# One Tone Windows plugin
+# one-tone-windows
 
-This Codex plugin exposes the `unify-windows-theme` Skill and contains a self-contained Python runtime. It does not install a global Skill, modify `$CODEX_HOME`, or publish to a marketplace by itself.
+这是 One-Tone 的第一个 Plugin 包，包含一个自包含、可独立安装的 Skill：`unify-windows-theme`。
 
-The Skill uses the safe flow `Preview → Plan → Apply → Verify → Rollback` and emits machine-readable JSON through `skills/unify-windows-theme/scripts/run_one_tone.py`. Run from a checkout with `uv` available:
+## Skill 包
 
-```powershell
-python .\skills\unify-windows-theme\scripts\run_one_tone.py preview '#7C3AED' --targets windows,terminal,vscode
+```text
+skills/unify-windows-theme/
+├─ SKILL.md
+├─ pyproject.toml
+├─ src/one_tone/
+├─ scripts/run_one_tone.py
+└─ references/targets.md
 ```
 
-See `skills/unify-windows-theme/references/` for the safety contract and target matrix. Validate the package from the repository root with the official plugin and Skill validators.
+从仓库根目录安装本地 Skill：
 
-Codex uses `%USERPROFILE%\\.codex\\config.toml`. The adapter recognizes schema `codex-config-v1`, updates both Light and Dark ChromeTheme colors, preserves unrelated TOML content, and requires a manual Codex restart after Apply. Unknown configuration shapes remain `SKIPPED`.
+```powershell
+npx skills add .\plugins\one-tone-windows\skills\unify-windows-theme --agent codex
+```
+
+直接运行 Skill runtime：
+
+```powershell
+uv run --project . one-tone --help
+```
+
+Codex Plugin 元数据位于 `.codex-plugin/plugin.json`；Python runtime 不依赖该元数据。
