@@ -28,7 +28,8 @@ THEME_VALUES = (
     "AutoColorization",
     "AppsUseLightTheme",
     "SystemUsesLightTheme",
-    "ColorPrevalence",
+    "StartTaskbarColorPrevalence",
+    "TitleBarColorPrevalence",
     "AccentColorMenu",
     "StartColorMenu",
     "AccentPalette",
@@ -41,13 +42,18 @@ REGISTRY_PATHS = {
     "AutoColorization": DESKTOP_KEY,
     "AppsUseLightTheme": PERSONALIZE_KEY,
     "SystemUsesLightTheme": PERSONALIZE_KEY,
-    "ColorPrevalence": PERSONALIZE_KEY,
+    "StartTaskbarColorPrevalence": PERSONALIZE_KEY,
+    "TitleBarColorPrevalence": DWM_KEY,
     "AccentColorMenu": EXPLORER_ACCENT_KEY,
     "StartColorMenu": EXPLORER_ACCENT_KEY,
     "AccentPalette": EXPLORER_ACCENT_KEY,
     "AccentColor": DWM_KEY,
     "ColorizationColor": DWM_KEY,
     "ColorizationAfterglow": DWM_KEY,
+}
+REGISTRY_VALUE_NAMES = {
+    "StartTaskbarColorPrevalence": "ColorPrevalence",
+    "TitleBarColorPrevalence": "ColorPrevalence",
 }
 
 
@@ -111,6 +117,10 @@ class InMemoryDesktopBackend:
 
 
 class WindowsRegistryBackend:
+    @staticmethod
+    def _registry_value_name(name: str) -> str:
+        return REGISTRY_VALUE_NAMES.get(name, name)
+
     def _key_for(self, name: str):
         if winreg is None:
             raise OSError("Windows registry is only available on Windows")
@@ -119,9 +129,10 @@ class WindowsRegistryBackend:
 
     def get_value(self, name: str, default: Any = None) -> Any:
         root, path = self._key_for(name)
+        registry_name = self._registry_value_name(name)
         try:
             with winreg.OpenKey(root, path) as key:
-                return winreg.QueryValueEx(key, name)[0]
+                return winreg.QueryValueEx(key, registry_name)[0]
         except FileNotFoundError:
             return default
 
@@ -129,9 +140,10 @@ class WindowsRegistryBackend:
         if winreg is None:
             raise OSError("Windows registry is only available on Windows")
         root, path = self._key_for(name)
+        registry_name = self._registry_value_name(name)
         with winreg.CreateKey(root, path) as key:
             value_type = winreg.REG_BINARY if isinstance(value, (bytes, bytearray)) else winreg.REG_DWORD
-            winreg.SetValueEx(key, name, 0, value_type, value if isinstance(value, (bytes, bytearray)) else int(value))
+            winreg.SetValueEx(key, registry_name, 0, value_type, value if isinstance(value, (bytes, bytearray)) else int(value))
 
     def snapshot_values(self, names: tuple[str, ...]) -> dict[str, Any]:
         return {name: self.get_value(name) for name in names}
@@ -147,9 +159,10 @@ class WindowsRegistryBackend:
         if winreg is None:
             raise OSError("Windows registry is only available on Windows")
         root, path = self._key_for(name)
+        registry_name = self._registry_value_name(name)
         try:
             with winreg.OpenKey(root, path, 0, winreg.KEY_SET_VALUE) as key:
-                winreg.DeleteValue(key, name)
+                winreg.DeleteValue(key, registry_name)
         except FileNotFoundError:
             return
 
@@ -275,7 +288,8 @@ def _theme_registry_values(plan: Plan) -> dict[str, int | bytes]:
         "AutoColorization": 0,
         "AppsUseLightTheme": 0,
         "SystemUsesLightTheme": 0,
-        "ColorPrevalence": 1,
+        "StartTaskbarColorPrevalence": 1,
+        "TitleBarColorPrevalence": 1,
         "AccentColorMenu": surface,
         "StartColorMenu": surface,
         "AccentPalette": generate_accent_palette(plan.palette["surface"]),

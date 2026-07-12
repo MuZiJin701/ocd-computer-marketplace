@@ -26,6 +26,11 @@ def test_editor_theme_uses_surface_for_primary_backgrounds():
     assert colors["sideBar.background"] == plan.palette["surface"]
     assert colors["activityBar.background"] == plan.palette["surface"]
     assert colors["statusBar.background"] == plan.palette["surface"]
+    assert colors["titleBar.activeBackground"] == plan.palette["surface"]
+    assert colors["sideBarSectionHeader.background"] == plan.palette["background"]
+    assert colors["activityBarTop.activeBorder"] == plan.palette["accent"]
+    assert colors["tab.activeBackground"] == plan.palette["surface"]
+    assert colors["panel.background"] == plan.palette["background"]
 
 
 def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
@@ -111,6 +116,36 @@ def test_editor_apply_recovers_from_cli_restart_required_state(tmp_path):
     installed = extensions / "one-tone.one-tone-trae-0.1.0"
     assert (installed / "package.json").is_file()
     assert (installed / "themes" / "one-tone-color-theme.json").is_file()
+    assert adapter.verify(plan).verified is True
+
+
+def test_cursor_apply_recovers_from_cursor_restart_required_state(tmp_path):
+    settings = tmp_path / "settings.json"
+    extensions = tmp_path / "extensions"
+    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
+    extensions.mkdir()
+    index = extensions / "extensions.json"
+    index.write_text(json.dumps([{
+        "identifier": {"id": "one-tone.one-tone-cursor"},
+        "version": "0.1.0",
+        "relativeLocation": "one-tone.one-tone-cursor-0.1.0",
+    }]), encoding="utf-8")
+    spec = EditorSpec("cursor", "cursor", settings, extensions, ai_panel_supported=False)
+
+    def command_runner(command, **kwargs):
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout=b"",
+            stderr=b"Please restart Cursor before reinstalling One Tone cursor.",
+        )
+
+    adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
+    plan = create_plan("#00A86B", ["cursor"], plan_id="plan-editor-cursor-restart-001")
+
+    assert adapter.apply(plan).status == "ok"
+    installed = extensions / "one-tone.one-tone-cursor-0.1.0"
+    assert (installed / "package.json").is_file()
     assert adapter.verify(plan).verified is True
 
 

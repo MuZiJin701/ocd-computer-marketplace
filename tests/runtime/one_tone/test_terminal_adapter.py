@@ -40,9 +40,14 @@ def test_terminal_apply_registers_and_selects_a_valid_scheme(tmp_path):
     assert adapter.apply(plan).status == "ok"
     changed = json.loads(settings_path.read_text(encoding="utf-8"))
     scheme = next(item for item in changed["schemes"] if item["name"] == "One Tone")
+    theme = next(item for item in changed["themes"] if item["name"] == "One Tone")
     assert changed["profiles"]["defaults"]["colorScheme"] == "One Tone"
     assert changed["profiles"]["list"][1]["colorScheme"] == "One Tone"
+    assert changed["theme"] == "One Tone"
+    assert changed["profiles"]["list"][1]["tabColor"] == plan.palette["accent"]
     assert scheme["background"] == plan.palette["surface"]
+    assert theme["tabRow"]["background"] == plan.palette["surface"]
+    assert theme["window"]["frame"] == plan.palette["accent"]
     assert adapter.verify(plan).verified is True
 
 

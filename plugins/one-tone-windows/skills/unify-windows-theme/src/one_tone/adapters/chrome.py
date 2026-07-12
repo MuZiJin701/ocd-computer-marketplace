@@ -6,8 +6,13 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from ..palette import parse_hex_color
 from ..plan import Plan
 from .base import AdapterResult
+
+
+def _rgb(color: str) -> list[int]:
+    return list(parse_hex_color(color))
 
 
 def _manifest(plan: Plan) -> dict[str, Any]:
@@ -19,13 +24,13 @@ def _manifest(plan: Plan) -> dict[str, Any]:
         "description": "Palette-generated One-Tone Chrome theme",
         "theme": {
             "colors": {
-                "frame": palette["surface"],
-                "toolbar": palette["surface"],
-                "tab_background_text": palette["foreground"],
-                "ntp_background": palette["surface"],
-                "ntp_text": palette["foreground"],
-                "omnibox_background": palette["surface"],
-                "omnibox_text": palette["foreground"],
+                "frame": _rgb(palette["surface"]),
+                "toolbar": _rgb(palette["surface"]),
+                "tab_background_text": _rgb(palette["foreground"]),
+                "ntp_background": _rgb(palette["surface"]),
+                "ntp_text": _rgb(palette["foreground"]),
+                "omnibox_background": _rgb(palette["surface"]),
+                "omnibox_text": _rgb(palette["foreground"]),
             },
         },
     }
@@ -38,6 +43,15 @@ def build_chrome_theme(plan: Plan, output_path: Path) -> Path:
     return output_path
 
 
+def build_chrome_theme_directory(plan: Plan, output_dir: Path) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "manifest.json").write_text(
+        json.dumps(_manifest(plan), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return output_dir
+
+
 class ChromeAdapter:
     target = "chrome"
 
@@ -45,6 +59,7 @@ class ChromeAdapter:
         self.output_dir = output_dir
         self.preferences_path = preferences_path
         self._artifact: Path | None = None
+        self._unpacked_dir: Path | None = None
         self._preferences_backup: Path | None = None
 
     def detect(self) -> AdapterResult:
@@ -63,27 +78,33 @@ class ChromeAdapter:
 
     def apply(self, plan: Plan) -> AdapterResult:
         try:
+            self._unpacked_dir = build_chrome_theme_directory(plan, self.output_dir / f"one-tone-{plan.id}")
             self._artifact = build_chrome_theme(plan, self.output_dir / f"one-tone-{plan.id}.zip")
             return AdapterResult(
                 self.target,
                 "partial",
                 True,
                 False,
-                f"Chrome theme generated at {self._artifact}; load it in Chrome and confirm activation",
+                f"Chrome theme generated at {self._unpacked_dir}; load it in Chrome and confirm activation",
                 True,
             )
         except OSError as error:
             return AdapterResult(self.target, "failed", False, False, f"Chrome theme generation failed: {error}")
 
     def verify(self, plan: Plan) -> AdapterResult:
-        if self._artifact is None:
-            candidate = self.output_dir / f"one-tone-{plan.id}.zip"
-        else:
-            candidate = self._artifact
         try:
-            with zipfile.ZipFile(candidate) as archive:
-                manifest = json.loads(archive.read("manifest.json"))
-            verified = manifest.get("theme", {}).get("colors", {}).get("frame") == plan.palette["surface"]
+            candidates = []
+            unpacked = self._unpacked_dir or self.output_dir / f"one-tone-{plan.id}"
+            artifact = self._artifact or self.output_dir / f"one-tone-{plan.id}.zip"
+            if (unpacked / "manifest.json").is_file():
+                candidates.append(json.loads((unpacked / "manifest.json").read_text(encoding="utf-8")))
+            if artifact.is_file():
+                with zipfile.ZipFile(artifact) as archive:
+                    candidates.append(json.loads(archive.read("manifest.json")))
+            verified = bool(candidates) and all(
+                manifest.get("theme", {}).get("colors", {}).get("frame") == _rgb(plan.palette["surface"])
+                for manifest in candidates
+            )
             return AdapterResult(self.target, "partial" if verified else "failed", False, verified, "Chrome theme package verified; user activation is still required" if verified else "Chrome theme package mismatch", True)
         except (OSError, KeyError, json.JSONDecodeError, zipfile.BadZipFile) as error:
             return AdapterResult(self.target, "failed", False, False, f"Chrome verify failed: {error}")
@@ -92,6 +113,8 @@ class ChromeAdapter:
         try:
             if self._artifact is not None and self._artifact.exists():
                 self._artifact.unlink()
+            if self._unpacked_dir is not None and self._unpacked_dir.exists():
+                shutil.rmtree(self._unpacked_dir)
             if self.preferences_path is not None and self._preferences_backup is not None and self._preferences_backup.is_file():
                 shutil.copy2(self._preferences_backup, self.preferences_path)
             return AdapterResult(self.target, "partial", True, True, "Generated Chrome theme removed; restoring a previously activated Chrome theme requires user action", True)

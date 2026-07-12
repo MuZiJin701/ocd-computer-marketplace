@@ -130,7 +130,8 @@ def test_windows_apply_sets_green_accent_and_taskbar_prevalence(tmp_path):
 
     assert adapter.apply(plan).status == "ok"
     assert registry.values["AutoColorization"] == 0
-    assert registry.values["ColorPrevalence"] == 1
+    assert registry.values["StartTaskbarColorPrevalence"] == 1
+    assert registry.values["TitleBarColorPrevalence"] == 1
     assert registry.values["AccentColorMenu"] == windows_color_value(plan.palette["surface"])
     assert registry.values["ColorizationColor"] == windows_colorization_value(plan.palette["surface"])
 
@@ -181,6 +182,48 @@ def test_windows_registry_writes_each_value_to_its_declared_hive_path(monkeypatc
     windows_module.WindowsRegistryBackend().set_value("AccentColor", 123)
 
     assert fake.writes == [("HKCU", windows_module.DWM_KEY, "AccentColor", "REG_DWORD", 123)]
+
+
+def test_windows_registry_writes_both_prevalence_toggles_to_distinct_paths(monkeypatch):
+    class FakeKey:
+        def __init__(self, owner, root, path):
+            self.owner = owner
+            self.root = root
+            self.path = path
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def set_value(self, name, reserved, kind, value):
+            self.owner.writes.append((self.root, self.path, name, kind, value))
+
+    class FakeWinreg:
+        HKEY_CURRENT_USER = "HKCU"
+        REG_DWORD = "REG_DWORD"
+
+        def __init__(self):
+            self.writes = []
+
+        def CreateKey(self, root, path):
+            return FakeKey(self, root, path)
+
+        def SetValueEx(self, key, name, reserved, kind, value):
+            key.set_value(name, reserved, kind, value)
+
+    fake = FakeWinreg()
+    monkeypatch.setattr(windows_module, "winreg", fake)
+    backend = windows_module.WindowsRegistryBackend()
+
+    backend.set_value("StartTaskbarColorPrevalence", 1)
+    backend.set_value("TitleBarColorPrevalence", 1)
+
+    assert fake.writes == [
+        ("HKCU", windows_module.PERSONALIZE_KEY, "ColorPrevalence", "REG_DWORD", 1),
+        ("HKCU", windows_module.DWM_KEY, "ColorPrevalence", "REG_DWORD", 1),
+    ]
 
 
 def test_windows_apply_persists_an_absolute_wallpaper_path(tmp_path, monkeypatch):
