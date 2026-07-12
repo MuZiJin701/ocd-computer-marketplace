@@ -355,7 +355,7 @@ class WindowsAdapter:
             return AdapterResult(self.target, "failed", False, False, f"Windows apply failed: {error}")
 
     def verify(self, plan: Plan) -> AdapterResult:
-        expected_path = self._wallpaper_path
+        expected_path = self._wallpaper_path or (self.config.wallpaper_dir / f"{plan.id}.png").resolve()
         expected_registry = _theme_registry_values(plan)
         colors_ok = all(self.registry.get_value(name) == value for name, value in expected_registry.items())
         wallpaper_ok = expected_path is not None and Path(expected_path).is_file() and self.desktop.get_wallpaper() == str(expected_path)

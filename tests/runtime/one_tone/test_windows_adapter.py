@@ -83,6 +83,18 @@ def test_windows_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     assert desktop.wallpaper == str(old_wallpaper)
 
 
+def test_windows_verify_reloads_generated_wallpaper_path_in_new_process(tmp_path):
+    registry = InMemoryRegistryBackend({"CurrentBuild": "26200"})
+    desktop = InMemoryDesktopBackend()
+    plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-cross-process-verify-001")
+
+    apply_adapter = WindowsAdapter(WindowsConfig(tmp_path), registry, desktop)
+    assert apply_adapter.apply(plan).status == "ok"
+
+    verify_adapter = WindowsAdapter(WindowsConfig(tmp_path), registry, desktop)
+    assert verify_adapter.verify(plan).verified is True
+
+
 def test_windows_snapshot_round_trips_binary_registry_values(tmp_path):
     original_palette = b"original accent palette"
     registry = InMemoryRegistryBackend({"CurrentBuild": "26200", "AccentPalette": original_palette})
