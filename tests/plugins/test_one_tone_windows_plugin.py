@@ -8,6 +8,8 @@ def test_plugin_scaffold_is_present():
     assert (root / "skills/unify-windows-theme/SKILL.md").is_file()
     assert (root / "skills/unify-windows-theme/agents/openai.yaml").is_file()
     assert (root / "skills/unify-windows-theme/references/targets.md").is_file()
+    assert (root / "skills/unify-windows-theme/examples/preview-request.md").is_file()
+    assert not (root / "examples").exists()
     assert not (root / "skills/unify-windows-theme/references/workflow.md").exists()
     assert not (root / "skills/unify-windows-theme/references/target-matrix.md").exists()
     assert (root / "skills/unify-windows-theme/scripts/run_one_tone.py").is_file()

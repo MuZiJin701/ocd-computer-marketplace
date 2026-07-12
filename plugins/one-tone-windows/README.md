@@ -8,6 +8,7 @@
 skills/unify-windows-theme/
 ├─ SKILL.md
 ├─ pyproject.toml
+├─ examples/
 ├─ src/one_tone/
 ├─ scripts/run_one_tone.py
 └─ references/targets.md
@@ -19,9 +20,16 @@ skills/unify-windows-theme/
 npx skills add .\plugins\one-tone-windows\skills\unify-windows-theme --agent codex
 ```
 
-直接运行 Skill runtime：
+从仓库根目录运行 Skill runtime：
 
 ```powershell
+uv run --project .\plugins\one-tone-windows\skills\unify-windows-theme one-tone --help
+```
+
+进入 Skill 目录后运行：
+
+```powershell
+cd .\plugins\one-tone-windows\skills\unify-windows-theme
 uv run --project . one-tone --help
 ```
 

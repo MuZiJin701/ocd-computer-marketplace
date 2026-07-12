@@ -6,6 +6,14 @@ Run the complete repository suite from the root:
 uv run pytest
 ```
 
+The root `pyproject.toml` is a non-package test harness. To run the Skill CLI from the repository root, point `uv` at the Skill project:
+
+```powershell
+uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone --help
+```
+
+The Skill can also be run from its own directory with `uv run --project . one-tone --help`.
+
 Tests stay in the repository and are not included in the distributable Skill.
 
 ## Test layers

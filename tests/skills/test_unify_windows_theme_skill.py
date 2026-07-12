@@ -34,6 +34,7 @@ def test_skill_package_contains_runtime_and_launcher():
     assert (root / "pyproject.toml").is_file()
     assert (root / "src/one_tone/cli.py").is_file()
     assert (root / "scripts/run_one_tone.py").is_file()
+    assert (root / "examples/preview-request.md").is_file()
 
 
 def test_distributable_skill_does_not_depend_on_plugin_root():
@@ -69,3 +70,21 @@ def test_active_docs_describe_current_workflow():
     assert "verify <plan_id>" in readme
     assert "transaction_id" in readme
     assert "八步" not in readme
+
+
+def test_root_project_is_test_only_and_skill_owns_cli():
+    import tomllib
+    from pathlib import Path
+
+    root = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    skill = tomllib.loads(
+        Path("plugins/one-tone-windows/skills/unify-windows-theme/pyproject.toml")
+        .read_text(encoding="utf-8")
+    )
+
+    assert root["tool"]["uv"]["package"] is False
+    assert "scripts" not in root["project"]
+    assert root["tool"]["pytest"]["ini_options"]["pythonpath"] == [
+        "plugins/one-tone-windows/skills/unify-windows-theme/src"
+    ]
+    assert skill["project"]["scripts"]["one-tone"] == "one_tone.cli:main"

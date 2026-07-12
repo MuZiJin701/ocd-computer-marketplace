@@ -15,7 +15,8 @@ Marketplace
 - `plugins/one-tone-windows/.codex-plugin/plugin.json` is an optional Codex wrapper.
 - `plugins/one-tone-windows/skills/unify-windows-theme/` is the canonical Skill package.
 - The Skill package owns `pyproject.toml`, `src/one_tone/` and its launcher.
-- The root `pyproject.toml` is only the development/test entrypoint.
+- The root `pyproject.toml` is only the development/test entrypoint; it is not installable and does not expose a runtime command.
+- The Skill `pyproject.toml` owns the `one-tone` console script and is the only runtime project.
 
 ## Runtime boundaries
 

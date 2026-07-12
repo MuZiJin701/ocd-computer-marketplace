@@ -18,10 +18,10 @@ Preview → Apply → Verify → Rollback
 ```
 
 ```powershell
-uv run one-tone preview "#7C3AED" --targets windows,terminal --output json
-uv run one-tone apply plan-... --confirm
-uv run one-tone verify plan-...
-uv run one-tone rollback tx-...
+uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone preview "#7C3AED" --targets windows,terminal --output json
+uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone apply plan-... --confirm
+uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone verify plan-...
+uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone rollback tx-...
 ```
 
 - `preview` 生成带 Hash 的 Plan，不修改目标。
@@ -39,12 +39,13 @@ plugins/one-tone-windows/
 └─ skills/unify-windows-theme/
    ├─ SKILL.md
    ├─ pyproject.toml
+   ├─ examples/
    ├─ src/one_tone/
    └─ scripts/
 tests/
 ```
 
-Skill 包自带 Python runtime，可独立使用；Codex Plugin 元数据只是可选兼容层。运行期 Plan、主题产物和事务快照保存在 `.one-tone/`，默认保留最近 5 个已完成事务。
+Skill 包自带 Python runtime，可独立使用；Codex Plugin 元数据只是可选兼容层。根项目只提供测试入口。运行期 Plan、主题产物和事务快照保存在当前工作目录的 `.one-tone/`，默认保留最近 5 个已完成事务。
 
 ## 测试
 
