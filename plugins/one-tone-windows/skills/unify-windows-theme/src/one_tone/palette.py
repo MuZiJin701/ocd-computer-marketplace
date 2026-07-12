@@ -10,21 +10,29 @@ REQUIRED_KEYS = (
     "foreground",
     "muted_foreground",
     "accent",
+    "accent_text",
     "accent_foreground",
     "selection_background",
     "selection_foreground",
     "border",
     "error",
+    "error_text",
     "warning",
+    "warning_text",
     "success",
+    "success_text",
 )
 
 _CONTRAST_PAIRS = (
     ("background_foreground", "background", 7),
-    ("foreground", "surface", 4.5),
+    ("foreground", "surface", 5.5),
     ("muted_foreground", "surface", 4.5),
-    ("accent_foreground", "accent", 4.5),
-    ("selection_foreground", "selection_background", 4.5),
+    ("accent_text", "surface", 5.5),
+    ("error_text", "surface", 5.5),
+    ("warning_text", "surface", 5.5),
+    ("success_text", "surface", 5.5),
+    ("accent_foreground", "accent", 5.5),
+    ("selection_foreground", "selection_background", 5.5),
 )
 
 
@@ -87,9 +95,11 @@ def _chromatic_candidates(color: str) -> list[str]:
     red, green, blue = parse_hex_color(color)
     hue, _lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
     candidates: list[str] = []
-    for lightness in (0.999, 0.997, 0.995, 0.98, 0.94, 0.9, 0.84, 0.78, 0.7, 0.3, 0.22, 0.16, 0.1, 0.04, 0.01, 0.003):
+    for lightness_step in range(1, 100):
+        lightness = lightness_step / 100
         for candidate_saturation in (
             max(0.08, saturation),
+            max(0.08, saturation * 0.88),
             max(0.08, saturation * 0.72),
             max(0.08, saturation * 0.45),
             max(0.08, saturation * 0.25),
@@ -104,8 +114,12 @@ def _chromatic_candidates(color: str) -> list[str]:
     return candidates
 
 
-def _chromatic_foreground(backgrounds: tuple[str, ...], minimum_ratio: float) -> str:
-    source = backgrounds[0]
+def _chromatic_foreground(
+    backgrounds: tuple[str, ...],
+    minimum_ratio: float,
+    source_color: str | None = None,
+) -> str:
+    source = source_color or backgrounds[0]
     candidates = _chromatic_candidates(source)
     valid = [
         candidate
@@ -114,10 +128,23 @@ def _chromatic_foreground(backgrounds: tuple[str, ...], minimum_ratio: float) ->
     ]
     if valid:
         source_luminance = relative_luminance(source)
-        if source_luminance >= 0.179:
-            return max(valid, key=lambda candidate: (relative_luminance(candidate), -_chromatic_saturation(candidate)))
-        return min(valid, key=lambda candidate: (relative_luminance(candidate), -_chromatic_saturation(candidate)))
-    return max(candidates, key=lambda candidate: min(contrast_ratio(candidate, background) for background in backgrounds))
+        source_hue = colorsys.rgb_to_hls(*(channel / 255 for channel in parse_hex_color(source)))[0]
+        desired_lightness = 0.12 if source_luminance >= 0.179 else 0.88
+        return max(
+            valid,
+            key=lambda candidate: (
+                -abs(colorsys.rgb_to_hls(*(channel / 255 for channel in parse_hex_color(candidate)))[1] - desired_lightness),
+                _chromatic_saturation(candidate),
+                -abs(colorsys.rgb_to_hls(*(channel / 255 for channel in parse_hex_color(candidate)))[0] - source_hue),
+            ),
+        )
+    return max(
+        candidates,
+        key=lambda candidate: (
+            min(contrast_ratio(candidate, background) for background in backgrounds),
+            _chromatic_saturation(candidate),
+        ),
+    )
 
 
 def _chromatic_saturation(color: str) -> float:
@@ -146,10 +173,13 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
     background = _hls_color(_hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
     surface = seed
     background_foreground = _chromatic_foreground((background,), 7)
-    foreground = _chromatic_foreground((surface,), 4.5)
+    foreground = _chromatic_foreground((surface,), 5.5)
     muted_foreground = _chromatic_foreground((surface,), 4.5)
     accent = _contrast_safe_accent(seed, background)
     selection_background = _blend(accent, background, 0.8)
+    error = "#F05252"
+    warning = "#F3B95F"
+    success = "#42D392"
     palette = {
         "background": background,
         "background_foreground": background_foreground,
@@ -157,13 +187,17 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
         "foreground": foreground,
         "muted_foreground": muted_foreground,
         "accent": accent,
-        "accent_foreground": _chromatic_foreground((accent,), 4.5),
+        "accent_text": _chromatic_foreground((surface,), 5.5, source_color=accent),
+        "accent_foreground": _chromatic_foreground((accent,), 5.5),
         "selection_background": selection_background,
-        "selection_foreground": _chromatic_foreground((selection_background,), 4.5),
+        "selection_foreground": _chromatic_foreground((selection_background,), 5.5),
         "border": "#4A4D59",
-        "error": "#F05252",
-        "warning": "#F3B95F",
-        "success": "#42D392",
+        "error": error,
+        "error_text": _chromatic_foreground((surface,), 5.5, source_color=error),
+        "warning": warning,
+        "warning_text": _chromatic_foreground((surface,), 5.5, source_color=warning),
+        "success": success,
+        "success_text": _chromatic_foreground((surface,), 5.5, source_color=success),
     }
     errors = validate_palette(palette)
     if errors:

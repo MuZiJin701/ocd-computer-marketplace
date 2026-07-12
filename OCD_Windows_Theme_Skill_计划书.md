@@ -8,7 +8,7 @@
 
 - Windows 10 22H2+、Windows 11 22H2+
 - Windows Terminal
-- VS Code、Cursor、TRAE
+- VS Code、TRAE
 - 独立 Codex Adapter
 - Chrome 主题包
 
@@ -27,11 +27,11 @@
 - Plan、Transaction 和 target 标识不能穿越运行时目录；配置写入使用原子替换。
 - 目标限制明确报告为 `ok`、`partial` 或 `skipped`。
 - Seed Color 原样作为 Palette/Codex 的 `surface` 和 Windows 壁纸颜色；Windows 强调色使用 Palette `accent`，不修改用户浅/深色模式或 `AutoColorization`。
-- Palette 分离 `foreground` 与 `background_foreground`，分别保证 Seed surface 和深层 background 上的文字可读性；Cursor 增加设置级颜色 fallback；Windows 自动取色开启时明确报告用户操作要求。
-- Preview 默认覆盖全部已实现目标；编辑器、Windows Terminal 和 Codex 路径通过用户目录、PATH、Scoop shim、launcher 参数和环境变量覆盖探测，不写入机器特定盘符或临时路径。
+- Palette 分离 `foreground`、`background_foreground` 和 `accent_text`/语义文字，分别保证实际背景上的主文字和强调文字可读性；Windows 自动取色开启时明确报告用户操作要求。
+- Cursor 暂不属于用户可见目标；Preview 默认覆盖 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome；路径通过用户目录、PATH、Scoop shim 和环境变量探测，不写入机器特定盘符或临时路径。
 
 ## 下一步
 
-下一阶段聚焦真实 Windows 10/11 目标验证，并记录 VS Code/Cursor/TRAE、Windows Terminal、Codex 和 Chrome 的实际兼容性结果。编辑器路径可通过 `ONE_TONE_<TARGET>_*` 环境变量覆盖。
+下一阶段聚焦真实 Windows 10/11 目标验证，并记录 VS Code/TRAE、Windows Terminal、Codex 和 Chrome 的实际兼容性结果。编辑器路径可通过 `ONE_TONE_<TARGET>_*` 环境变量覆盖。
 
 历史方案和实施记录保存在 `docs/archive/`。

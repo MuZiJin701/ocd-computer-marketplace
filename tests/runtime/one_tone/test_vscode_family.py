@@ -42,6 +42,17 @@ def test_editor_theme_uses_matching_foregrounds_for_surface_and_background():
     assert colors["panel.foreground"] == plan.palette["background_foreground"]
 
 
+def test_editor_theme_uses_contrast_safe_text_for_accented_tokens():
+    plan = create_plan("#10B981", ["trae"], plan_id="plan-editor-accent-text-001")
+
+    theme = build_theme_json(plan, "One Tone trae")
+
+    assert theme["colors"]["editorCursor.foreground"] == plan.palette["accent_text"]
+    assert theme["tokenColors"][1]["settings"]["foreground"] == plan.palette["success_text"]
+    assert theme["tokenColors"][2]["settings"]["foreground"] == plan.palette["accent_text"]
+    assert theme["tokenColors"][3]["settings"]["foreground"] == plan.palette["error_text"]
+
+
 def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     settings = tmp_path / "settings.json"
     settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")

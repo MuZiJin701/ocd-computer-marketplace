@@ -6,16 +6,16 @@
 
 ## 范围
 
-- VS Code、Cursor、TRAE：Verify 必须从持久化扩展目录重新发现 One-Tone 扩展。
+- VS Code、TRAE：Verify 必须从持久化扩展目录重新发现 One-Tone 扩展。
 - Chrome：Rollback 必须在新进程中根据事务元数据删除本次生成的 ZIP 和 unpacked 目录。
 - TransactionStore：每个操作后保存结果；自动回滚失败必须暴露为 failed；没有成功目标的 Apply 必须失败。
 - Plan、transaction 和 target 标识：禁止通过路径分隔符或 `..` 离开各自的运行时目录。
 - 配置和事务 JSON：使用同目录临时文件加原子替换，降低进程中断造成截断文件的风险。
 - 文档、测试和 `AGENTS.md` 同步描述新的状态和验证限制。
 - Palette 语义：Seed 原样作为 Codex `surface` 和 Windows 壁纸；Windows registry accent 使用 Palette `accent`；用户前景使用色相关联的派生色，并对实际背景满足可读对比度，不使用黑/白二选一规则。
-- Palette 对 `surface` 与深层 `background` 使用独立前景色，避免同一文字色在 Seed surface 上低对比度；Cursor VSIX 注册失败时允许设置级 `workbench.colorCustomizations` fallback。
+- Palette 对 `surface` 与深层 `background` 使用独立前景色，并为 accent、error、warning、success 生成面向 `surface` 的文字色，避免浅色强调色直接叠在浅色 Seed surface 上；Cursor 暂不进入用户可见支持矩阵。
 - Windows `AutoColorization` 保持用户原值；开启时 Windows 目标必须报告可能被自动取色覆盖的 `partial` 状态，不得假报固定强调色已稳定。
-- 路径语义：可分发 Skill 不携带机器特定绝对路径或临时路径；Cursor `.cmd`/`.bat` launcher 的 `--user-data-dir` 和 `--extensions-dir` 可作为运行时发现来源。
+- 路径语义：可分发 Skill 不携带机器特定绝对路径或临时路径。
 
 ## 设计
 

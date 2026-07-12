@@ -13,7 +13,7 @@ Preview → Apply → Verify → Rollback
 - Windows 10 22H2+（build >= 19045）
 - Windows 11 22H2+（build >= 22621）
 - Windows Terminal
-- VS Code、Cursor、TRAE
+- VS Code、TRAE
 - Codex（独立 Adapter）
 - Chrome
 
@@ -42,6 +42,7 @@ Preview → Apply → Verify → Rollback
 - 事务快照默认保留最近 5 个已完成事务；只清理工具生成的数据。
 - 可分发 Skill 不得依赖开发机绝对路径、固定盘符或机器上的临时路径；运行期路径必须通过用户目录、PATH、launcher 参数或显式环境变量发现。
 - Seed Color 原样作为 Palette/Codex 的 `surface` 和 Windows 壁纸颜色；Windows 强调色使用 Palette `accent`，默认不得修改用户浅/深色模式或 `AutoColorization`。
+- Cursor 暂不属于用户可见支持目标；显式输入 `cursor` 必须安全 `skipped`，不得访问或修改 Cursor 文件。
 
 ## 技术约束
 

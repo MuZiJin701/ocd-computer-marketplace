@@ -32,9 +32,8 @@ def test_skill_launcher_points_at_skill_runtime():
 def test_readmes_document_root_and_skill_runtime_commands():
     root_readme = Path("README.md").read_text(encoding="utf-8")
     plugin_readme = Path("plugins/one-tone-windows/README.md").read_text(encoding="utf-8")
-    assert "uv run --project" in root_readme
-    assert "plugins/one-tone-windows/skills/unify-windows-theme one-tone" in root_readme
-    assert "uv run --project .\\plugins\\one-tone-windows\\skills\\unify-windows-theme one-tone" in plugin_readme
+    assert "python .\\scripts\\run_one_tone.py preview" in root_readme
+    assert "uv run --project . one-tone" in plugin_readme
 
 
 def test_readme_documents_repo_marketplace_and_plugin_runtime():
@@ -42,4 +41,4 @@ def test_readme_documents_repo_marketplace_and_plugin_runtime():
     plugin_readme = Path("plugins/one-tone-windows/README.md").read_text(encoding="utf-8")
     assert ".agents/plugins/marketplace.json" in root_readme
     assert "plugins/one-tone-windows" in root_readme
-    assert "自包含" in plugin_readme
+    assert "可独立分发" in plugin_readme

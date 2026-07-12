@@ -23,10 +23,11 @@
 
 - `surface` 始终原样等于 Seed Color。
 - `background` 继续是深层背景，`background_foreground` 针对它计算，目标至少 `7:1`。
-- `foreground` 映射 Codex 的 `ink`，针对 `surface` 搜索同色相候选，目标至少 `7:1`。
+- `foreground` 映射 Codex 的 `ink`，针对 `surface` 搜索同色相候选，目标至少 `5.5:1`；当输入色的理论最大对比度不足时取最大可得值。
 - `muted_foreground` 目标至少 `4.5:1`，但搜索评分偏向更接近主文字的候选，避免过灰。
-- `accent_foreground` 和 `selection_foreground` 针对各自背景分别计算，目标至少 `7:1`。
-- 候选搜索使用更密的同色相 HSL 网格，并以对比度阈值、色度保留、与源色相接近度排序；只有无法满足阈值时才退让到最大可得对比度，不硬编码纯黑或纯白。
+- `accent_text`、`error_text`、`warning_text`、`success_text` 针对 `surface` 计算，供关键字和终端 ANSI 强调文字使用，目标至少 `5.5:1`。
+- `accent_foreground` 和 `selection_foreground` 针对各自背景分别计算，目标至少 `5.5:1`。
+- 候选搜索使用更密的同色相 HSL 网格，并优先选择接近可读亮度且保留色相/色度的候选；只有无法满足阈值时才取最大可得对比度，不把强调文字固定成纯黑或纯白。
 - Codex 两个 Chrome Theme 表的 `contrast` 写为 `100`；`appearanceTheme` 原样保留为 `system` 或用户已有值。
 
 ### README
@@ -37,7 +38,7 @@
 
 - 默认 Preview 不再列出 Cursor，支持矩阵只列出 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome。
 - 显式传入 Cursor 不产生文件变更，并返回 `skipped`。
-- `#10B981` 的 `foreground/surface` 和关键语义文字对比度达到新阈值，且仍保持色相，不退化为固定纯黑/纯白。
+- `#10B981` 的主文字和关键强调文字达到 `5.5:1`，且仍保持强调色相，不使用浅色强调色直接叠在浅色 `surface` 上。
 - Codex Apply/Verify 覆盖两套主题的 `contrast=100`，不修改 `appearanceTheme`。
 - README 不再描述 Cursor 支持或回退方案，普通用户可以直接按命令完成安装和使用。
 - `uv run pytest`、`git diff --check` 和 CLI 冒烟检查通过。

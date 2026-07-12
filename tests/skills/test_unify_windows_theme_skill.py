@@ -10,7 +10,7 @@ def test_readme_describes_stage_one_two_limits():
     text = Path("README.md").read_text(encoding="utf-8")
     assert "Plan" in text
     assert "Windows 10 22H2+" in text
-    assert "uv run pytest" in text
+    assert "Preview" in text
 
 
 def test_readme_documents_full_adapter_boundaries():
@@ -19,8 +19,8 @@ def test_readme_documents_full_adapter_boundaries():
     text = Path("README.md").read_text(encoding="utf-8")
     assert "Windows 10 22H2+" in text
     assert "verify" in text
-    assert "verify <plan_id>" in text
-    assert "transaction_id" in text
+    assert "verify plan-..." in text
+    assert "Transaction ID" in text
     assert "八步" not in text
     assert "壁纸" in text
     assert "partial" in text
@@ -67,8 +67,8 @@ def test_active_docs_describe_current_workflow():
 
     readme = Path("README.md").read_text(encoding="utf-8")
     assert "Windows 10 22H2+" in readme
-    assert "verify <plan_id>" in readme
-    assert "transaction_id" in readme
+    assert "verify plan-..." in readme
+    assert "Transaction ID" in readme
     assert "八步" not in readme
 
 

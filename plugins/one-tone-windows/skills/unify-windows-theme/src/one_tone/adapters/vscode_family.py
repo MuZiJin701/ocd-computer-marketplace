@@ -39,7 +39,7 @@ def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
             "editor.selectionBackground": palette["selection_background"],
             "editorLineNumber.foreground": palette["muted_foreground"],
             "editorLineNumber.activeForeground": palette["foreground"],
-            "editorCursor.foreground": palette["accent"],
+            "editorCursor.foreground": palette["accent_text"],
             "editorGroupHeader.tabsBackground": palette["surface"],
             "editorGroupHeader.tabsBorder": palette["border"],
             "sideBar.background": palette["surface"],
@@ -99,9 +99,9 @@ def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
         },
         "tokenColors": [
             {"scope": ["comment"], "settings": {"foreground": palette["muted_foreground"]}},
-            {"scope": ["string"], "settings": {"foreground": palette["success"]}},
-            {"scope": ["keyword"], "settings": {"foreground": palette["accent"]}},
-            {"scope": ["invalid"], "settings": {"foreground": palette["error"]}},
+            {"scope": ["string"], "settings": {"foreground": palette["success_text"]}},
+            {"scope": ["keyword"], "settings": {"foreground": palette["accent_text"]}},
+            {"scope": ["invalid"], "settings": {"foreground": palette["error_text"]}},
         ],
     }
 

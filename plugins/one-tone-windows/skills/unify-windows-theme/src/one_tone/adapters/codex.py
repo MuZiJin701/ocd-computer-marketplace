@@ -84,9 +84,10 @@ def _skip_result(message: str) -> AdapterResult:
     return AdapterResult("codex", "skipped", False, False, message)
 
 
-def _theme_updates(palette: dict[str, str]) -> dict[str, dict[str, str]]:
+def _theme_updates(palette: dict[str, str]) -> dict[str, dict[str, Any]]:
     base = {
         "accent": palette["accent"],
+        "contrast": 100,
         "ink": palette["foreground"],
         "surface": palette["surface"],
     }
@@ -131,6 +132,7 @@ def _matches_plan(payload: dict[str, Any], plan: Plan) -> bool:
         theme = desktop[table_name]
         expected = {
             "accent": plan.palette["accent"],
+            "contrast": 100,
             "ink": plan.palette["foreground"],
             "surface": plan.palette["surface"],
         }

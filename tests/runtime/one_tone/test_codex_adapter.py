@@ -85,3 +85,17 @@ def test_codex_v1_fixture_applies_verifies_and_restores_preserving_fields(tmp_pa
     assert adapter.verify(plan).verified is True
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert path.read_bytes() == original
+
+
+def test_codex_apply_raises_existing_theme_contrast_to_maximum(tmp_path):
+    path = write_codex_v1_fixture(tmp_path / "config.toml")
+    path.write_text(path.read_text(encoding="utf-8").replace("contrast = 100", "contrast = 20"), encoding="utf-8")
+    adapter = CodexAdapter(path)
+    plan = create_plan("#10B981", ["codex"], plan_id="plan-codex-contrast-100-001")
+
+    assert adapter.apply(plan).status == "ok"
+
+    payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    assert payload["desktop"]["appearanceTheme"] == "dark"
+    assert payload["desktop"]["appearanceLightChromeTheme"]["contrast"] == 100
+    assert payload["desktop"]["appearanceDarkChromeTheme"]["contrast"] == 100

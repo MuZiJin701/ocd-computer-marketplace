@@ -25,7 +25,7 @@ from .adapters.windows import WindowsDesktopBackend, WindowsRegistryBackend
 from .plan import PlanIntegrityError, create_plan, load_plan, save_plan
 from .transaction import TransactionStatus, TransactionStore, apply_plan, verify_plan
 
-DEFAULT_TARGETS = ("windows", "terminal", "vscode", "cursor", "trae", "codex", "chrome")
+DEFAULT_TARGETS = ("windows", "terminal", "vscode", "trae", "codex", "chrome")
 
 
 def _default_runtime_dir() -> Path:
@@ -211,19 +211,6 @@ def build_target_adapters(targets, state_dir: Path):
         _configured_or_first("ONE_TONE_VSCODE_EXTENSIONS", [userprofile / ".vscode/extensions"]),
         artifacts_dir=state_dir / "vscode-artifacts",
     )
-    cursor_executable = _first_executable("ONE_TONE_CURSOR_EXECUTABLE", "cursor", [])
-    cursor_settings, cursor_extensions = _editor_paths(
-        cursor_executable,
-        appdata / "Cursor/User/settings.json",
-        userprofile / ".cursor/extensions",
-    )
-    cursor_spec = EditorSpec(
-        "cursor",
-        cursor_executable,
-        _configured_or_first("ONE_TONE_CURSOR_SETTINGS", [cursor_settings]),
-        _configured_or_first("ONE_TONE_CURSOR_EXTENSIONS", [cursor_extensions]),
-        artifacts_dir=state_dir / "cursor-artifacts",
-    )
     trae_spec = EditorSpec(
         "trae",
         _first_executable("ONE_TONE_TRAE_EXECUTABLE", "trae", []),
@@ -247,7 +234,7 @@ def build_target_adapters(targets, state_dir: Path):
         elif target == "vscode":
             registry[target] = VSCodeFamilyAdapter(vscode_spec)
         elif target == "cursor":
-            registry[target] = VSCodeFamilyAdapter(cursor_spec)
+            registry[target] = UnsupportedAdapter(target)
         elif target == "trae":
             registry[target] = VSCodeFamilyAdapter(trae_spec)
         elif target == "codex":

@@ -46,6 +46,8 @@ def test_terminal_apply_registers_and_selects_a_valid_scheme(tmp_path):
     assert changed["theme"] == "One Tone"
     assert changed["profiles"]["list"][1]["tabColor"] == plan.palette["accent"]
     assert scheme["background"] == plan.palette["surface"]
+    assert scheme["cyan"] == plan.palette["accent_text"]
+    assert scheme["green"] == plan.palette["success_text"]
     assert theme["tabRow"]["background"] == plan.palette["surface"]
     assert theme["window"]["frame"] == plan.palette["accent"]
     assert adapter.verify(plan).verified is True

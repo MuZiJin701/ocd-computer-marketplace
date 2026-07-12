@@ -32,3 +32,15 @@ def test_unsupported_adapter_never_claims_success():
     result = UnsupportedAdapter("codex").detect()
     assert result.status == "skipped"
     assert result.changed is False
+
+
+def test_cursor_is_explicitly_skipped_without_touching_files(tmp_path):
+    from one_tone.cli import build_target_adapters
+
+    adapter = build_target_adapters(("cursor",), tmp_path / "state")["cursor"]
+
+    result = adapter.detect()
+
+    assert isinstance(adapter, UnsupportedAdapter)
+    assert result.status == "skipped"
+    assert not (tmp_path / "state").exists()
