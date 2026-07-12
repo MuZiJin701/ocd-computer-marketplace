@@ -5,6 +5,7 @@ from collections.abc import Mapping
 
 REQUIRED_KEYS = (
     "background",
+    "background_foreground",
     "surface",
     "foreground",
     "muted_foreground",
@@ -19,7 +20,8 @@ REQUIRED_KEYS = (
 )
 
 _CONTRAST_PAIRS = (
-    ("foreground", "background", 7),
+    ("background_foreground", "background", 7),
+    ("foreground", "surface", 4.5),
     ("muted_foreground", "surface", 4.5),
     ("accent_foreground", "accent", 4.5),
     ("selection_foreground", "selection_background", 4.5),
@@ -105,15 +107,22 @@ def _chromatic_candidates(color: str) -> list[str]:
 def _chromatic_foreground(backgrounds: tuple[str, ...], minimum_ratio: float) -> str:
     source = backgrounds[0]
     candidates = _chromatic_candidates(source)
-    ranked = sorted(
-        candidates,
-        key=lambda candidate: min(contrast_ratio(candidate, background) for background in backgrounds),
-        reverse=True,
-    )
-    for candidate in ranked:
-        if min(contrast_ratio(candidate, background) for background in backgrounds) >= minimum_ratio:
-            return candidate
-    return ranked[0]
+    valid = [
+        candidate
+        for candidate in candidates
+        if min(contrast_ratio(candidate, background) for background in backgrounds) >= minimum_ratio
+    ]
+    if valid:
+        source_luminance = relative_luminance(source)
+        if source_luminance >= 0.179:
+            return max(valid, key=lambda candidate: (relative_luminance(candidate), -_chromatic_saturation(candidate)))
+        return min(valid, key=lambda candidate: (relative_luminance(candidate), -_chromatic_saturation(candidate)))
+    return max(candidates, key=lambda candidate: min(contrast_ratio(candidate, background) for background in backgrounds))
+
+
+def _chromatic_saturation(color: str) -> float:
+    red, green, blue = parse_hex_color(color)
+    return colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)[2]
 
 
 def _contrast_safe_accent(seed_color: str, background: str) -> str:
@@ -136,12 +145,14 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
     _hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
     background = _hls_color(_hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
     surface = seed
-    foreground = _chromatic_foreground((background,), 7)
+    background_foreground = _chromatic_foreground((background,), 7)
+    foreground = _chromatic_foreground((surface,), 4.5)
     muted_foreground = _chromatic_foreground((surface,), 4.5)
     accent = _contrast_safe_accent(seed, background)
     selection_background = _blend(accent, background, 0.8)
     palette = {
         "background": background,
+        "background_foreground": background_foreground,
         "surface": surface,
         "foreground": foreground,
         "muted_foreground": muted_foreground,

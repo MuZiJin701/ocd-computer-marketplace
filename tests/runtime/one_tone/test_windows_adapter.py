@@ -129,7 +129,7 @@ def test_windows_rollback_restores_auto_colorization_after_wallpaper(tmp_path):
     plan = create_plan("#FFD700", ["windows"], plan_id="plan-windows-rollback-order-001")
 
     assert adapter.snapshot(tmp_path / "backup").status == "ok"
-    assert adapter.apply(plan).status == "ok"
+    assert adapter.apply(plan).status == "partial"
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert registry.values["AccentColor"] == 123
 
@@ -145,7 +145,7 @@ def test_windows_apply_sets_green_accent_and_taskbar_prevalence(tmp_path):
     adapter = WindowsAdapter(WindowsConfig(tmp_path), registry, desktop)
     plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-accent-001")
 
-    assert adapter.apply(plan).status == "ok"
+    assert adapter.apply(plan).status == "partial"
     assert registry.values["AutoColorization"] == 1
     assert registry.values["AppsUseLightTheme"] == 1
     assert registry.values["SystemUsesLightTheme"] == 1
@@ -153,6 +153,7 @@ def test_windows_apply_sets_green_accent_and_taskbar_prevalence(tmp_path):
     assert registry.values["TitleBarColorPrevalence"] == 1
     assert registry.values["AccentColorMenu"] == windows_color_value(plan.palette["accent"])
     assert registry.values["ColorizationColor"] == windows_colorization_value(plan.palette["accent"])
+    assert adapter.verify(plan).verified is True
 
 
 def test_windows_accent_palette_is_an_eight_color_bgra_binary_value():

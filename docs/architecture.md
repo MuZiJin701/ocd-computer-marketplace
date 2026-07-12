@@ -20,7 +20,7 @@ Marketplace
 
 ## Runtime boundaries
 
-- `palette.py`: Seed Color and contrast-safe, hue-coherent Palette. `surface` preserves the normalized Seed exactly; primary text targets at least 7:1 against the deep background and UI foregrounds target at least 4.5:1 where the chosen surface is the actual background.
+- `palette.py`: Seed Color and contrast-safe, hue-coherent Palette. `surface` preserves the normalized Seed exactly; `foreground` is selected for `surface` with a target of at least 4.5:1, while `background_foreground` is selected for the deep `background` with a target of at least 7:1.
 - `plan.py`: immutable Plan, serialization and Hash validation.
 - `storage.py`: safe path-component validation and atomic text/JSON persistence.
 - `transaction.py`: per-target Apply journaling, compensation, Verify, rollback metadata and snapshot retention.
@@ -34,7 +34,9 @@ The runtime has no database, background service or plugin runtime framework.
 - Codex `surface` is the normalized Seed Color in both `appearanceLightChromeTheme` and `appearanceDarkChromeTheme`; Codex `ink` maps to the chromatic `foreground`, and Codex `accent` maps to Palette `accent`.
 - Windows wallpaper is a solid PNG of the exact Seed Color. Windows registry accent values and the generated accent palette use Palette `accent`, never a darkened `surface`.
 - Windows Apply does not write `AppsUseLightTheme`, `SystemUsesLightTheme`, or `AutoColorization`; the user's current mode and automatic color choice remain under user control.
+- When `AutoColorization` is already enabled, Windows Detect/Apply/Verify reports `partial` and requires user action because Windows may recalculate the accent from the wallpaper after Apply. The runtime does not silently change that setting.
 - Editor discovery uses PATH, standard per-user locations, and explicit environment overrides. Cursor `.cmd`/`.bat` launchers may provide the actual data directories through `--user-data-dir` and `--extensions-dir`. No machine-specific absolute path or temporary path is required at runtime.
+- Cursor uses the installed VSIX when available and falls back to direct `workbench.colorCustomizations` when its running instance rejects or fails to register the local VSIX.
 - Preview defaults to the complete implemented target set and prints one detection result per target; `--targets` is an explicit narrowing option, not a required discovery input.
 
 Transaction records are persisted after each target operation. Adapter results may carry JSON-safe target metadata; Chrome uses this to remove generated artifacts in a later Rollback process. VS Code-family Verify discovers the installed extension from the persisted extension directory rather than relying on adapter instance state.

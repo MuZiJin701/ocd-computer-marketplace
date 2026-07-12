@@ -312,12 +312,25 @@ class WindowsAdapter:
         self._wallpaper_path: Path | None = None
         self._version: str | None = None
 
+    def _auto_colorization_active(self) -> bool:
+        return bool(self.registry.get_value("AutoColorization", 0))
+
     def detect(self) -> AdapterResult:
         detected = detect_windows_version(self.registry)
         if detected is None:
             return AdapterResult(self.target, "skipped", False, False, "Windows 10 22H2+ or Windows 11 22H2+ not detected")
         family, build = detected
         self._version = f"{family} build {build}"
+        if self._auto_colorization_active():
+            return AdapterResult(
+                self.target,
+                "partial",
+                False,
+                True,
+                "detected " + self._version + "; Windows automatic accent color is enabled and may overwrite the selected accent",
+                True,
+                version=self._version,
+            )
         return AdapterResult(self.target, "ok", False, True, f"detected {self._version}", version=self._version)
 
     def snapshot(self, backup_dir: Path) -> AdapterResult:
@@ -348,6 +361,16 @@ class WindowsAdapter:
             for name, value in _theme_registry_values(plan).items():
                 self.registry.set_value(name, value)
             self.desktop.refresh_theme()
+            if self._auto_colorization_active():
+                return AdapterResult(
+                    self.target,
+                    "partial",
+                    True,
+                    False,
+                    "theme colors and generated wallpaper applied; turn off Windows automatic accent color to keep the selected accent",
+                    True,
+                    version=self._version,
+                )
             return AdapterResult(self.target, "ok", True, False, "theme colors and generated wallpaper applied", version=self._version)
         except (OSError, KeyError, ValueError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Windows apply failed: {error}")
@@ -358,6 +381,16 @@ class WindowsAdapter:
         colors_ok = all(self.registry.get_value(name) == value for name, value in expected_registry.items())
         wallpaper_ok = expected_path is not None and Path(expected_path).is_file() and self.desktop.get_wallpaper() == str(expected_path)
         verified = colors_ok and wallpaper_ok
+        if verified and self._auto_colorization_active():
+            return AdapterResult(
+                self.target,
+                "partial",
+                False,
+                True,
+                "Windows theme and wallpaper verified; automatic accent color is still enabled and may overwrite the accent later",
+                True,
+                version=self._version,
+            )
         return AdapterResult(self.target, "ok" if verified else "failed", False, verified, "Windows theme and wallpaper verified" if verified else "Windows theme or wallpaper mismatch", version=self._version)
 
     def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:

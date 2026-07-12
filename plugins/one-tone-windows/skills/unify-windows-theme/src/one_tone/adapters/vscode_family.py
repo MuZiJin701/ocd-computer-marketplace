@@ -25,6 +25,7 @@ class EditorSpec:
 
 def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
     palette = plan.palette
+    background_foreground = palette["background_foreground"]
     return {
         "name": theme_name,
         "type": "dark",
@@ -48,7 +49,7 @@ def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
             "sideBarTitle.foreground": palette["foreground"],
             "sideBarTitle.border": palette["border"],
             "sideBarSectionHeader.background": palette["background"],
-            "sideBarSectionHeader.foreground": palette["foreground"],
+            "sideBarSectionHeader.foreground": background_foreground,
             "sideBarSectionHeader.border": palette["border"],
             "activityBar.background": palette["surface"],
             "activityBar.foreground": palette["foreground"],
@@ -64,24 +65,25 @@ def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
             "titleBar.activeBackground": palette["surface"],
             "titleBar.activeForeground": palette["foreground"],
             "titleBar.inactiveBackground": palette["background"],
-            "titleBar.inactiveForeground": palette["muted_foreground"],
+            "titleBar.inactiveForeground": background_foreground,
             "titleBar.border": palette["border"],
             "tab.activeBackground": palette["surface"],
             "tab.activeForeground": palette["foreground"],
             "tab.inactiveBackground": palette["background"],
-            "tab.inactiveForeground": palette["muted_foreground"],
+            "tab.inactiveForeground": background_foreground,
             "tab.activeBorderTop": palette["accent"],
             "panel.background": palette["background"],
+            "panel.foreground": background_foreground,
             "panel.border": palette["border"],
             "panelTitle.activeBorder": palette["accent"],
             "statusBar.background": palette["surface"],
             "statusBar.foreground": palette["foreground"],
             "statusBar.border": palette["border"],
             "input.background": palette["background"],
-            "input.foreground": palette["foreground"],
+            "input.foreground": background_foreground,
             "input.border": palette["border"],
             "dropdown.background": palette["background"],
-            "dropdown.foreground": palette["foreground"],
+            "dropdown.foreground": background_foreground,
             "list.activeSelectionBackground": palette["selection_background"],
             "list.activeSelectionForeground": palette["selection_foreground"],
             "list.hoverBackground": palette["selection_background"],
@@ -163,7 +165,10 @@ class VSCodeFamilyAdapter:
                 entries = json.loads(index.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 entries = []
-            for entry in entries if isinstance(entries, list) else []:
+            normalized_entries = entries if isinstance(entries, list) else [entries] if isinstance(entries, dict) else []
+            for entry in normalized_entries:
+                if not isinstance(entry, dict):
+                    continue
                 identifier = entry.get("identifier", {})
                 if identifier.get("id") != self._extension_id():
                     continue
@@ -244,6 +249,8 @@ class VSCodeFamilyAdapter:
             entries = json.loads(index.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return
+        if isinstance(entries, dict):
+            entries = [entries]
         if not isinstance(entries, list):
             return
         filtered = [
@@ -254,6 +261,23 @@ class VSCodeFamilyAdapter:
         ]
         if filtered != entries:
             atomic_write_text(index, json.dumps(filtered, ensure_ascii=False, separators=(",", ":")))
+
+    def _cursor_color_customizations(self, plan: Plan) -> dict[str, str]:
+        return build_theme_json(plan, self._theme_name)["colors"]
+
+    def _apply_cursor_settings_fallback(self, settings: dict[str, Any], plan: Plan) -> None:
+        customizations = settings.get("workbench.colorCustomizations")
+        if not isinstance(customizations, dict):
+            customizations = {}
+        customizations.update(self._cursor_color_customizations(plan))
+        settings["workbench.colorCustomizations"] = customizations
+
+    def _cursor_settings_match(self, settings: dict[str, Any], plan: Plan) -> bool:
+        customizations = settings.get("workbench.colorCustomizations")
+        if not isinstance(customizations, dict):
+            return False
+        expected = self._cursor_color_customizations(plan)
+        return all(customizations.get(key) == value for key, value in expected.items())
 
     def _cli_requires_restart(self, completed: Any) -> bool:
         output = b"\n".join(
@@ -296,10 +320,13 @@ class VSCodeFamilyAdapter:
 
             index = self.spec.extensions_dir / "extensions.json"
             entries = []
+            index_was_single_object = False
             if index.is_file():
                 loaded = json.loads(index.read_text(encoding="utf-8"))
                 if isinstance(loaded, list):
                     entries = loaded
+                elif isinstance(loaded, dict):
+                    index_was_single_object = True
             relative_location = installed_dir.name
             location = {
                 "$mid": 1,
@@ -322,7 +349,8 @@ class VSCodeFamilyAdapter:
             ]
             if not any(entry.get("identifier", {}).get("id") == extension_id for entry in entries):
                 entries.append(replacement)
-            atomic_write_text(index, json.dumps(entries, ensure_ascii=False, separators=(",", ":")))
+            if not index_was_single_object:
+                atomic_write_text(index, json.dumps(entries, ensure_ascii=False, separators=(",", ":")))
             return True
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, zipfile.BadZipFile):
             return False
@@ -351,6 +379,14 @@ class VSCodeFamilyAdapter:
     def apply(self, plan: Plan) -> AdapterResult:
         try:
             settings = self._read_settings()
+            original_theme_values = {
+                key: settings.get(key)
+                for key in (
+                    "workbench.colorTheme",
+                    "workbench.preferredDarkColorTheme",
+                    "workbench.preferredLightColorTheme",
+                )
+            }
             artifacts_dir = self.spec.artifacts_dir or self.spec.extensions_dir.parent / ".one-tone-artifacts"
             vsix_path = build_vsix(plan, artifacts_dir / f"{self.target}-{plan.id}.vsix", self.spec)
             self.spec.extensions_dir.mkdir(parents=True, exist_ok=True)
@@ -358,20 +394,48 @@ class VSCodeFamilyAdapter:
             settings["workbench.colorTheme"] = self._theme_name
             settings["workbench.preferredDarkColorTheme"] = self._theme_name
             settings["workbench.preferredLightColorTheme"] = self._theme_name
+            if self.target == "cursor":
+                self._apply_cursor_settings_fallback(settings, plan)
             atomic_write_text(
                 self.spec.settings_path,
                 json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
             )
             command = [str(self.spec.executable), "--install-extension", str(vsix_path), "--force"]
-            if self.command_runner is None:
-                completed = subprocess.run(command, check=False, capture_output=True, timeout=30)
-            else:
-                completed = self.command_runner(command, check=False, capture_output=True)
+            try:
+                if self.command_runner is None:
+                    completed = subprocess.run(command, check=False, capture_output=True, timeout=30)
+                else:
+                    completed = self.command_runner(command, check=False, capture_output=True)
+            except (OSError, subprocess.TimeoutExpired):
+                if self.target != "cursor":
+                    raise
+                completed = None
             if completed is not None and getattr(completed, "returncode", 0) not in (0, None):
-                if not self._cli_requires_restart(completed) or not self._manual_install_vsix(vsix_path):
+                if self._cli_requires_restart(completed):
+                    self._manual_install_vsix(vsix_path)
+                elif self.target != "cursor":
                     return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install failed")
             installed_dirs = self._installed_extension_dirs()
             if not installed_dirs:
+                if self.target == "cursor" and self._cursor_settings_match(self._read_settings(), plan):
+                    fallback_settings = self._read_settings()
+                    for key, value in original_theme_values.items():
+                        if value is None:
+                            fallback_settings.pop(key, None)
+                        else:
+                            fallback_settings[key] = value
+                    atomic_write_text(
+                        self.spec.settings_path,
+                        json.dumps(fallback_settings, ensure_ascii=False, indent=2) + "\n",
+                    )
+                    return AdapterResult(
+                        self.target,
+                        "partial",
+                        True,
+                        False,
+                        "Cursor color customizations applied; VSIX registration was unavailable, so restart Cursor to reload settings",
+                        True,
+                    )
                 return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install produced no registered extension")
             self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
             return AdapterResult(self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected")
@@ -394,6 +458,15 @@ class VSCodeFamilyAdapter:
                 and settings.get("workbench.preferredLightColorTheme") == self._theme_name
                 and extension_dir is not None
             )
+            if self.target == "cursor" and not verified and self._cursor_settings_match(settings, plan):
+                return AdapterResult(
+                    self.target,
+                    "partial",
+                    False,
+                    True,
+                    "Cursor color customizations verified; VSIX registration is unavailable",
+                    True,
+                )
             if not verified:
                 return AdapterResult(self.target, "failed", False, False, f"{self.target} theme verification failed")
             if self.spec.ai_panel_supported:
