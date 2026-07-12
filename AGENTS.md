@@ -17,7 +17,7 @@ Preview → Apply → Verify → Rollback
 - Codex（独立 Adapter）
 - Chrome
 
-不支持 JetBrains、Edge、Office、Contrast Theme 和其他未验证目标。
+当前实现目标以仓库 Skill 的目标矩阵为准；不要根据相似应用猜测兼容性。
 
 ## 包结构
 

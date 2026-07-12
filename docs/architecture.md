@@ -35,6 +35,7 @@ The runtime has no database, background service or plugin runtime framework.
 - Windows wallpaper is a solid PNG of the exact Seed Color. Windows registry accent values and the generated accent palette use Palette `accent`, never a darkened `surface`.
 - Windows Apply does not write `AppsUseLightTheme`, `SystemUsesLightTheme`, or `AutoColorization`; the user's current mode and automatic color choice remain under user control.
 - Editor discovery uses PATH, standard per-user locations, and explicit environment overrides. Cursor `.cmd`/`.bat` launchers may provide the actual data directories through `--user-data-dir` and `--extensions-dir`. No machine-specific absolute path or temporary path is required at runtime.
+- Preview defaults to the complete implemented target set and prints one detection result per target; `--targets` is an explicit narrowing option, not a required discovery input.
 
 Transaction records are persisted after each target operation. Adapter results may carry JSON-safe target metadata; Chrome uses this to remove generated artifacts in a later Rollback process. VS Code-family Verify discovers the installed extension from the persisted extension directory rather than relying on adapter instance state.
 

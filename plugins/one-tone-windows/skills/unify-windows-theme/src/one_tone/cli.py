@@ -25,6 +25,8 @@ from .adapters.windows import WindowsDesktopBackend, WindowsRegistryBackend
 from .plan import PlanIntegrityError, create_plan, load_plan, save_plan
 from .transaction import TransactionStatus, TransactionStore, apply_plan, verify_plan
 
+DEFAULT_TARGETS = ("windows", "terminal", "vscode", "cursor", "trae", "codex", "chrome")
+
 
 def _default_runtime_dir() -> Path:
     return Path(".one-tone")
@@ -37,7 +39,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     preview = commands.add_parser("preview", help="generate a Plan without changing targets")
     preview.add_argument("seed_color")
-    preview.add_argument("--targets", required=True, help="comma-separated target names")
+    preview.add_argument(
+        "--targets",
+        default=",".join(DEFAULT_TARGETS),
+        help="comma-separated target names (default: all supported targets)",
+    )
     preview.add_argument("--plans-dir", type=Path, default=runtime_dir / "plans")
     preview.add_argument("--transactions-dir", type=Path, default=runtime_dir / "transactions")
     preview.add_argument("--state-dir", type=Path, default=runtime_dir / "state")
@@ -170,13 +176,34 @@ def _editor_paths(
     return settings, extensions_dir
 
 
+def _scoop_root_from_shim(executable: Path) -> Path | None:
+    if executable.parent.name.casefold() != "shims":
+        return None
+    return executable.parent.parent
+
+
+def _terminal_settings_candidates(executable: Path, localappdata: Path, userprofile: Path) -> list[Path]:
+    candidates = [
+        localappdata / "Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
+        localappdata / "Microsoft/Windows Terminal/settings.json",
+        userprofile / "scoop/persist/windows-terminal/settings/settings.json",
+        localappdata / "scoop/persist/windows-terminal/settings/settings.json",
+    ]
+    scoop_root = _scoop_root_from_shim(executable)
+    if scoop_root is not None:
+        candidates.insert(0, scoop_root / "persist/windows-terminal/settings/settings.json")
+    return candidates
+
+
 def build_target_adapters(targets, state_dir: Path):
     appdata = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
     localappdata = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
     userprofile = Path(os.environ.get("USERPROFILE", Path.home()))
-    terminal_settings = _configured_or_first("ONE_TONE_TERMINAL_SETTINGS", [
-        localappdata / "Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
-    ])
+    terminal_executable = _first_executable("ONE_TONE_TERMINAL_EXECUTABLE", "wt", [])
+    terminal_settings = _configured_or_first(
+        "ONE_TONE_TERMINAL_SETTINGS",
+        _terminal_settings_candidates(terminal_executable, localappdata, userprofile),
+    )
     vscode_spec = EditorSpec(
         "vscode",
         _first_executable("ONE_TONE_VSCODE_EXECUTABLE", "code", []),
@@ -264,9 +291,11 @@ def _preview(args: argparse.Namespace) -> int:
     print("Targets:")
     for target in plan.targets:
         print(f"- {target}")
+    print("Detection:")
+    for target, result in detected.items():
+        print(f"- {target}: {result.status} — {result.message}")
     print("Validation:")
     print("- Contrast: PASS")
-    print(f"- Warnings: {unsupported_count} unverified target(s)")
     print(f"- Saved: {path}")
     return 0
 

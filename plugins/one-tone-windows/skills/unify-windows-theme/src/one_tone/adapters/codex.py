@@ -22,6 +22,9 @@ _SEMANTIC_FIELDS = ("diffAdded", "diffRemoved", "skill")
 
 
 def default_codex_config_path() -> Path:
+    codex_home = os.environ.get("CODEX_HOME")
+    if codex_home:
+        return Path(codex_home) / "config.toml"
     userprofile = os.environ.get("USERPROFILE")
     home = Path(userprofile) if userprofile else Path.home()
     return home / ".codex" / "config.toml"
@@ -45,7 +48,7 @@ def _is_v1_payload(payload: object) -> bool:
     if not isinstance(payload, dict):
         return False
     desktop = payload.get("desktop")
-    if not isinstance(desktop, dict) or desktop.get("appearanceTheme") not in {"dark", "light"}:
+    if not isinstance(desktop, dict) or desktop.get("appearanceTheme") not in {"dark", "light", "system"}:
         return False
     for table_name in ("appearanceLightChromeTheme", "appearanceDarkChromeTheme"):
         theme = desktop.get(table_name)

@@ -27,7 +27,7 @@
 - Plan、Transaction 和 target 标识不能穿越运行时目录；配置写入使用原子替换。
 - 目标限制明确报告为 `ok`、`partial` 或 `skipped`。
 - Seed Color 原样作为 Palette/Codex 的 `surface` 和 Windows 壁纸颜色；Windows 强调色使用 Palette `accent`，不修改用户浅/深色模式或 `AutoColorization`。
-- 编辑器路径通过用户目录、PATH、launcher 参数和环境变量覆盖探测，不写入机器特定盘符或临时路径；Cursor 支持解析 `.cmd`/`.bat` 的 `--user-data-dir` 和 `--extensions-dir`。
+- Preview 默认覆盖全部已实现目标；编辑器、Windows Terminal 和 Codex 路径通过用户目录、PATH、Scoop shim、launcher 参数和环境变量覆盖探测，不写入机器特定盘符或临时路径。
 
 ## 下一步
 

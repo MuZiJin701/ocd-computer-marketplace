@@ -26,6 +26,16 @@ def test_codex_v1_config_is_detected(tmp_path):
     assert result.version == CODEX_CONFIG_SCHEMA_V1
 
 
+def test_codex_system_appearance_mode_is_detected(tmp_path):
+    path = write_codex_v1_fixture(tmp_path / "config.toml")
+    path.write_text(
+        path.read_text(encoding="utf-8").replace('appearanceTheme = "dark"', 'appearanceTheme = "system"'),
+        encoding="utf-8",
+    )
+
+    assert CodexAdapter(path).detect().status == "ok"
+
+
 def test_codex_default_path_uses_userprofile(monkeypatch, tmp_path):
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     path = write_codex_v1_fixture(tmp_path / ".codex" / "config.toml")

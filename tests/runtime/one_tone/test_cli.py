@@ -153,3 +153,26 @@ def test_apply_parser_defaults_transaction_retention_to_five():
     args = _build_parser().parse_args(["apply", "plan-001", "--confirm"])
 
     assert args.keep_transactions == 5
+
+
+def test_preview_defaults_to_all_supported_targets():
+    from one_tone.cli import DEFAULT_TARGETS, _build_parser
+
+    args = _build_parser().parse_args(["preview", "#10B981"])
+
+    assert args.targets == ",".join(DEFAULT_TARGETS)
+
+
+def test_terminal_adapter_derives_scoop_persist_settings_from_shim(tmp_path, monkeypatch):
+    scoop_root = tmp_path / "scoop"
+    executable = scoop_root / "shims" / "wt.exe"
+    settings = scoop_root / "persist" / "windows-terminal" / "settings" / "settings.json"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"shim")
+    settings.parent.mkdir(parents=True)
+    settings.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("ONE_TONE_TERMINAL_EXECUTABLE", str(executable))
+
+    adapter = build_target_adapters(("terminal",), tmp_path / "state")["terminal"]
+
+    assert adapter.settings_path == settings

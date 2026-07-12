@@ -13,6 +13,6 @@
     "developerName": "Local developer",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "使用 $unify-windows-theme 预览并安全地将一个 Palette 应用到选定的 Windows 目标。"
+    "defaultPrompt": "使用 $unify-windows-theme 预览并安全地将一个 Seed Color 应用到全部已实现的 Windows 目标；只有用户明确指定时才缩小范围。"
   }
 }
