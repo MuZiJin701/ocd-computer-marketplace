@@ -27,7 +27,10 @@ def test_generate_palette_contains_required_semantic_colors_and_passes_contrast(
         "selection_foreground", "border", "error", "warning", "success",
     }
     assert validate_palette(palette) == []
+    assert palette["surface"] == "#7C3AED"
     assert contrast_ratio(palette["foreground"], palette["background"]) >= 7
+    assert contrast_ratio(palette["muted_foreground"], palette["surface"]) >= 4.5
+    assert contrast_ratio(palette["accent_foreground"], palette["accent"]) >= 4.5
 
 
 def test_palette_validation_reports_contrast_failure():
@@ -41,5 +44,5 @@ def test_green_seed_tints_background_and_surface():
     palette = generate_palette("#00A86B")
 
     assert palette["background"] != "#111318"
-    assert palette["surface"] != "#1B1D24"
+    assert palette["surface"] == "#00A86B"
     assert int(palette["background"][3:5], 16) > int(palette["background"][5:7], 16)

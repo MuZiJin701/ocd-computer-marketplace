@@ -63,7 +63,7 @@ def test_codex_v1_fixture_applies_verifies_and_restores_preserving_fields(tmp_pa
         theme = payload["desktop"][mode]
         assert theme["accent"] == plan.palette["accent"]
         assert theme["ink"] == plan.palette["foreground"]
-        assert theme["surface"] == plan.palette["surface"]
+        assert theme["surface"] == plan.seed_color
         assert theme["contrast"] == 100
         assert theme["opaqueWindows"] is True
         assert theme["fonts"]["editor"] == "keep"

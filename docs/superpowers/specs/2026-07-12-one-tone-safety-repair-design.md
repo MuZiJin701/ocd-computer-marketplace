@@ -12,6 +12,8 @@
 - Plan、transaction 和 target 标识：禁止通过路径分隔符或 `..` 离开各自的运行时目录。
 - 配置和事务 JSON：使用同目录临时文件加原子替换，降低进程中断造成截断文件的风险。
 - 文档、测试和 `AGENTS.md` 同步描述新的状态和验证限制。
+- Palette 语义：Seed 原样作为 Codex `surface` 和 Windows 壁纸；Windows registry accent 使用 Palette `accent`；用户前景使用色相关联的派生色，并对实际背景满足可读对比度，不使用黑/白二选一规则。
+- 路径语义：可分发 Skill 不携带机器特定绝对路径或临时路径；Cursor `.cmd`/`.bat` launcher 的 `--user-data-dir` 和 `--extensions-dir` 可作为运行时发现来源。
 
 ## 设计
 

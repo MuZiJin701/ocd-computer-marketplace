@@ -284,19 +284,16 @@ def generate_accent_palette(accent: str) -> bytes:
 
 
 def _theme_registry_values(plan: Plan) -> dict[str, int | bytes]:
-    surface = windows_color_value(plan.palette["surface"])
+    accent = windows_color_value(plan.palette["accent"])
     return {
-        "AutoColorization": 0,
-        "AppsUseLightTheme": 0,
-        "SystemUsesLightTheme": 0,
         "StartTaskbarColorPrevalence": 1,
         "TitleBarColorPrevalence": 1,
-        "AccentColorMenu": surface,
-        "StartColorMenu": surface,
-        "AccentPalette": generate_accent_palette(plan.palette["surface"]),
-        "AccentColor": surface,
-        "ColorizationColor": windows_colorization_value(plan.palette["surface"]),
-        "ColorizationAfterglow": windows_colorization_value(plan.palette["surface"]),
+        "AccentColorMenu": accent,
+        "StartColorMenu": accent,
+        "AccentPalette": generate_accent_palette(plan.palette["accent"]),
+        "AccentColor": accent,
+        "ColorizationColor": windows_colorization_value(plan.palette["accent"]),
+        "ColorizationAfterglow": windows_colorization_value(plan.palette["accent"]),
     }
 
 
@@ -351,7 +348,7 @@ class WindowsAdapter:
             for name, value in _theme_registry_values(plan).items():
                 self.registry.set_value(name, value)
             self.desktop.refresh_theme()
-            return AdapterResult(self.target, "ok", True, False, "dark theme and generated wallpaper applied", version=self._version)
+            return AdapterResult(self.target, "ok", True, False, "theme colors and generated wallpaper applied", version=self._version)
         except (OSError, KeyError, ValueError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Windows apply failed: {error}")
 

@@ -35,6 +35,8 @@ uv run --project . one-tone --help
 
 Codex Plugin 元数据位于 `.codex-plugin/plugin.json`；Python runtime 不依赖该元数据。
 
-默认路径会根据 Windows 用户目录和 PATH 探测；不同安装方式可使用 `ONE_TONE_VSCODE_*`、`ONE_TONE_CURSOR_*`、`ONE_TONE_TRAE_*`、`ONE_TONE_TERMINAL_SETTINGS` 或 `ONE_TONE_CHROME_PREFERENCES` 环境变量覆盖。
+默认路径会根据 Windows 用户目录和 PATH 探测；Cursor 命中 `.cmd`/`.bat` launcher 时还会读取 `--user-data-dir` 与 `--extensions-dir`，以支持 Scoop、便携版和非 C 盘安装。不同安装方式可使用 `ONE_TONE_VSCODE_*`、`ONE_TONE_CURSOR_*`、`ONE_TONE_TRAE_*`、`ONE_TONE_TERMINAL_SETTINGS` 或 `ONE_TONE_CHROME_PREFERENCES` 环境变量覆盖。Skill 不依赖 Everything，也不包含开发机绝对路径或临时路径。
+
+Seed Color 是统一主题的 `surface`：Codex 的浅色/深色主题表都写入该原色，Windows 壁纸生成该原色的纯色 PNG。Windows 强调色使用 Palette `accent`；Apply 不修改用户的浅/深色模式和 `AutoColorization`。
 
 事务记录会在每个操作后持久化。VS Code 系列 Verify 和 Chrome 主题产物 Rollback 支持 Apply、Verify/Rollback 分属不同进程的场景。

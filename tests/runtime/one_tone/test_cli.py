@@ -98,6 +98,7 @@ def test_vscode_family_adapter_resolves_path_cli_fallback(monkeypatch, tmp_path)
 
 def test_cursor_adapter_uses_user_extension_directory_for_cli_installs(tmp_path, monkeypatch):
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("ONE_TONE_CURSOR_EXECUTABLE", "cursor")
 
     adapter = build_target_adapters(("cursor",), tmp_path / "state")["cursor"]
 
@@ -117,6 +118,23 @@ def test_vscode_adapter_accepts_environment_path_overrides(tmp_path, monkeypatch
     assert adapter.spec.executable == executable
     assert adapter.spec.settings_path == settings
     assert adapter.spec.extensions_dir == extensions
+
+
+def test_cursor_adapter_derives_data_paths_from_launcher_arguments(tmp_path, monkeypatch):
+    launcher = tmp_path / "cursor.cmd"
+    data_root = tmp_path / "cursor-data"
+    launcher.write_text(
+        f'@"cursor.exe" --user-data-dir="{data_root / "user-data"}" --extensions-dir="{data_root / "extensions"}" %*',
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("ONE_TONE_CURSOR_SETTINGS", raising=False)
+    monkeypatch.delenv("ONE_TONE_CURSOR_EXTENSIONS", raising=False)
+    monkeypatch.setattr("one_tone.cli.shutil.which", lambda command: str(launcher) if command == "cursor" else None)
+
+    adapter = build_target_adapters(("cursor",), tmp_path / "state")["cursor"]
+
+    assert adapter.spec.settings_path == data_root / "user-data" / "User" / "settings.json"
+    assert adapter.spec.extensions_dir == data_root / "extensions"
 
 
 def test_cli_defaults_runtime_data_to_single_project_directory():

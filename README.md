@@ -27,7 +27,8 @@ uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone ro
 - `preview` 生成带 Hash 的 Plan，不修改目标。
 - `apply` 只接受已有 `plan_id`。每个目标独立 Snapshot、Apply、内部检查；每个操作都会写入事务记录，失败目标自动回滚，成功目标保留。
 - 自动回滚失败会报告 `failed`；至少一个目标成功且其他目标失败或 skipped 才报告 `partial`，没有成功目标时报告 `failed`。
-- `windows` 同时设置 Start/Taskbar 和标题栏/窗口边框强调色开关；`terminal` 覆盖 Profile、Tab 和窗口顶部区域。
+- `windows` 使用 Palette 的 `accent` 设置 Start/Taskbar、标题栏/窗口边框和 DWM 强调色；壁纸使用用户输入的 Seed Color 原色，并保留用户当前浅/深色模式与 Windows 自动取色设置。
+- Palette 中 Codex 的 `surface` 在浅色和深色主题表中都等于 Seed Color；`ink`、`muted_foreground` 和各控件前景保持色相关联并按实际背景保证可读对比度，不强制使用纯黑或纯白。
 - `vscode`、`cursor`、`trae` 覆盖标准工作台主题字段，但专属 AI 界面可能返回 `partial`。
 - `verify <plan_id>` 只读取当前配置并与 Plan 对比，不创建事务、不重启应用；VS Code、Cursor、TRAE 会从持久化扩展目录重新发现主题。
 - 用户手动重启应用后，再次执行同一个 `verify <plan_id>`。
@@ -51,7 +52,7 @@ tests/
 
 Skill 包自带 Python runtime，可独立使用；Codex Plugin 元数据只是可选兼容层。根项目只提供测试入口。运行期 Plan、主题产物和事务快照保存在当前工作目录的 `.one-tone/`，默认保留最近 5 个已完成事务。
 
-VS Code、Cursor、TRAE 的可执行文件、设置文件和扩展目录可通过 `ONE_TONE_<TARGET>_EXECUTABLE`、`ONE_TONE_<TARGET>_SETTINGS` 和 `ONE_TONE_<TARGET>_EXTENSIONS` 覆盖；Terminal 使用 `ONE_TONE_TERMINAL_SETTINGS`，Chrome 使用 `ONE_TONE_CHROME_PREFERENCES`。
+VS Code、Cursor、TRAE 的可执行文件、设置文件和扩展目录可通过 `ONE_TONE_<TARGET>_EXECUTABLE`、`ONE_TONE_<TARGET>_SETTINGS` 和 `ONE_TONE_<TARGET>_EXTENSIONS` 覆盖；Terminal 使用 `ONE_TONE_TERMINAL_SETTINGS`，Chrome 使用 `ONE_TONE_CHROME_PREFERENCES`。如果 Cursor 的 PATH 命中 `.cmd`/`.bat` launcher，runtime 会读取其中的 `--user-data-dir` 和 `--extensions-dir`；不会依赖固定盘符或 Everything，也不会把开发机路径写入分发包。
 
 ## 测试
 

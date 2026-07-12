@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import colorsys
 from collections.abc import Mapping
 
 REQUIRED_KEYS = (
@@ -18,9 +19,10 @@ REQUIRED_KEYS = (
 )
 
 _CONTRAST_PAIRS = (
-    ("foreground", "background"),
-    ("accent_foreground", "accent"),
-    ("selection_foreground", "selection_background"),
+    ("foreground", "background", 7),
+    ("muted_foreground", "surface", 4.5),
+    ("accent_foreground", "accent", 4.5),
+    ("selection_foreground", "selection_background", 4.5),
 )
 
 
@@ -70,40 +72,83 @@ def contrast_ratio(foreground: str, background: str) -> float:
     return (max(first, second) + 0.05) / (min(first, second) + 0.05)
 
 
-def _best_contrast_foreground(background: str) -> str:
-    black_ratio = contrast_ratio("#000000", background)
-    white_ratio = contrast_ratio("#FFFFFF", background)
-    return "#000000" if black_ratio >= white_ratio else "#FFFFFF"
+def _hls_color(hue: float, lightness: float, saturation: float) -> str:
+    rgb = colorsys.hls_to_rgb(
+        hue % 1.0,
+        max(0.01, min(0.99, lightness)),
+        max(0.08, min(0.95, saturation)),
+    )
+    return _to_hex(tuple(round(channel * 255) for channel in rgb))
+
+
+def _chromatic_candidates(color: str) -> list[str]:
+    red, green, blue = parse_hex_color(color)
+    hue, _lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+    candidates: list[str] = []
+    for lightness in (0.999, 0.997, 0.995, 0.98, 0.94, 0.9, 0.84, 0.78, 0.7, 0.3, 0.22, 0.16, 0.1, 0.04, 0.01, 0.003):
+        for candidate_saturation in (
+            max(0.08, saturation),
+            max(0.08, saturation * 0.72),
+            max(0.08, saturation * 0.45),
+            max(0.08, saturation * 0.25),
+            0.12,
+            0.2,
+            0.35,
+            0.5,
+        ):
+            candidate = _hls_color(hue, lightness, candidate_saturation)
+            if candidate not in candidates and candidate not in {"#000000", "#FFFFFF"}:
+                candidates.append(candidate)
+    return candidates
+
+
+def _chromatic_foreground(backgrounds: tuple[str, ...], minimum_ratio: float) -> str:
+    source = backgrounds[0]
+    candidates = _chromatic_candidates(source)
+    ranked = sorted(
+        candidates,
+        key=lambda candidate: min(contrast_ratio(candidate, background) for background in backgrounds),
+        reverse=True,
+    )
+    for candidate in ranked:
+        if min(contrast_ratio(candidate, background) for background in backgrounds) >= minimum_ratio:
+            return candidate
+    return ranked[0]
 
 
 def _contrast_safe_accent(seed_color: str, background: str) -> str:
-    candidates = [seed_color]
-    candidates.extend(_blend(seed_color, "#000000", amount) for amount in (0.2, 0.35, 0.5, 0.65, 0.8))
-    candidates.extend(_blend(seed_color, "#FFFFFF", amount) for amount in (0.2, 0.35, 0.5, 0.65, 0.8))
-    for candidate in candidates:
-        if max(contrast_ratio("#000000", candidate), contrast_ratio("#FFFFFF", candidate)) >= 7:
-            return candidate
-    return "#000000" if contrast_ratio("#000000", background) >= 7 else "#FFFFFF"
+    red, green, blue = parse_hex_color(seed_color)
+    hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+    candidates = [
+        _hls_color(hue, lightness + delta, min(0.95, max(0.2, saturation * factor)))
+        for delta in (0.28, -0.28, 0.18, -0.18, 0.38, -0.38)
+        for factor in (1.0, 0.75)
+    ]
+    candidates = [candidate for candidate in candidates if candidate != seed_color]
+    return max(candidates, key=lambda candidate: contrast_ratio(candidate, background))
 
 
 def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
     if mode != "dark":
         raise ValueError("Only dark mode is supported in this phase")
     seed = _to_hex(parse_hex_color(seed_color))
-    background = _blend("#000000", seed, 0.12)
-    surface = _blend("#000000", seed, 0.18)
-    foreground = "#F7F7FA"
+    red, green, blue = parse_hex_color(seed)
+    _hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+    background = _hls_color(_hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
+    surface = seed
+    foreground = _chromatic_foreground((background,), 7)
+    muted_foreground = _chromatic_foreground((surface,), 4.5)
     accent = _contrast_safe_accent(seed, background)
     selection_background = _blend(accent, background, 0.8)
     palette = {
         "background": background,
         "surface": surface,
         "foreground": foreground,
-        "muted_foreground": "#A7A9B4",
+        "muted_foreground": muted_foreground,
         "accent": accent,
-        "accent_foreground": _best_contrast_foreground(accent),
+        "accent_foreground": _chromatic_foreground((accent,), 4.5),
         "selection_background": selection_background,
-        "selection_foreground": _best_contrast_foreground(selection_background),
+        "selection_foreground": _chromatic_foreground((selection_background,), 4.5),
         "border": "#4A4D59",
         "error": "#F05252",
         "warning": "#F3B95F",
@@ -126,9 +171,9 @@ def validate_palette(palette: Mapping[str, str]) -> list[str]:
                 parse_hex_color(palette[key])
             except ValueError as error:
                 errors.append(f"{key}: {error}")
-    for foreground, background in _CONTRAST_PAIRS:
+    for foreground, background, minimum_ratio in _CONTRAST_PAIRS:
         if foreground in palette and background in palette:
             ratio = contrast_ratio(palette[foreground], palette[background])
-            if ratio < 7:
-                errors.append(f"{foreground}/{background} contrast is {ratio:.2f}:1, required >= 7:1")
+            if ratio < minimum_ratio:
+                errors.append(f"{foreground}/{background} contrast is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
     return errors

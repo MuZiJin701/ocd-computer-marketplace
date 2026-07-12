@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 from dataclasses import asdict
@@ -140,6 +141,35 @@ def _first_executable(name: str, command: str, candidates: list[Path]) -> Path:
     return Path(resolved) if resolved else Path(command)
 
 
+def _launcher_argument(executable: Path, argument: str) -> Path | None:
+    if executable.suffix.lower() not in {".cmd", ".bat"} or not executable.is_file():
+        return None
+    try:
+        contents = executable.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    pattern = re.compile(
+        rf"--{re.escape(argument)}=(?:\"([^\"]+)\"|'([^']+)'|([^\s%]+))",
+        re.IGNORECASE,
+    )
+    match = pattern.search(contents)
+    if not match:
+        return None
+    value = next((group for group in match.groups() if group), None)
+    return Path(value) if value else None
+
+
+def _editor_paths(
+    executable: Path,
+    default_settings: Path,
+    default_extensions: Path,
+) -> tuple[Path, Path]:
+    user_data_dir = _launcher_argument(executable, "user-data-dir")
+    extensions_dir = _launcher_argument(executable, "extensions-dir") or default_extensions
+    settings = user_data_dir / "User" / "settings.json" if user_data_dir else default_settings
+    return settings, extensions_dir
+
+
 def build_target_adapters(targets, state_dir: Path):
     appdata = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
     localappdata = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
@@ -154,11 +184,17 @@ def build_target_adapters(targets, state_dir: Path):
         _configured_or_first("ONE_TONE_VSCODE_EXTENSIONS", [userprofile / ".vscode/extensions"]),
         artifacts_dir=state_dir / "vscode-artifacts",
     )
+    cursor_executable = _first_executable("ONE_TONE_CURSOR_EXECUTABLE", "cursor", [])
+    cursor_settings, cursor_extensions = _editor_paths(
+        cursor_executable,
+        appdata / "Cursor/User/settings.json",
+        userprofile / ".cursor/extensions",
+    )
     cursor_spec = EditorSpec(
         "cursor",
-        _first_executable("ONE_TONE_CURSOR_EXECUTABLE", "cursor", []),
-        _configured_or_first("ONE_TONE_CURSOR_SETTINGS", [appdata / "Cursor/User/settings.json"]),
-        _configured_or_first("ONE_TONE_CURSOR_EXTENSIONS", [userprofile / ".cursor/extensions"]),
+        cursor_executable,
+        _configured_or_first("ONE_TONE_CURSOR_SETTINGS", [cursor_settings]),
+        _configured_or_first("ONE_TONE_CURSOR_EXTENSIONS", [cursor_extensions]),
         artifacts_dir=state_dir / "cursor-artifacts",
     )
     trae_spec = EditorSpec(

@@ -10,7 +10,9 @@
 
 - Windows 10 22H2+，build `>= 19045`。
 - Windows 11 22H2+，build `>= 22621`。
-- 普通深色模式；不实现 Contrast Theme。
+- 保留用户当前浅色/深色模式；不实现 Contrast Theme。Windows Apply 只写用户选定的 `accent` 和 Seed 原色壁纸，不改 `AppsUseLightTheme`、`SystemUsesLightTheme` 或 `AutoColorization`。
+- Seed Color 是 Codex 主题模型中的 `surface`，同时写入浅色和深色主题表；Windows 强调色使用 Palette `accent`，不能把暗化的 `surface` 当作 accent。
+- Editor 路径从用户目录、PATH 和 Cursor launcher 参数探测，显式环境变量优先；Skill 不依赖 Everything、固定盘符或开发机临时路径。
 - Windows 版本检测优先使用 `CurrentBuild`，不根据 `ProductName` 猜测。
 
 ### 2. Package boundaries

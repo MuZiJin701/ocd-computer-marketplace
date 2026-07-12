@@ -35,7 +35,7 @@ def test_wallpaper_generation_is_png_and_deterministic(tmp_path):
     assert first.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
 
 
-def test_wallpaper_generation_is_one_solid_surface_color(tmp_path):
+def test_wallpaper_generation_is_one_solid_seed_color(tmp_path):
     plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-solid-wallpaper-001")
     wallpaper = generate_wallpaper(plan.palette, tmp_path / "solid.png", width=8, height=4)
     payload = wallpaper.read_bytes()
@@ -61,7 +61,7 @@ def test_wallpaper_generation_is_one_solid_surface_color(tmp_path):
         assert scanline[0] == 0
         pixels.update(tuple(scanline[index:index + 3]) for index in range(1, stride, 3))
 
-    expected = tuple(bytes.fromhex(plan.palette["surface"][1:]))
+    expected = tuple(bytes.fromhex(plan.seed_color[1:]))
     assert pixels == {expected}
 
 
@@ -135,17 +135,24 @@ def test_windows_rollback_restores_auto_colorization_after_wallpaper(tmp_path):
 
 
 def test_windows_apply_sets_green_accent_and_taskbar_prevalence(tmp_path):
-    registry = InMemoryRegistryBackend({"CurrentBuild": "26200", "AutoColorization": 1})
+    registry = InMemoryRegistryBackend({
+        "CurrentBuild": "26200",
+        "AutoColorization": 1,
+        "AppsUseLightTheme": 1,
+        "SystemUsesLightTheme": 1,
+    })
     desktop = InMemoryDesktopBackend()
     adapter = WindowsAdapter(WindowsConfig(tmp_path), registry, desktop)
     plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-accent-001")
 
     assert adapter.apply(plan).status == "ok"
-    assert registry.values["AutoColorization"] == 0
+    assert registry.values["AutoColorization"] == 1
+    assert registry.values["AppsUseLightTheme"] == 1
+    assert registry.values["SystemUsesLightTheme"] == 1
     assert registry.values["StartTaskbarColorPrevalence"] == 1
     assert registry.values["TitleBarColorPrevalence"] == 1
-    assert registry.values["AccentColorMenu"] == windows_color_value(plan.palette["surface"])
-    assert registry.values["ColorizationColor"] == windows_colorization_value(plan.palette["surface"])
+    assert registry.values["AccentColorMenu"] == windows_color_value(plan.palette["accent"])
+    assert registry.values["ColorizationColor"] == windows_colorization_value(plan.palette["accent"])
 
 
 def test_windows_accent_palette_is_an_eight_color_bgra_binary_value():

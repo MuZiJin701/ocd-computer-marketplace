@@ -40,6 +40,8 @@ Preview → Apply → Verify → Rollback
 - Plan ID、Transaction ID 和 target 必须是安全路径组件；未知 target 仍可 `skipped`，但不得创建越界路径。
 - Plan、事务和目标配置 JSON 使用同目录临时文件加原子替换，避免中断造成截断文件。
 - 事务快照默认保留最近 5 个已完成事务；只清理工具生成的数据。
+- 可分发 Skill 不得依赖开发机绝对路径、固定盘符或机器上的临时路径；运行期路径必须通过用户目录、PATH、launcher 参数或显式环境变量发现。
+- Seed Color 原样作为 Palette/Codex 的 `surface` 和 Windows 壁纸颜色；Windows 强调色使用 Palette `accent`，默认不得修改用户浅/深色模式或 `AutoColorization`。
 
 ## 技术约束
 
