@@ -25,14 +25,14 @@ REQUIRED_KEYS = (
 
 _CONTRAST_PAIRS = (
     ("background_foreground", "background", 7),
-    ("foreground", "surface", 5.5),
+    ("foreground", "surface", 4.5),
     ("muted_foreground", "surface", 4.5),
-    ("accent_text", "surface", 5.5),
-    ("error_text", "surface", 5.5),
-    ("warning_text", "surface", 5.5),
-    ("success_text", "surface", 5.5),
-    ("accent_foreground", "accent", 5.5),
-    ("selection_foreground", "selection_background", 5.5),
+    ("accent_text", "surface", 4.5),
+    ("error_text", "surface", 4.5),
+    ("warning_text", "surface", 4.5),
+    ("success_text", "surface", 4.5),
+    ("accent_foreground", "accent", 4.5),
+    ("selection_foreground", "selection_background", 4.5),
 )
 
 
@@ -173,7 +173,7 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
     background = _hls_color(_hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
     surface = seed
     background_foreground = _chromatic_foreground((background,), 7)
-    foreground = _chromatic_foreground((surface,), 5.5)
+    foreground = _chromatic_foreground((surface,), 4.5)
     muted_foreground = _chromatic_foreground((surface,), 4.5)
     accent = _contrast_safe_accent(seed, background)
     selection_background = _blend(accent, background, 0.8)
@@ -187,17 +187,17 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
         "foreground": foreground,
         "muted_foreground": muted_foreground,
         "accent": accent,
-        "accent_text": _chromatic_foreground((surface,), 5.5, source_color=accent),
-        "accent_foreground": _chromatic_foreground((accent,), 5.5),
+        "accent_text": _chromatic_foreground((surface,), 4.5, source_color=accent),
+        "accent_foreground": _chromatic_foreground((accent,), 4.5),
         "selection_background": selection_background,
-        "selection_foreground": _chromatic_foreground((selection_background,), 5.5),
+        "selection_foreground": _chromatic_foreground((selection_background,), 4.5),
         "border": "#4A4D59",
         "error": error,
-        "error_text": _chromatic_foreground((surface,), 5.5, source_color=error),
+        "error_text": _chromatic_foreground((surface,), 4.5, source_color=error),
         "warning": warning,
-        "warning_text": _chromatic_foreground((surface,), 5.5, source_color=warning),
+        "warning_text": _chromatic_foreground((surface,), 4.5, source_color=warning),
         "success": success,
-        "success_text": _chromatic_foreground((surface,), 5.5, source_color=success),
+        "success_text": _chromatic_foreground((surface,), 4.5, source_color=success),
     }
     errors = validate_palette(palette)
     if errors:

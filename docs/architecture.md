@@ -20,7 +20,7 @@ Marketplace
 
 ## Runtime boundaries
 
-- `palette.py`: Seed Color and contrast-safe, hue-coherent Palette. `surface` preserves the normalized Seed exactly; `foreground` and semantic text variants are selected for `surface` with a target of at least 5.5:1, while `background_foreground` is selected for the deep `background` with a target of at least 7:1.
+- `palette.py`: Seed Color and contrast-safe, hue-coherent Palette. `surface` preserves the normalized Seed exactly; `foreground` and semantic text variants are selected for `surface` with a target of at least 4.5:1, while `background_foreground` is selected for the deep `background` with a target of at least 7:1.
 - `plan.py`: immutable Plan, serialization and Hash validation.
 - `storage.py`: safe path-component validation and atomic text/JSON persistence.
 - `transaction.py`: per-target Apply journaling, compensation, Verify, rollback metadata and snapshot retention.

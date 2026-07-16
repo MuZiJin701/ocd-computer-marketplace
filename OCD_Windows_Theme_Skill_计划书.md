@@ -27,7 +27,7 @@
 - Plan、Transaction 和 target 标识不能穿越运行时目录；配置写入使用原子替换。
 - 目标限制明确报告为 `ok`、`partial` 或 `skipped`。
 - Seed Color 原样作为 Palette/Codex 的 `surface` 和 Windows 壁纸颜色；Windows 强调色使用 Palette `accent`，不修改用户浅/深色模式或 `AutoColorization`。
-- Palette 分离 `foreground`、`background_foreground` 和 `accent_text`/语义文字，分别保证实际背景上的主文字和强调文字可读性；Codex 的 `diffAdded`、`diffRemoved`、`skill` 等语义文字字段统一使用 `success_text`、`error_text`、`accent_text`，不直接使用 `accent`；Windows 自动取色开启时明确报告用户操作要求。
+- Palette 分离 `foreground`、`background_foreground` 和 `accent_text`/语义文字，实际 `surface` 和强调背景上的文字最低保持 `4.5:1`，深层背景文字保持 `7:1`，以扩大可用 Seed Color 范围；Codex 的 `diffAdded`、`diffRemoved`、`skill` 等语义文字字段统一使用 `success_text`、`error_text`、`accent_text`，不直接使用 `accent`；Windows 自动取色开启时明确报告用户操作要求。
 - Cursor 暂不属于用户可见目标；Preview 默认覆盖 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome；路径通过用户目录、PATH、Scoop shim 和环境变量探测，不写入机器特定盘符或临时路径。
 
 ## 下一步
