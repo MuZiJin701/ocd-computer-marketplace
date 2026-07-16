@@ -32,6 +32,7 @@ The runtime has no database, background service or plugin runtime framework.
 ## Palette and discovery semantics
 
 - Codex `surface` is the normalized Seed Color in both `appearanceLightChromeTheme` and `appearanceDarkChromeTheme`; Codex `ink` maps to the chromatic `foreground`, Codex `accent` maps to Palette `accent`, and both Chrome theme tables use `contrast=100` without changing `appearanceTheme`.
+- Codex semantic text fields use contrast-safe variants: `semanticColors.diffAdded` maps to `success_text`, `diffRemoved` to `error_text`, and `skill` to `accent_text`; Palette `accent` is reserved for visual emphasis surfaces, borders, and system accent values.
 - Windows wallpaper is a solid PNG of the exact Seed Color. Windows registry accent values and the generated accent palette use Palette `accent`, never a darkened `surface`.
 - Windows Apply does not write `AppsUseLightTheme`, `SystemUsesLightTheme`, or `AutoColorization`; the user's current mode and automatic color choice remain under user control.
 - When `AutoColorization` is already enabled, Windows Detect/Apply/Verify reports `partial` and requires user action because Windows may recalculate the accent from the wallpaper after Apply. The runtime does not silently change that setting.

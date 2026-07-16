@@ -92,9 +92,9 @@ def _theme_updates(palette: dict[str, str]) -> dict[str, dict[str, Any]]:
         "surface": palette["surface"],
     }
     semantic = {
-        "diffAdded": palette["success"],
-        "diffRemoved": palette["error"],
-        "skill": palette["accent"],
+        "diffAdded": palette["success_text"],
+        "diffRemoved": palette["error_text"],
+        "skill": palette["accent_text"],
     }
     return {
         _THEME_TABLES[0]: base,
@@ -141,9 +141,9 @@ def _matches_plan(payload: dict[str, Any], plan: Plan) -> bool:
         semantic = theme.get("semanticColors")
         if isinstance(semantic, dict):
             expected_semantic = {
-                "diffAdded": plan.palette["success"],
-                "diffRemoved": plan.palette["error"],
-                "skill": plan.palette["accent"],
+                "diffAdded": plan.palette["success_text"],
+                "diffRemoved": plan.palette["error_text"],
+                "skill": plan.palette["accent_text"],
             }
             if any(key in semantic and semantic[key] != value for key, value in expected_semantic.items()):
                 return False

@@ -77,9 +77,9 @@ def test_codex_v1_fixture_applies_verifies_and_restores_preserving_fields(tmp_pa
         assert theme["contrast"] == 100
         assert theme["opaqueWindows"] is True
         assert theme["fonts"]["editor"] == "keep"
-        assert theme["semanticColors"]["diffAdded"] == plan.palette["success"]
-        assert theme["semanticColors"]["diffRemoved"] == plan.palette["error"]
-        assert theme["semanticColors"]["skill"] == plan.palette["accent"]
+        assert theme["semanticColors"]["diffAdded"] == plan.palette["success_text"]
+        assert theme["semanticColors"]["diffRemoved"] == plan.palette["error_text"]
+        assert theme["semanticColors"]["skill"] == plan.palette["accent_text"]
     assert payload["desktop"]["unrelatedSetting"] == "keep"
 
     assert adapter.verify(plan).verified is True
