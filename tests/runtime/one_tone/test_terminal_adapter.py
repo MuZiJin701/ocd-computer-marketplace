@@ -42,18 +42,22 @@ def test_terminal_apply_registers_and_selects_a_valid_scheme(tmp_path):
     scheme = next(item for item in changed["schemes"] if item["name"] == "One Tone")
     theme = next(item for item in changed["themes"] if item["name"] == "One Tone")
     assert changed["profiles"]["defaults"]["colorScheme"] == "One Tone"
-    assert changed["profiles"]["list"][1]["colorScheme"] == "One Tone"
+    assert all(profile["colorScheme"] == "One Tone" for profile in changed["profiles"]["list"])
     assert changed["theme"] == "One Tone"
-    assert changed["profiles"]["list"][1]["tabColor"] == plan.palette["accent"]
+    assert all(profile["tabColor"] == plan.palette["accent"] for profile in changed["profiles"]["list"])
     assert scheme["background"] == plan.palette["surface"]
+    assert scheme["cursorColor"] == plan.palette["accent_text"]
+    assert scheme["black"] == plan.palette["foreground"]
+    assert scheme["brightBlack"] == plan.palette["foreground"]
     assert scheme["cyan"] == plan.palette["accent_text"]
     assert scheme["green"] == plan.palette["success_text"]
     assert theme["tabRow"]["background"] == plan.palette["surface"]
     assert theme["window"]["frame"] == plan.palette["accent"]
+    assert theme["window"]["applicationTheme"] == "system"
     assert adapter.verify(plan).verified is True
 
 
-def test_terminal_adapter_only_changes_selected_profile_and_restores(tmp_path):
+def test_terminal_adapter_applies_theme_to_all_profiles_and_restores(tmp_path):
     settings_path = tmp_path / "settings.json"
     original = {"profiles": {"default": "{two}", "list": [
         {"name": "PowerShell", "guid": "{one}", "background": "#000000"},
@@ -69,7 +73,7 @@ def test_terminal_adapter_only_changes_selected_profile_and_restores(tmp_path):
     assert adapter.apply(plan).status == "ok"
     assert adapter.verify(plan).verified is True
     changed = json.loads(settings_path.read_text(encoding="utf-8"))
-    assert changed["profiles"]["list"][0] == original["profiles"]["list"][0]
-    assert changed["profiles"]["list"][1]["background"] == plan.palette["surface"]
+    assert all(profile["colorScheme"] == "One Tone" for profile in changed["profiles"]["list"])
+    assert all(profile["tabColor"] == plan.palette["accent"] for profile in changed["profiles"]["list"])
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert settings_path.read_text(encoding="utf-8") == original_text

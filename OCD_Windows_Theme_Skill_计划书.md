@@ -28,10 +28,11 @@
 - 目标限制明确报告为 `ok`、`partial` 或 `skipped`。
 - Seed Color 原样作为 Palette/Codex 的 `surface` 和 Windows 壁纸颜色；Windows 强调色使用 Palette `accent`，不修改用户浅/深色模式或 `AutoColorization`。
 - Palette 分离 `foreground`、`background_foreground` 和 `accent_text`/语义文字，实际 `surface` 和强调背景上的文字最低保持 `4.5:1`，深层背景文字保持 `7:1`，以扩大可用 Seed Color 范围；Codex 的 `diffAdded`、`diffRemoved`、`skill` 等语义文字字段统一使用 `success_text`、`error_text`、`accent_text`，不直接使用 `accent`；Windows 自动取色开启时明确报告用户操作要求。
+- Windows Terminal 的所有 Profile 统一使用生成的 Scheme、ANSI 和 Tab 颜色，窗口主题保持 `applicationTheme = system`；VS Code/TRAE 补齐标准 Workbench、终端 ANSI、选择、光标、链接、诊断和语义高亮字段；Chrome 本地主题使用 Manifest V3。
 - Cursor 暂不属于用户可见目标；Preview 默认覆盖 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome；路径通过用户目录、PATH、Scoop shim 和环境变量探测，不写入机器特定盘符或临时路径。
 
 ## 下一步
 
-下一阶段聚焦真实 Windows 10/11 目标验证，并记录 VS Code/TRAE、Windows Terminal、Codex 和 Chrome 的实际兼容性结果。编辑器路径可通过 `ONE_TONE_<TARGET>_*` 环境变量覆盖。
+下一阶段聚焦真实 Windows 10/11 目标验证，并记录 VS Code/TRAE、Windows Terminal、Codex 和 Chrome 的实际兼容性结果。标准字段已由 fixture 回归测试覆盖；TRAE 专属 AI 面板和 Chrome 手动加载仍需真实交互验证。编辑器路径可通过 `ONE_TONE_<TARGET>_*` 环境变量覆盖。
 
 历史方案和实施记录保存在 `docs/archive/`。

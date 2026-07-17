@@ -48,6 +48,13 @@ def test_editor_theme_uses_contrast_safe_text_for_accented_tokens():
     theme = build_theme_json(plan, "One Tone trae")
 
     assert theme["colors"]["editorCursor.foreground"] == plan.palette["accent_text"]
+    assert theme["colors"]["editor.selectionForeground"] == plan.palette["selection_foreground"]
+    assert theme["colors"]["terminalCursor.foreground"] == plan.palette["accent_text"]
+    assert theme["colors"]["textLink.foreground"] == plan.palette["accent_text"]
+    assert theme["colors"]["errorForeground"] == plan.palette["error_text"]
+    assert theme["semanticHighlighting"] is True
+    assert theme["semanticTokenColors"]["function"] == plan.palette["success_text"]
+    assert theme["semanticTokenColors"]["type"] == plan.palette["accent_text"]
     assert theme["tokenColors"][1]["settings"]["foreground"] == plan.palette["success_text"]
     assert theme["tokenColors"][2]["settings"]["foreground"] == plan.palette["accent_text"]
     assert theme["tokenColors"][3]["settings"]["foreground"] == plan.palette["error_text"]

@@ -44,6 +44,14 @@ Preview → Apply → Verify → Rollback
 - Seed Color 原样作为 Palette/Codex 的 `surface` 和 Windows 壁纸颜色；Windows 强调色使用 Palette `accent`，默认不得修改用户浅/深色模式或 `AutoColorization`。
 - Cursor 暂不属于用户可见支持目标；显式输入 `cursor` 必须安全 `skipped`，不得访问或修改 Cursor 文件。
 
+## 当前实现结论（2026-07-17）
+
+- Windows Terminal 已覆盖所有发现的 Profile：统一 Scheme、ANSI、光标和 Tab 字段；窗口主题使用 `applicationTheme = system`，不强制深色模式。黑色/亮黑色不再复用背景色。
+- VS Code/TRAE 已补齐标准 Workbench 的选择、光标、终端 ANSI、链接、通知、诊断和语义高亮字段；TRAE 专属 AI 面板仍需真实应用验证，不能仅凭标准 VS Code 字段宣称完全覆盖。
+- Chrome 本地主题使用 Manifest V3，并覆盖框架、工具栏、标签、书签页、NTP、链接和地址栏文字；激活仍必须由用户在 Chrome 中手动确认。
+- 文字对比度目标为深层背景 `7:1`，surface/强调背景文字 `4.5:1`；颜色角色使用 `foreground`、`background_foreground`、`accent_text`、`success_text`、`warning_text`、`error_text` 及其实际背景配对，不把视觉 `accent` 直接当作文字色。
+- 证据入口：`tests/runtime/one_tone/test_terminal_adapter.py`、`test_vscode_family.py`、`test_chrome_adapter.py`；完整验证命令为 `uv run pytest`。
+
 ## 技术约束
 
 - 使用 Python 和 `uv`。

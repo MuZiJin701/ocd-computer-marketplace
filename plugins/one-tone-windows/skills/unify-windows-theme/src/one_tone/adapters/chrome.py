@@ -19,16 +19,24 @@ def _rgb(color: str) -> list[int]:
 def _manifest(plan: Plan) -> dict[str, Any]:
     palette = plan.palette
     return {
-        "manifest_version": 2,
+        "manifest_version": 3,
         "version": "1.0.0",
         "name": f"One Tone {plan.id}",
         "description": "Palette-generated One-Tone Chrome theme",
         "theme": {
             "colors": {
                 "frame": _rgb(palette["surface"]),
+                "frame_inactive": _rgb(palette["background"]),
                 "toolbar": _rgb(palette["surface"]),
+                "toolbar_text": _rgb(palette["foreground"]),
+                "toolbar_button_icon": _rgb(palette["foreground"]),
                 "tab_background_text": _rgb(palette["foreground"]),
+                "tab_background_text_inactive": _rgb(palette["background_foreground"]),
+                "tab_text": _rgb(palette["foreground"]),
+                "bookmark_text": _rgb(palette["foreground"]),
                 "ntp_background": _rgb(palette["surface"]),
+                "ntp_header": _rgb(palette["foreground"]),
+                "ntp_link": _rgb(palette["accent_text"]),
                 "ntp_text": _rgb(palette["foreground"]),
                 "omnibox_background": _rgb(palette["surface"]),
                 "omnibox_text": _rgb(palette["foreground"]),

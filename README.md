@@ -80,8 +80,10 @@ python .\scripts\run_one_tone.py preview '#10B981' --targets windows,terminal,co
 ## 注意事项
 
 - Seed Color 会作为 Codex 的 `surface` 和 Windows 壁纸颜色；Codex 主题保持用户当前 `appearanceTheme`，并使用高对比度配置。
+- Windows Terminal 会为所有已发现 Profile 写入同一套 Scheme、ANSI 颜色和 Tab 颜色，窗口主题使用 `system`，不强制 Windows 深色模式。
+- VS Code 和 TRAE 主题覆盖标准 Workbench、编辑器选择/光标、终端 ANSI、链接、通知和语义高亮字段；各自的 AI 专属面板仍由应用自行决定。
 - Windows 开启“自动从背景中选取强调色”时，系统可能覆盖固定强调色；想保持稳定颜色，请在 Windows 设置中关闭该选项。
-- Chrome 会生成本地主题 ZIP 和 unpacked 目录，需到 `chrome://extensions` 手动加载；普通本地 Skill 不能静默安装 Chrome 扩展。
+- Chrome 会生成 Manifest V3 本地主题 ZIP 和 unpacked 目录，需到 `chrome://extensions` 手动加载；普通本地 Skill 不能静默安装 Chrome 扩展。
 - 运行时路径通过用户目录、PATH、launcher 参数或环境变量探测，不依赖开发机盘符、Everything 或机器临时路径。
 
 ## 仓库结构

@@ -12,11 +12,18 @@ def test_chrome_theme_zip_has_manifest_and_palette_colors(tmp_path):
     path = build_chrome_theme(plan, tmp_path / "chrome-theme.zip")
     with zipfile.ZipFile(path) as archive:
         manifest = json.loads(archive.read("manifest.json"))
-    assert manifest["manifest_version"] == 2
+    assert manifest["manifest_version"] == 3
     expected_surface = list(parse_hex_color(plan.palette["surface"]))
+    expected_foreground = list(parse_hex_color(plan.palette["foreground"]))
+    expected_accent_text = list(parse_hex_color(plan.palette["accent_text"]))
     assert manifest["theme"]["colors"]["frame"] == expected_surface
     assert manifest["theme"]["colors"]["toolbar"] == expected_surface
+    assert manifest["theme"]["colors"]["toolbar_text"] == expected_foreground
+    assert manifest["theme"]["colors"]["toolbar_button_icon"] == expected_foreground
+    assert manifest["theme"]["colors"]["tab_text"] == expected_foreground
     assert manifest["theme"]["colors"]["ntp_background"] == expected_surface
+    assert manifest["theme"]["colors"]["ntp_header"] == expected_foreground
+    assert manifest["theme"]["colors"]["ntp_link"] == expected_accent_text
     assert all(isinstance(value, list) for value in manifest["theme"]["colors"].values())
 
 
@@ -25,7 +32,7 @@ def test_chrome_theme_directory_contains_loadable_manifest(tmp_path):
     directory = build_chrome_theme_directory(plan, tmp_path / "one-tone-theme")
 
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["manifest_version"] == 2
+    assert manifest["manifest_version"] == 3
     assert manifest["theme"]["colors"]["frame"] == list(parse_hex_color(plan.palette["surface"]))
 
 

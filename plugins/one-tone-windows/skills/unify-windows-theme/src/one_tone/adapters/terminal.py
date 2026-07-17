@@ -42,7 +42,7 @@ def _palette_colors(plan: Plan) -> dict[str, str]:
         "foreground": palette["foreground"],
         "selectionBackground": palette["selection_background"],
         "selectionForeground": palette["selection_foreground"],
-        "black": palette["surface"],
+        "black": palette["foreground"],
         "red": palette["error_text"],
         "green": palette["success_text"],
         "yellow": palette["warning_text"],
@@ -50,7 +50,7 @@ def _palette_colors(plan: Plan) -> dict[str, str]:
         "purple": palette["accent_text"],
         "cyan": palette["accent_text"],
         "white": palette["foreground"],
-        "brightBlack": palette["surface"],
+        "brightBlack": palette["foreground"],
         "brightRed": palette["error_text"],
         "brightGreen": palette["success_text"],
         "brightYellow": palette["warning_text"],
@@ -63,7 +63,7 @@ def _palette_colors(plan: Plan) -> dict[str, str]:
 
 def _scheme_colors(plan: Plan) -> dict[str, str]:
     colors = _palette_colors(plan)
-    return {"name": _SCHEME_NAME, "cursorColor": plan.palette["accent"], **colors}
+    return {"name": _SCHEME_NAME, "cursorColor": plan.palette["accent_text"], **colors}
 
 
 def _theme_colors(plan: Plan) -> dict[str, Any]:
@@ -71,7 +71,7 @@ def _theme_colors(plan: Plan) -> dict[str, Any]:
     return {
         "name": _THEME_NAME,
         "window": {
-            "applicationTheme": "dark",
+            "applicationTheme": "system",
             "frame": palette["accent"],
             "unfocusedFrame": palette["muted_foreground"],
         },
@@ -133,9 +133,12 @@ class TerminalAdapter:
             self._profile_index, self._resolution_message = resolved
             profile_list = settings["profiles"]["list"]
             self._expected_colors = _palette_colors(plan)
-            profile_list[self._profile_index].update(self._expected_colors)
-            profile_list[self._profile_index]["colorScheme"] = _SCHEME_NAME
-            profile_list[self._profile_index]["tabColor"] = plan.palette["accent"]
+            for profile in profile_list:
+                if not isinstance(profile, dict):
+                    continue
+                profile.update(self._expected_colors)
+                profile["colorScheme"] = _SCHEME_NAME
+                profile["tabColor"] = plan.palette["accent"]
             settings["profiles"].setdefault("defaults", {})["colorScheme"] = _SCHEME_NAME
             schemes = [item for item in settings.get("schemes", []) if item.get("name") != _SCHEME_NAME]
             schemes.append(_scheme_colors(plan))
@@ -160,14 +163,18 @@ class TerminalAdapter:
                 return AdapterResult(self.target, "failed", False, False, "Terminal default Profile could not be resolved")
             index, message = resolved
             expected = _palette_colors(plan)
-            profile = settings["profiles"]["list"][index]
+            profile_list = settings["profiles"]["list"]
             scheme = next((item for item in settings.get("schemes", []) if item.get("name") == _SCHEME_NAME), None)
             scheme_expected = _scheme_colors(plan)
             theme = next((item for item in settings.get("themes", []) if item.get("name") == _THEME_NAME), None)
             verified = (
-                all(profile.get(key) == value for key, value in expected.items())
-                and profile.get("colorScheme") == _SCHEME_NAME
-                and profile.get("tabColor") == plan.palette["accent"]
+                all(
+                    isinstance(profile, dict)
+                    and all(profile.get(key) == value for key, value in expected.items())
+                    and profile.get("colorScheme") == _SCHEME_NAME
+                    and profile.get("tabColor") == plan.palette["accent"]
+                    for profile in profile_list
+                )
                 and settings.get("profiles", {}).get("defaults", {}).get("colorScheme") == _SCHEME_NAME
                 and isinstance(scheme, dict)
                 and all(scheme.get(key) == value for key, value in scheme_expected.items())

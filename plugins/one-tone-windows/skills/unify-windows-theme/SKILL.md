@@ -17,11 +17,11 @@ description: >-
 5. 用户需要重启应用时手动重启，然后运行 `verify <plan_id>`。VS Code/TRAE Verify 会重新扫描持久化扩展目录，不依赖 Apply 进程内状态。
 6. 用户要求撤销时，要求准确的 transaction ID，再运行 Rollback；Chrome 生成的 ZIP/unpacked 产物通过事务元数据跨进程清理。
 
-Windows 使用 Palette `accent` 设置 Start/Taskbar、标题栏/窗口边框和 DWM 强调色，并生成 Seed Color 原色的纯色壁纸；不会修改 `AppsUseLightTheme`、`SystemUsesLightTheme` 或 `AutoColorization`。如果 Windows 自动取色已开启，必须提示用户手动关闭它，否则 Windows 可能在壁纸变化后覆盖固定强调色。Windows Terminal 会更新 Profile、Color Scheme 和窗口顶部 `theme`。VS Code、TRAE 更新标准 Workbench 主题字段。
+Windows 使用 Palette `accent` 设置 Start/Taskbar、标题栏/窗口边框和 DWM 强调色，并生成 Seed Color 原色的纯色壁纸；不会修改 `AppsUseLightTheme`、`SystemUsesLightTheme` 或 `AutoColorization`。如果 Windows 自动取色已开启，必须提示用户手动关闭它，否则 Windows 可能在壁纸变化后覆盖固定强调色。Windows Terminal 会为所有 Profile 更新统一的 Scheme、ANSI、光标、Tab 颜色和窗口顶部 `theme`，其 `applicationTheme` 为 `system`，不会强制深色。VS Code、TRAE 更新标准 Workbench、选择/光标、终端 ANSI、链接、通知、诊断和语义高亮字段；TRAE 的专属 AI 面板仍可能不受标准字段控制。
 
 Seed Color 与 Codex 配置语义一致：它原样写入浅色和深色主题表的 `surface`，两套主题的 `contrast` 写为 `100`，但不改变 `appearanceTheme`。`foreground`、`accent_text`、`error_text`、`warning_text` 和 `success_text` 针对实际 `surface` 选择，文字对比度下限为 `4.5:1`；`background_foreground` 针对深层 `background` 保持 `7:1`。这些语义文字色专门供关键字、ANSI 和语义强调文字使用。Codex 的 `semanticColors.diffAdded`、`diffRemoved`、`skill` 也必须分别使用 `success_text`、`error_text`、`accent_text`，不能直接使用 `success`、`error` 或 `accent`；`accent` 只用于强调背景、边框和系统强调色。不会用“只能黑色或白色”的前景规则。
 
-Chrome 目标生成 ZIP 和一个包含 `manifest.json` 的 unpacked 主题目录。Chrome 不允许普通本地 Skill 对任意扩展或主题执行安全的静默安装；因此必须由用户在 `chrome://extensions` 确认加载。企业策略或 Chrome Web Store 发布的扩展属于另一种部署方式，不在本 Skill 的权限范围内。
+Chrome 目标生成 Manifest V3 ZIP 和一个包含 `manifest.json` 的 unpacked 主题目录。Chrome 不允许普通本地 Skill 对任意扩展或主题执行安全的静默安装；因此必须由用户在 `chrome://extensions` 确认加载。企业策略或 Chrome Web Store 发布的扩展属于另一种部署方式，不在本 Skill 的权限范围内。
 
 ## 命令
 
