@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from one_tone.palette import generate_palette
 from one_tone.plan import PlanIntegrityError, compute_plan_hash, create_plan, load_plan, save_plan
 
 
@@ -97,3 +98,14 @@ def test_plan_rejects_legacy_and_incomplete_palettes(tmp_path):
 
     with pytest.raises(PlanIntegrityError, match="exactly"):
         load_plan("plan-invalid-001", tmp_path)
+
+
+def test_plan_rejects_incoherent_mode_palettes(tmp_path):
+    plan = create_plan("#7C3AED", ["chrome"], plan_id="plan-incoherent-001")
+    payload = plan.to_dict()
+    payload["palettes"]["dark"] = generate_palette("#00A86B", "dark")
+    payload["hash"] = compute_plan_hash(payload)
+    (tmp_path / "plan-incoherent-001.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(PlanIntegrityError, match="incoherent"):
+        load_plan("plan-incoherent-001", tmp_path)

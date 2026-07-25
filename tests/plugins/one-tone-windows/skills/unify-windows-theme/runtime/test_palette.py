@@ -1,11 +1,25 @@
+import colorsys
+
 import pytest
 
 from one_tone.palette import (
     contrast_ratio,
     generate_palette,
     parse_hex_color,
+    relative_luminance,
+    validate_mode_coherence,
     validate_palette,
 )
+
+
+def _hue(color: str) -> float:
+    red, green, blue = parse_hex_color(color)
+    return colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)[0]
+
+
+def _circular_hue_distance(first: str, second: str) -> float:
+    distance = abs(_hue(first) - _hue(second))
+    return min(distance, 1 - distance)
 
 
 def test_parse_hex_color_normalizes_three_and_six_digit_values():
@@ -60,6 +74,10 @@ def test_green_seed_tints_background_and_surface():
     assert int(palette["background"][3:5], 16) > int(palette["background"][5:7], 16)
 
 
+def test_legacy_single_palette_keeps_original_accent_selection():
+    assert generate_palette("#7C3AED")["accent"] == "#E8D1FF"
+
+
 def test_surface_text_uses_the_4_5_minimum_to_preserve_more_seed_colors():
     palette = generate_palette("#10B981")
 
@@ -74,6 +92,22 @@ def test_explicit_modes_keep_seed_anchor_and_separate_tonal_surface_roles():
         assert len({palette["surface"], palette["surface_subtle"], palette["surface_raised"]}) == 3
         assert contrast_ratio(palette["surface_subtle"], palette["surface"]) >= 1.2
         assert contrast_ratio(palette["surface_raised"], palette["surface"]) >= 1.2
+
+
+def test_explicit_modes_preserve_coherent_tones_and_accent_identity():
+    light = generate_palette("#7C3AED", "light")
+    dark = generate_palette("#7C3AED", "dark")
+
+    assert relative_luminance(light["surface_raised"]) < 0.90
+    assert relative_luminance(dark["surface_subtle"]) > 0.005
+    assert _circular_hue_distance(light["accent"], dark["accent"]) <= 0.04
+    assert validate_mode_coherence("#7C3AED", {"light": light, "dark": dark}) == []
+
+
+def test_explicit_modes_validate_coherence_for_representative_seed_colors():
+    for seed in ("#FF0000", "#00A86B", "#00FFFF", "#010101", "#FAFAFA"):
+        palettes = {mode: generate_palette(seed, mode) for mode in ("light", "dark")}
+        assert validate_mode_coherence(seed, palettes) == []
 
 
 def test_extreme_seed_colors_keep_tonal_surfaces_and_readable_interactions():

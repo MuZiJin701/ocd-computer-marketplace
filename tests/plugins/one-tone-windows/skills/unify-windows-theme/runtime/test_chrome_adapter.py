@@ -59,6 +59,22 @@ def test_chrome_apply_requires_explicit_user_action(tmp_path):
     ]
 
 
+def test_chrome_mode_artifacts_preserve_plan_palette_roles(tmp_path):
+    plan = create_plan("#7C3AED", ["chrome"], plan_id="plan-chrome-coherence-001")
+    adapter = ChromeAdapter(tmp_path / "output")
+
+    assert adapter.apply(plan).status == "partial"
+
+    light_manifest = json.loads(
+        (tmp_path / "output" / "one-tone-plan-chrome-coherence-001-light" / "manifest.json").read_text(encoding="utf-8")
+    )
+    dark_manifest = json.loads(
+        (tmp_path / "output" / "one-tone-plan-chrome-coherence-001-dark" / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert light_manifest["theme"]["colors"]["frame"] == list(parse_hex_color(plan.palette_for("light")["surface"]))
+    assert dark_manifest["theme"]["colors"]["frame"] == list(parse_hex_color(plan.palette_for("dark")["surface"]))
+
+
 def test_chrome_rollback_removes_zip_and_unpacked_artifacts(tmp_path):
     adapter = ChromeAdapter(tmp_path / "output")
     plan = create_plan("#7C3AED", ["chrome"], plan_id="plan-chrome-rollback-001")

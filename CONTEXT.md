@@ -107,6 +107,11 @@ _Avoid_: 用 Target 总体状态掩盖字段差异
 用户可见的浅色或深色主题变体。Mode 只描述同一 Seed Color 的呈现变体，不等于 Windows 系统模式；工具不替用户切换系统模式。
 _Avoid_: 强制模式、运行模式
 
+**Mode coherence**
+
+同一 Seed Color 的 Light 与 Dark 变体共享色相和主题身份，只改变明度与对比关系；两者不要求使用相同颜色，但不应分别坍缩为近白或近黑的独立主题。
+_Avoid_: 每个 Mode 独立追求最大对比度
+
 ### Workflow language
 
 **Plan**  
@@ -116,6 +121,11 @@ _Avoid_: 临时配置、Apply 参数
 **Transaction**  
 一次 Apply 的持久化操作记录，包含每个 Target 的 Snapshot、Apply、Verify 和 Rollback 信息。  
 _Avoid_: 全局状态
+
+**Serialized report value**
+
+Transaction 中用于说明 Target 字段状态、供用户和工具读取的值；它不等同于 Snapshot，也不承担精确恢复原始 Target 状态的职责。
+_Avoid_: 把事务报告值当作 Snapshot
 
 **Snapshot**  
 修改某个 Target 前保存的原始状态，只能用于该 Transaction 的 Rollback。  

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .palette import REQUIRED_KEYS, generate_palette, parse_hex_color, validate_palette
+from .palette import REQUIRED_KEYS, generate_palette, parse_hex_color, validate_mode_coherence, validate_palette
 from .inventory import expected_capabilities
 from .storage import atomic_write_text, validate_safe_component
 
@@ -86,6 +86,9 @@ def create_plan(
     if mode not in {"light", "dark"}:
         raise ValueError("mode must be 'light' or 'dark'")
     palettes = {name: generate_palette(normalized_seed, name) for name in ("light", "dark")}
+    coherence_errors = validate_mode_coherence(normalized_seed, palettes)
+    if coherence_errors:
+        raise ValueError("Generated palettes failed Mode coherence validation: " + "; ".join(coherence_errors))
     payload = {
         "id": safe_plan_id,
         "seed_color": normalized_seed,
@@ -151,6 +154,9 @@ def load_plan(plan_id: str, plans_dir: Path) -> Plan:
         errors = validate_palette(palette)
         if errors:
             raise PlanIntegrityError(f"Plan {mode} palette is invalid: {'; '.join(errors)}")
+    coherence_errors = validate_mode_coherence(payload["seed_color"], palettes)
+    if coherence_errors:
+        raise PlanIntegrityError(f"Plan palettes are incoherent for {plan_id}: {'; '.join(coherence_errors)}")
     expected_hash = payload.get("hash", "")
     actual_hash = compute_plan_hash(payload)
     if expected_hash != actual_hash:

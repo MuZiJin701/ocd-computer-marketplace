@@ -48,6 +48,13 @@ INTERACTIVE_SEPARATION_PAIRS = (
     ("border", "surface", 3),
 )
 
+MODE_ACCENT_HUE_TOLERANCE = 0.04
+MODE_ACCENT_MIN_LIGHTNESS = 0.08
+MODE_ACCENT_MAX_LIGHTNESS = 0.92
+MODE_ACCENT_LIGHTNESS_DELTA = 0.45
+MODE_LIGHT_SURFACE_MAX_LUMINANCE = 0.90
+MODE_DARK_SURFACE_MIN_LUMINANCE = 0.005
+
 
 def parse_hex_color(value: str) -> tuple[int, int, int]:
     if not isinstance(value, str):
@@ -200,7 +207,7 @@ def _chromatic_foreground(
 def _readable_foreground(backgrounds: tuple[str, ...], minimum_ratio: float, hue: float = 0.58) -> str:
     candidates = [
         _hls_color(hue, lightness / 100, saturation)
-        for lightness in range(4, 98)
+        for lightness in range(4, 100)
         for saturation in (0.08, 0.12, 0.18)
     ]
     valid = [
@@ -222,15 +229,32 @@ def _chromatic_saturation(color: str) -> float:
     return colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)[2]
 
 
-def _contrast_safe_accent(seed_color: str, background: str) -> str:
-    _lightness, seed_chroma, hue = _oklch_components(seed_color)
+def _circular_hue_distance(first: float, second: float) -> float:
+    distance = abs(first - second)
+    return min(distance, 1 - distance)
+
+
+def _contrast_safe_accent(seed_color: str, background: str, preserve_identity: bool = False) -> str:
+    seed_lightness, seed_chroma, hue = _oklch_components(seed_color)
+    target_chroma = min(0.16, max(0.035, seed_chroma))
     candidates = [
         _oklch_color(hue, candidate_lightness / 100, min(0.16, max(0.035, seed_chroma * factor)))
         for candidate_lightness in range(8, 93)
         for factor in (1.0, 0.8, 0.6)
     ]
-    candidates = [candidate for candidate in candidates if candidate != seed_color and candidate not in {"#000000", "#FFFFFF"}]
+    candidates = [candidate for candidate in candidates if candidate not in {"#000000", "#FFFFFF"}]
     valid = [candidate for candidate in candidates if contrast_ratio(candidate, background) >= 3]
+
+    def theme_distance(candidate: str) -> tuple[float, float, float]:
+        lightness, chroma, _ = _oklch_components(candidate)
+        return (
+            abs(lightness - seed_lightness),
+            abs(chroma - target_chroma),
+            -contrast_ratio(candidate, background),
+        )
+
+    if preserve_identity:
+        return min(valid or candidates, key=theme_distance)
     return max(valid or candidates, key=lambda candidate: contrast_ratio(candidate, background))
 
 
@@ -252,22 +276,25 @@ def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
     _lightness, seed_chroma, hue = _oklch_components(seed)
     tonal_chroma = min(0.045, max(0.018, seed_chroma * 0.22))
     if mode == "dark":
-        background = _oklch_color(hue, 0.10, tonal_chroma)
-        surface = _oklch_color(hue, 0.24, tonal_chroma)
-        surface_subtle = _oklch_color(hue, 0.08, tonal_chroma)
-        surface_raised = _oklch_color(hue, 0.40, tonal_chroma)
+        background = _oklch_color(hue, 0.18, tonal_chroma)
+        surface = _oklch_color(hue, 0.28, tonal_chroma)
+        surface_subtle = _oklch_color(hue, 0.20, tonal_chroma)
+        surface_raised = _oklch_color(hue, 0.38, tonal_chroma)
     else:
-        background = _oklch_color(hue, 0.76, tonal_chroma)
-        surface = _oklch_color(hue, 0.90, tonal_chroma)
-        surface_subtle = _oklch_color(hue, 0.80, tonal_chroma)
-        surface_raised = _oklch_color(hue, 0.995, tonal_chroma)
+        background = _oklch_color(hue, 0.72, tonal_chroma)
+        surface = _oklch_color(hue, 0.78, tonal_chroma)
+        surface_subtle = _oklch_color(hue, 0.71, tonal_chroma)
+        surface_raised = _oklch_color(hue, 0.86, tonal_chroma)
     background_foreground = _readable_foreground((background,), 7)
     foreground = _readable_foreground((surface,), 4.5)
     muted_foreground = _readable_foreground((surface,), 4.5, hue=0.52)
-    accent = _contrast_safe_accent(seed, surface)
+    accent = _contrast_safe_accent(seed, surface, preserve_identity=True)
     accent_lightness, accent_chroma, accent_hue = _oklch_components(accent)
     selection_background = _oklch_color(accent_hue, accent_lightness, accent_chroma * 0.72)
-    if contrast_ratio(selection_background, surface) < 3:
+    if (
+        contrast_ratio(selection_background, surface) < 3
+        or contrast_ratio(_readable_foreground((selection_background,), 4.5), selection_background) < 4.5
+    ):
         selection_background = accent
     border_lightness = accent_lightness - 0.12 if accent_lightness > 0.5 else accent_lightness + 0.12
     border = _oklch_color(accent_hue, max(0.04, min(0.96, border_lightness)), accent_chroma * 0.72)
@@ -376,4 +403,60 @@ def validate_palette(palette: Mapping[str, str]) -> list[str]:
                 ratio = contrast_ratio(palette[foreground], palette[background])
                 if ratio < minimum_ratio:
                     errors.append(f"separation: {foreground}/{background} is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
+    return errors
+
+
+def validate_mode_coherence(
+    seed_color: str,
+    palettes: Mapping[str, Mapping[str, str]],
+) -> list[str]:
+    """Validate shared visual identity across the explicit Light/Dark Palettes."""
+    errors: list[str] = []
+    if set(palettes) != {"light", "dark"}:
+        return ["mode coherence: palettes must contain exactly light and dark"]
+    try:
+        _seed_lightness, seed_chroma, seed_hue = _oklch_components(seed_color)
+    except ValueError as error:
+        return [f"mode coherence: invalid Seed Color: {error}"]
+
+    light = palettes["light"]
+    dark = palettes["dark"]
+    tonal_roles = ("surface_subtle", "surface", "surface_raised")
+    large_area_roles = ("background",) + tonal_roles
+    for mode, palette in (("light", light), ("dark", dark)):
+        for role in ("accent",) + large_area_roles:
+            if role not in palette:
+                errors.append(f"mode coherence: {mode} Palette is missing {role}")
+        if all(role in palette for role in tonal_roles):
+            tonal_luminances = tuple(relative_luminance(palette[role]) for role in tonal_roles)
+            if not tonal_luminances[0] < tonal_luminances[1] < tonal_luminances[2]:
+                errors.append(f"mode coherence: {mode} Tonal surface ordering is invalid")
+        if all(role in palette for role in large_area_roles):
+            large_area_luminances = tuple(relative_luminance(palette[role]) for role in large_area_roles)
+            if mode == "light" and any(luminance >= MODE_LIGHT_SURFACE_MAX_LUMINANCE for luminance in large_area_luminances):
+                errors.append("mode coherence: Light Tonal surface is too close to white")
+            if mode == "dark" and any(luminance <= MODE_DARK_SURFACE_MIN_LUMINANCE for luminance in large_area_luminances):
+                errors.append("mode coherence: Dark Tonal surface is too close to black")
+
+    if "accent" not in light or "accent" not in dark:
+        return errors
+    light_accent = _oklch_components(light["accent"])
+    dark_accent = _oklch_components(dark["accent"])
+    if seed_chroma >= 0.035:
+        for mode, accent in (("light", light_accent), ("dark", dark_accent)):
+            if _circular_hue_distance(accent[2], seed_hue) > MODE_ACCENT_HUE_TOLERANCE:
+                errors.append(f"mode coherence: {mode} Accent lost the Seed Color hue")
+            if not MODE_ACCENT_MIN_LIGHTNESS <= accent[0] <= MODE_ACCENT_MAX_LIGHTNESS:
+                errors.append(f"mode coherence: {mode} Accent lightness is out of bounds")
+        if _circular_hue_distance(light_accent[2], dark_accent[2]) > MODE_ACCENT_HUE_TOLERANCE:
+            errors.append("mode coherence: Light and Dark Accents use different hue families")
+        if abs(light_accent[0] - dark_accent[0]) > MODE_ACCENT_LIGHTNESS_DELTA:
+            errors.append("mode coherence: Light and Dark Accent lightness changed too much")
+        for role in tonal_roles:
+            if role in light and role in dark:
+                for mode, color in (("light", light[role]), ("dark", dark[role])):
+                    if _circular_hue_distance(_oklch_components(color)[2], seed_hue) > MODE_ACCENT_HUE_TOLERANCE:
+                        errors.append(f"mode coherence: {mode} {role} lost the Seed Color hue")
+    if abs(light_accent[1] - dark_accent[1]) > 0.12:
+        errors.append("mode coherence: Light and Dark Accent chroma changed too much")
     return errors
