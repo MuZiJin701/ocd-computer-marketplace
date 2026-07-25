@@ -41,7 +41,7 @@ skills remove unify-windows-theme
 
 ```powershell
 codex plugin marketplace add https://github.com/MuZiJin701/ocd-computer-marketplace.git
-codex plugin add one-tone-windows@ocd-windows-themes
+codex plugin add one-tone-windows@ocd-computer-marketplace
 ```
 
 可选：CC Switch。在 Skills 页面添加以下仓库地址，刷新后安装 `unify-windows-theme`：
@@ -89,10 +89,21 @@ python .\scripts\run_one_tone.py preview '#10B981' --targets windows,terminal,co
 ## 仓库结构
 
 ```text
-plugins/one-tone-windows/skills/unify-windows-theme/  # 可独立分发的 Skill
-docs/                                                  # 项目文档
-tests/                                                 # 仓库测试
-.agents/plugins/marketplace.json                       # Marketplace 清单
+.agents/plugins/marketplace.json                       # Marketplace manifest
+plugins/                                                # Plugin envelopes
+plugins/<plugin>/skills/<skill>/                       # Self-contained Skill packages
+tests/plugins/<plugin>/skills/<skill>/runtime/         # Runtime tests matching distribution
+tests/marketplace/                                     # Marketplace tests
+docs/specs/                                            # Active development specs
+docs/architecture.md                                   # Repository structure and seams
+docs/testing.md                                        # Verification contract
+CONTEXT.md                                             # Domain glossary
 ```
 
-更多细节见 [Skill 说明](plugins/one-tone-windows/skills/unify-windows-theme/SKILL.md)、[目标矩阵](plugins/one-tone-windows/skills/unify-windows-theme/references/targets.md) 和 [测试说明](docs/testing.md)。
+更多细节见 [领域上下文](CONTEXT.md)、[Skill 说明](plugins/one-tone-windows/skills/unify-windows-theme/SKILL.md)、[目标矩阵](plugins/one-tone-windows/skills/unify-windows-theme/references/targets.md) 和 [测试说明](docs/testing.md)。任务使用 GitHub Issues；Agent 协作配置见 docs/agents/。
+
+## 开发说明
+
+已确认的主题字段覆盖、浅深模式、相邻区域可区分性、版本能力和验收范围见 [主题字段覆盖与相邻区域可区分性开发说明](docs/specs/2026-07-25-theme-field-coverage-and-separation.md)。当前结构审计见 [架构说明](docs/architecture.md)。
+
+当前结构保留“根测试 harness + 可独立分发 Skill runtime”的边界；新增 docs/specs 作为主动开发说明目录，历史规划材料不作为当前架构入口。

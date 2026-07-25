@@ -37,7 +37,7 @@ class FileAdapter:
 
     def apply(self, plan: Plan) -> AdapterResult:
         try:
-            write_json(self.config_path, {"plan_id": plan.id, "palette": plan.palette})
+            write_json(self.config_path, {"plan_id": plan.id, "palette": plan.palette_for(plan.mode)})
             return AdapterResult(self.target, "ok", True, False, "palette written")
         except OSError as error:
             return AdapterResult(self.target, "failed", False, False, f"apply failed: {error}")
@@ -47,7 +47,7 @@ class FileAdapter:
             payload = json.loads(self.config_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"verify failed: {error}")
-        expected = {"plan_id": plan.id, "palette": plan.palette}
+        expected = {"plan_id": plan.id, "palette": plan.palette_for(plan.mode)}
         verified = payload == expected
         return AdapterResult(
             self.target,

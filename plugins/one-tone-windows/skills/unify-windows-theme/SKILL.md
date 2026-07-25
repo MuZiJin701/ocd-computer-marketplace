@@ -37,3 +37,11 @@ python .\scripts\run_one_tone.py rollback tx-...
 `verify` 只读取当前目标并与 Plan 对比，不创建事务、不 Snapshot、不 Apply、不 Restart、不 Rollback。
 
 Plan ID、Transaction ID 和 target 必须是安全路径组件。编辑器和 Terminal 的实际路径会优先使用用户目录与 PATH 探测，也可通过 `ONE_TONE_<TARGET>_...` 环境变量覆盖。运行时不依赖 Everything、固定盘符或开发机临时路径。fixture 测试不代表真实 Windows 桌面目标已验证。
+
+## 已确认的主题字段开发范围
+
+下一阶段开发说明要求覆盖 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome 的公开主题颜色字段，并支持浅色/深色 Mode、Field inventory、字段级 capability status 和相邻 UI region 可区分性。普通相邻背景目标为 1.2:1，选区/焦点/边框/强调控件目标为 3:1，文字继续使用 4.5:1 和 7:1。
+
+同语义字段可以复用 Visual role，但相邻 UI region 不得复用同一背景色。Chrome 输出 light/dark 两个静态主题产物；Windows Terminal 输出双 Scheme；Windows 不改变系统模式、自动取色或高对比度设置；Codex 以已验证 v1 颜色 schema 为边界；TRAE 专属字段只处理可发现且可验证的字段。
+
+完整决策见仓库 docs/specs 下的开发说明；当前 runtime 已生成双模式 Plan，并在 Terminal、VS Code/TRAE 与 Chrome 产物中应用对应的字段清单。真实桌面字段仍需按测试说明单独验收。

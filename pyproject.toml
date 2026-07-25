@@ -1,7 +1,7 @@
 [project]
-name = "one-tone-marketplace-dev"
+name = "ocd-computer-marketplace-dev"
 version = "0.1.0"
-description = "Development harness for the One-Tone Windows plugin marketplace"
+description = "Development and test harness for the OCD Codex plugin marketplace"
 requires-python = ">=3.11"
 dependencies = []
 

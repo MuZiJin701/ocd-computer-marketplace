@@ -9,15 +9,16 @@ from typing import Any, Mapping
 from ..palette import parse_hex_color
 from ..plan import Plan
 from ..storage import atomic_write_text, validate_safe_component
-from .base import AdapterResult
+from .base import AdapterResult, field_capabilities
 
 
 def _rgb(color: str) -> list[int]:
     return list(parse_hex_color(color))
 
 
-def _manifest(plan: Plan) -> dict[str, Any]:
-    palette = plan.palette
+def _manifest(plan: Plan, mode: str | None = None) -> dict[str, Any]:
+    mode = mode or plan.mode
+    palette = plan.palette_for(mode)
     return {
         "manifest_version": 3,
         "version": "1.0.0",
@@ -27,38 +28,65 @@ def _manifest(plan: Plan) -> dict[str, Any]:
             "colors": {
                 "frame": _rgb(palette["surface"]),
                 "frame_inactive": _rgb(palette["background"]),
-                "toolbar": _rgb(palette["surface"]),
+                "toolbar": _rgb(palette["surface_subtle"]),
                 "toolbar_text": _rgb(palette["foreground"]),
                 "toolbar_button_icon": _rgb(palette["foreground"]),
                 "tab_background_text": _rgb(palette["foreground"]),
                 "tab_background_text_inactive": _rgb(palette["background_foreground"]),
                 "tab_text": _rgb(palette["foreground"]),
                 "bookmark_text": _rgb(palette["foreground"]),
-                "ntp_background": _rgb(palette["surface"]),
+                "ntp_background": _rgb(palette["background"]),
                 "ntp_header": _rgb(palette["foreground"]),
                 "ntp_link": _rgb(palette["accent_text"]),
                 "ntp_text": _rgb(palette["foreground"]),
-                "omnibox_background": _rgb(palette["surface"]),
+                "omnibox_background": _rgb(palette["surface_raised"]),
                 "omnibox_text": _rgb(palette["foreground"]),
+                "omnibox_background_tint": _rgb(palette["surface_subtle"]),
+                "omnibox_background_tab_switcher": _rgb(palette["surface_raised"]),
+                "incognito_tab": _rgb(palette["surface_raised"]),
+                "incognito_background": _rgb(palette["background"]),
+                "button_background": _rgb(palette["accent"]),
+                "button_background_hover": _rgb(palette["selection_background"]),
+                "separator": _rgb(palette["border"]),
+            },
+            "tints": {
+                "buttons": [0.0, 0.0, 0.0],
+                "frame": [0.0, 0.0, 0.0],
+                "background_tab": [0.0, 0.0, 0.0],
+            },
+            "display_properties": {
+                "control_style": 1,
+                "theme_supports_hidpi": True,
             },
         },
     }
 
 
-def build_chrome_theme(plan: Plan, output_path: Path) -> Path:
+def build_chrome_theme(plan: Plan, output_path: Path, mode: str | None = None) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("manifest.json", json.dumps(_manifest(plan), ensure_ascii=False, indent=2))
+        archive.writestr("manifest.json", json.dumps(_manifest(plan, mode), ensure_ascii=False, indent=2))
     return output_path
 
 
-def build_chrome_theme_directory(plan: Plan, output_dir: Path) -> Path:
+def build_chrome_theme_directory(plan: Plan, output_dir: Path, mode: str | None = None) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_text(
         output_dir / "manifest.json",
-        json.dumps(_manifest(plan), ensure_ascii=False, indent=2) + "\n",
+        json.dumps(_manifest(plan, mode), ensure_ascii=False, indent=2) + "\n",
     )
     return output_dir
+
+
+def build_chrome_themes(plan: Plan, output_dir: Path) -> dict[str, tuple[Path, Path]]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        mode: (
+            build_chrome_theme_directory(plan, output_dir / f"one-tone-{plan.id}-{mode}", mode),
+            build_chrome_theme(plan, output_dir / f"one-tone-{plan.id}-{mode}.zip", mode),
+        )
+        for mode in ("light", "dark")
+    }
 
 
 class ChromeAdapter:
@@ -87,8 +115,10 @@ class ChromeAdapter:
 
     def apply(self, plan: Plan) -> AdapterResult:
         try:
-            self._unpacked_dir = build_chrome_theme_directory(plan, self.output_dir / f"one-tone-{plan.id}")
-            self._artifact = build_chrome_theme(plan, self.output_dir / f"one-tone-{plan.id}.zip")
+            paired = build_chrome_themes(plan, self.output_dir)
+            # Keep the v1 names as aliases for existing rollback records and callers.
+            self._unpacked_dir = build_chrome_theme_directory(plan, self.output_dir / f"one-tone-{plan.id}", "dark")
+            self._artifact = build_chrome_theme(plan, self.output_dir / f"one-tone-{plan.id}.zip", "dark")
             return AdapterResult(
                 self.target,
                 "partial",
@@ -99,6 +129,9 @@ class ChromeAdapter:
                 metadata={
                     "artifact": self._artifact.name,
                     "unpacked_dir": self._unpacked_dir.name,
+                    "artifacts": [path.name for _, path in paired.values()] + [self._artifact.name],
+                    "unpacked_dirs": [path.name for path, _ in paired.values()] + [self._unpacked_dir.name],
+                    "field_capabilities": field_capabilities(self.target),
                 },
             )
         except OSError as error:
@@ -114,11 +147,22 @@ class ChromeAdapter:
             if artifact.is_file():
                 with zipfile.ZipFile(artifact) as archive:
                     candidates.append(json.loads(archive.read("manifest.json")))
-            verified = bool(candidates) and all(
-                manifest.get("theme", {}).get("colors", {}).get("frame") == _rgb(plan.palette["surface"])
-                for manifest in candidates
+            for mode in ("light", "dark"):
+                paired_dir = self.output_dir / f"one-tone-{plan.id}-{mode}" / "manifest.json"
+                paired_zip = self.output_dir / f"one-tone-{plan.id}-{mode}.zip"
+                if paired_dir.is_file():
+                    candidates.append(json.loads(paired_dir.read_text(encoding="utf-8")))
+                if paired_zip.is_file():
+                    with zipfile.ZipFile(paired_zip) as archive:
+                        candidates.append(json.loads(archive.read("manifest.json")))
+            expected_frames = {tuple(_rgb(plan.palette_for(mode)["surface"])) for mode in ("light", "dark")}
+            frames = {tuple(manifest.get("theme", {}).get("colors", {}).get("frame", ())) for manifest in candidates}
+            verified = bool(candidates) and expected_frames.issubset(frames)
+            return AdapterResult(
+                self.target, "partial" if verified else "failed", False, verified,
+                "Chrome theme package verified; user activation is still required" if verified else "Chrome theme package mismatch", True,
+                metadata={"field_capabilities": field_capabilities(self.target)},
             )
-            return AdapterResult(self.target, "partial" if verified else "failed", False, verified, "Chrome theme package verified; user activation is still required" if verified else "Chrome theme package mismatch", True)
         except (OSError, KeyError, json.JSONDecodeError, zipfile.BadZipFile) as error:
             return AdapterResult(self.target, "failed", False, False, f"Chrome verify failed: {error}")
 
@@ -127,6 +171,22 @@ class ChromeAdapter:
             artifact = self._artifact
             unpacked_dir = self._unpacked_dir
             if metadata:
+                artifact_names = metadata.get("artifacts", [])
+                unpacked_names = metadata.get("unpacked_dirs", [])
+                if isinstance(artifact_names, list):
+                    for name in artifact_names:
+                        if isinstance(name, str):
+                            validate_safe_component(name, "Chrome artifact")
+                            candidate = self.output_dir / name
+                            if candidate.exists():
+                                candidate.unlink()
+                if isinstance(unpacked_names, list):
+                    for name in unpacked_names:
+                        if isinstance(name, str):
+                            validate_safe_component(name, "Chrome unpacked directory")
+                            candidate = self.output_dir / name
+                            if candidate.exists():
+                                shutil.rmtree(candidate)
                 artifact_name = metadata.get("artifact")
                 unpacked_name = metadata.get("unpacked_dir")
                 if isinstance(artifact_name, str):

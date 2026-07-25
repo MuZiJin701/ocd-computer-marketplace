@@ -19,7 +19,7 @@ skills add https://github.com/MuZiJin701/ocd-computer-marketplace.git -g -a code
 
 ```powershell
 codex plugin marketplace add https://github.com/MuZiJin701/ocd-computer-marketplace.git
-codex plugin add one-tone-windows@ocd-windows-themes
+codex plugin add one-tone-windows@ocd-computer-marketplace
 ```
 
 CC Switch：在 Skills 页面添加
@@ -46,3 +46,7 @@ Skill runtime 位于当前目录，使用 `uv` 运行：
 ```powershell
 uv run --project . one-tone --help
 ```
+
+## 开发边界
+
+主题字段扩展的正式开发说明位于仓库的 docs/specs。它要求覆盖 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome 的公开颜色字段，并记录模式、版本能力和相邻区域可区分性；本 Skill 仍保持独立 runtime，不依赖仓库根目录。

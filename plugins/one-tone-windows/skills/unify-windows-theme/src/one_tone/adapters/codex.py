@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 from ..plan import Plan
 from ..storage import atomic_write_text
-from .base import AdapterResult
+from .base import AdapterResult, field_capabilities
 
 CODEX_CONFIG_SCHEMA_V1 = "codex-config-v1"
 _THEME_TABLES = (
@@ -84,28 +84,26 @@ def _skip_result(message: str) -> AdapterResult:
     return AdapterResult("codex", "skipped", False, False, message)
 
 
-def _theme_updates(palette: dict[str, str]) -> dict[str, dict[str, Any]]:
-    base = {
-        "accent": palette["accent"],
-        "contrast": 100,
-        "ink": palette["foreground"],
-        "surface": palette["surface"],
-    }
-    semantic = {
-        "diffAdded": palette["success_text"],
-        "diffRemoved": palette["error_text"],
-        "skill": palette["accent_text"],
-    }
-    return {
-        _THEME_TABLES[0]: base,
-        _THEME_TABLES[1]: base,
-        f"{_THEME_TABLES[0]}.semanticColors": semantic,
-        f"{_THEME_TABLES[1]}.semanticColors": semantic,
-    }
+def _theme_updates(palettes: Mapping[str, Mapping[str, str]]) -> dict[str, dict[str, Any]]:
+    updates: dict[str, dict[str, Any]] = {}
+    for table_name, mode in zip(_THEME_TABLES, ("light", "dark")):
+        palette = palettes[mode]
+        updates[table_name] = {
+            "accent": palette["accent"],
+            "contrast": 100,
+            "ink": palette["foreground"],
+            "surface": palette["surface"],
+        }
+        updates[f"{table_name}.semanticColors"] = {
+            "diffAdded": palette["success_text"],
+            "diffRemoved": palette["error_text"],
+            "skill": palette["accent_text"],
+        }
+    return updates
 
 
-def _replace_verified_values(text: str, palette: dict[str, str]) -> str:
-    updates = _theme_updates(palette)
+def _replace_verified_values(text: str, palettes: Mapping[str, Mapping[str, str]]) -> str:
+    updates = _theme_updates(palettes)
     section = ""
     output: list[str] = []
     header_pattern = re.compile(r"^\s*\[([^\]]+)\]\s*(?:\r?\n)?$")
@@ -128,22 +126,23 @@ def _replace_verified_values(text: str, palette: dict[str, str]) -> str:
 
 def _matches_plan(payload: dict[str, Any], plan: Plan) -> bool:
     desktop = payload["desktop"]
-    for table_name in ("appearanceLightChromeTheme", "appearanceDarkChromeTheme"):
-        theme = desktop[table_name]
+    for full_table_name, mode in zip(_THEME_TABLES, ("light", "dark")):
+        theme = desktop[full_table_name.split(".", 1)[1]]
+        palette = plan.palette_for(mode)
         expected = {
-            "accent": plan.palette["accent"],
+            "accent": palette["accent"],
             "contrast": 100,
-            "ink": plan.palette["foreground"],
-            "surface": plan.palette["surface"],
+            "ink": palette["foreground"],
+            "surface": palette["surface"],
         }
         if any(theme.get(key) != value for key, value in expected.items()):
             return False
         semantic = theme.get("semanticColors")
         if isinstance(semantic, dict):
             expected_semantic = {
-                "diffAdded": plan.palette["success_text"],
-                "diffRemoved": plan.palette["error_text"],
-                "skill": plan.palette["accent_text"],
+                "diffAdded": palette["success_text"],
+                "diffRemoved": palette["error_text"],
+                "skill": palette["accent_text"],
             }
             if any(key in semantic and semantic[key] != value for key, value in expected_semantic.items()):
                 return False
@@ -176,6 +175,7 @@ class CodexAdapter:
             True,
             f"verified Codex config.toml: {self.config_path}",
             version=CODEX_CONFIG_SCHEMA_V1,
+            metadata={"field_capabilities": field_capabilities(self.target)},
         )
 
     def snapshot(self, backup_dir: Path) -> AdapterResult:
@@ -193,7 +193,7 @@ class CodexAdapter:
         if document is None:
             return _skip_result(f"Codex config.toml does not match {CODEX_CONFIG_SCHEMA_V1}")
         original, _ = document
-        updated = _replace_verified_values(original, plan.palette)
+        updated = _replace_verified_values(original, {mode: plan.palette_for(mode) for mode in ("light", "dark")})
         try:
             atomic_write_text(self.config_path, updated, newline="")
             return AdapterResult(self.target, "ok", updated != original, False, "Codex config.toml theme written", version=CODEX_CONFIG_SCHEMA_V1)
@@ -212,6 +212,7 @@ class CodexAdapter:
             verified,
             "Codex config.toml theme verified" if verified else "Codex config.toml theme does not match Plan",
             version=CODEX_CONFIG_SCHEMA_V1,
+            metadata={"field_capabilities": field_capabilities(self.target)},
         )
 
     def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:

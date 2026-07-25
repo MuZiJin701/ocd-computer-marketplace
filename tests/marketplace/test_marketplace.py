@@ -4,6 +4,7 @@ from pathlib import Path
 
 def test_repo_marketplace_points_to_plugin():
     payload = json.loads(Path(".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
+    assert payload["name"] == "ocd-computer-marketplace"
     entry = payload["plugins"][0]
     assert entry["source"]["source"] == "local"
     assert entry["source"]["path"] == "./plugins/one-tone-windows"
@@ -42,3 +43,10 @@ def test_readme_documents_repo_marketplace_and_plugin_runtime():
     assert ".agents/plugins/marketplace.json" in root_readme
     assert "plugins/one-tone-windows" in root_readme
     assert "可独立分发" in plugin_readme
+
+
+def test_marketplace_indexes_document_future_plugin_boundaries():
+    assert Path("plugins/README.md").is_file()
+    assert Path("tests/README.md").is_file()
+    assert Path("docs/README.md").is_file()
+    assert Path("tests/plugins/one-tone-windows/skills/unify-windows-theme/runtime/test_palette.py").is_file()

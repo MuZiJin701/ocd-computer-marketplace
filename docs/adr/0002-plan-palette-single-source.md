@@ -1,0 +1,3 @@
+# Plan uses one canonical Mode Palette set
+
+The Plan will persist exactly one `palettes` mapping containing `light` and `dark` Palettes; the top-level `mode` is only the selected/default lookup Mode. Direct `Plan.palette` access and the legacy persisted `palette` field are removed, and old single-Palette Plans are rejected so Apply cannot guess a missing Mode. Adapters read through `palette_for(mode)`, with single-Mode outputs using the selected Mode and paired artifacts choosing both explicitly. This keeps the Plan hash and Apply contract tied to one Palette source without adding a new Palette value object or changing Adapter seams.

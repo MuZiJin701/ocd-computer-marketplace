@@ -10,7 +10,7 @@ from typing import Any, Callable, Mapping
 
 from ..plan import Plan
 from ..storage import atomic_write_text
-from .base import AdapterResult
+from .base import AdapterResult, field_capabilities
 
 
 @dataclass(frozen=True)
@@ -23,12 +23,13 @@ class EditorSpec:
     artifacts_dir: Path | None = None
 
 
-def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
-    palette = plan.palette
+def build_theme_json(plan: Plan, theme_name: str, mode: str | None = None) -> dict[str, Any]:
+    mode = mode or plan.mode
+    palette = plan.palette_for(mode)
     background_foreground = palette["background_foreground"]
     return {
         "name": theme_name,
-        "type": "dark",
+        "type": mode,
         "colors": {
             "foreground": palette["foreground"],
             "disabledForeground": palette["muted_foreground"],
@@ -50,29 +51,29 @@ def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
             "editorWarning.foreground": palette["warning_text"],
             "editorInfo.foreground": palette["accent_text"],
             "editorHint.foreground": palette["success_text"],
-            "editorGroupHeader.tabsBackground": palette["surface"],
+            "editorGroupHeader.tabsBackground": palette["surface_subtle"],
             "editorGroupHeader.tabsBorder": palette["border"],
-            "sideBar.background": palette["surface"],
+            "sideBar.background": palette["surface_subtle"],
             "sideBar.foreground": palette["foreground"],
             "sideBar.border": palette["border"],
-            "sideBarTitle.background": palette["surface"],
+            "sideBarTitle.background": palette["surface_subtle"],
             "sideBarTitle.foreground": palette["foreground"],
             "sideBarTitle.border": palette["border"],
             "sideBarSectionHeader.background": palette["background"],
             "sideBarSectionHeader.foreground": background_foreground,
             "sideBarSectionHeader.border": palette["border"],
-            "activityBar.background": palette["surface"],
+            "activityBar.background": palette["background"],
             "activityBar.foreground": palette["foreground"],
             "activityBar.inactiveForeground": palette["muted_foreground"],
             "activityBar.activeBorder": palette["accent"],
             "activityBar.border": palette["border"],
             "activityBarBadge.background": palette["accent"],
             "activityBarBadge.foreground": palette["accent_foreground"],
-            "activityBarTop.background": palette["surface"],
+            "activityBarTop.background": palette["background"],
             "activityBarTop.foreground": palette["foreground"],
             "activityBarTop.inactiveForeground": palette["muted_foreground"],
             "activityBarTop.activeBorder": palette["accent"],
-            "titleBar.activeBackground": palette["surface"],
+            "titleBar.activeBackground": palette["surface_raised"],
             "titleBar.activeForeground": palette["foreground"],
             "titleBar.inactiveBackground": palette["background"],
             "titleBar.inactiveForeground": background_foreground,
@@ -88,14 +89,14 @@ def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
             "panelTitle.activeBorder": palette["accent"],
             "panelTitle.activeForeground": background_foreground,
             "panelTitle.inactiveForeground": palette["muted_foreground"],
-            "statusBar.background": palette["surface"],
+            "statusBar.background": palette["surface_raised"],
             "statusBar.foreground": palette["foreground"],
             "statusBar.border": palette["border"],
-            "input.background": palette["background"],
+            "input.background": palette["surface_raised"],
             "input.foreground": background_foreground,
             "input.border": palette["border"],
             "input.placeholderForeground": palette["muted_foreground"],
-            "dropdown.background": palette["background"],
+            "dropdown.background": palette["surface_raised"],
             "dropdown.foreground": background_foreground,
             "list.activeSelectionBackground": palette["selection_background"],
             "list.activeSelectionForeground": palette["selection_foreground"],
@@ -133,8 +134,13 @@ def build_theme_json(plan: Plan, theme_name: str) -> dict[str, Any]:
             "focusBorder": palette["accent"],
             "button.background": palette["accent"],
             "button.foreground": palette["accent_foreground"],
-            "editorWidget.background": palette["surface"],
+            "editorWidget.background": palette["surface_raised"],
             "editorWidget.border": palette["border"],
+            "settings.headerForeground": palette["foreground"],
+            "settings.modifiedItemIndicator": palette["accent"],
+            "breadcrumb.background": palette["background"],
+            "breadcrumb.foreground": background_foreground,
+            "breadcrumb.focusForeground": palette["foreground"],
         },
         "semanticHighlighting": True,
         "semanticTokenColors": {
@@ -183,12 +189,16 @@ def build_vsix(plan: Plan, output_path: Path, spec: EditorSpec) -> Path:
         "version": "0.1.0",
         "publisher": "one-tone",
         "engines": {"vscode": ">=1.80.0"},
-        "contributes": {"themes": [{"label": theme_name, "uiTheme": "vs-dark", "path": "./themes/one-tone-color-theme.json"}]},
+        "contributes": {"themes": [
+            {"label": f"{theme_name} Dark", "uiTheme": "vs-dark", "path": "./themes/one-tone-color-theme.json"},
+            {"label": f"{theme_name} Light", "uiTheme": "vs", "path": "./themes/one-tone-light-color-theme.json"},
+        ]},
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("extension/package.json", json.dumps(package, ensure_ascii=False, indent=2))
         archive.writestr("extension/themes/one-tone-color-theme.json", json.dumps(build_theme_json(plan, theme_name), ensure_ascii=False, indent=2))
+        archive.writestr("extension/themes/one-tone-light-color-theme.json", json.dumps(build_theme_json(plan, theme_name, "light"), ensure_ascii=False, indent=2))
     return output_path
 
 
@@ -506,7 +516,10 @@ class VSCodeFamilyAdapter:
                     )
                 return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install produced no registered extension")
             self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
-            return AdapterResult(self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected")
+            return AdapterResult(
+                self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected",
+                metadata={"field_capabilities": field_capabilities(self.target)},
+            )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile, subprocess.TimeoutExpired) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} apply failed: {error}")
 
@@ -538,8 +551,8 @@ class VSCodeFamilyAdapter:
             if not verified:
                 return AdapterResult(self.target, "failed", False, False, f"{self.target} theme verification failed")
             if self.spec.ai_panel_supported:
-                return AdapterResult(self.target, "ok", False, True, f"{self.target} common workbench verified")
-            return AdapterResult(self.target, "partial", False, True, f"{self.target} common workbench verified; AI-specific panels are outside standard theme fields")
+                return AdapterResult(self.target, "ok", False, True, f"{self.target} common workbench verified", metadata={"field_capabilities": field_capabilities(self.target)})
+            return AdapterResult(self.target, "partial", False, True, f"{self.target} common workbench verified; AI-specific panels are outside standard theme fields", metadata={"field_capabilities": field_capabilities(self.target)})
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} verify failed: {error}")
 

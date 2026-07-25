@@ -88,6 +88,7 @@ def _adapter_result_payload(result: dict[str, object]) -> dict[str, object]:
         "message": result.get("message", ""),
         "requires_user_action": result.get("requires_user_action", False),
         "version": result.get("version"),
+        "metadata": result.get("metadata", {}),
     }
 
 
@@ -258,6 +259,8 @@ def _preview(args: argparse.Namespace) -> int:
             "command": "preview",
             "status": "ok",
             "plan_id": plan.id,
+            "mode_palettes": plan.palettes,
+            "field_capabilities": plan.field_capabilities,
             "targets": [
                 {
                     "target": target,

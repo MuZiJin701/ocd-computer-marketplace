@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 from ..plan import Plan
 from ..storage import atomic_write_text
-from .base import AdapterResult
+from .base import AdapterResult, field_capabilities
 
 _SCHEME_NAME = "One Tone"
 _THEME_NAME = "One Tone"
@@ -35,8 +35,8 @@ def resolve_default_profile(settings: dict[str, Any]) -> tuple[int, str] | None:
     return None
 
 
-def _palette_colors(plan: Plan) -> dict[str, str]:
-    palette = plan.palette
+def _palette_colors(plan: Plan, mode: str | None = None) -> dict[str, str]:
+    palette = plan.palette_for(mode or plan.mode)
     return {
         "background": palette["surface"],
         "foreground": palette["foreground"],
@@ -61,22 +61,25 @@ def _palette_colors(plan: Plan) -> dict[str, str]:
     }
 
 
-def _scheme_colors(plan: Plan) -> dict[str, str]:
-    colors = _palette_colors(plan)
-    return {"name": _SCHEME_NAME, "cursorColor": plan.palette["accent_text"], **colors}
+def _scheme_colors(plan: Plan, mode: str | None = None) -> dict[str, str]:
+    colors = _palette_colors(plan, mode)
+    palette = plan.palette_for(mode or plan.mode)
+    name = _SCHEME_NAME if mode is None else f"{_SCHEME_NAME} {mode.title()}"
+    return {"name": name, "cursorColor": palette["accent_text"], **colors}
 
 
-def _theme_colors(plan: Plan) -> dict[str, Any]:
-    palette = plan.palette
+def _theme_colors(plan: Plan, mode: str | None = None) -> dict[str, Any]:
+    palette = plan.palette_for(mode or plan.mode)
+    name = _THEME_NAME if mode is None else f"{_THEME_NAME} {mode.title()}"
     return {
-        "name": _THEME_NAME,
+        "name": name,
         "window": {
             "applicationTheme": "system",
             "frame": palette["accent"],
             "unfocusedFrame": palette["muted_foreground"],
         },
         "tabRow": {
-            "background": palette["surface"],
+            "background": palette["surface_subtle"],
             "unfocusedBackground": palette["background"],
         },
         "tab": {
@@ -138,12 +141,16 @@ class TerminalAdapter:
                     continue
                 profile.update(self._expected_colors)
                 profile["colorScheme"] = _SCHEME_NAME
-                profile["tabColor"] = plan.palette["accent"]
+                profile["tabColor"] = plan.palette_for(plan.mode)["accent"]
             settings["profiles"].setdefault("defaults", {})["colorScheme"] = _SCHEME_NAME
             schemes = [item for item in settings.get("schemes", []) if item.get("name") != _SCHEME_NAME]
+            schemes = [item for item in schemes if not str(item.get("name", "")).startswith(f"{_SCHEME_NAME} ")]
+            schemes.extend(_scheme_colors(plan, mode) for mode in ("light", "dark"))
             schemes.append(_scheme_colors(plan))
             settings["schemes"] = schemes
             themes = [item for item in settings.get("themes", []) if isinstance(item, dict) and item.get("name") != _THEME_NAME]
+            themes = [item for item in themes if not str(item.get("name", "")).startswith(f"{_THEME_NAME} ")]
+            themes.extend(_theme_colors(plan, mode) for mode in ("light", "dark"))
             themes.append(_theme_colors(plan))
             settings["themes"] = themes
             settings["theme"] = _THEME_NAME
@@ -151,7 +158,10 @@ class TerminalAdapter:
                 self.settings_path,
                 json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
             )
-            return AdapterResult(self.target, "ok", True, False, f"Terminal Profile updated; {self._resolution_message}")
+            return AdapterResult(
+                self.target, "ok", True, False, f"Terminal Profile updated; {self._resolution_message}",
+                metadata={"field_capabilities": field_capabilities(self.target)},
+            )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Terminal apply failed: {error}")
 
@@ -167,12 +177,22 @@ class TerminalAdapter:
             scheme = next((item for item in settings.get("schemes", []) if item.get("name") == _SCHEME_NAME), None)
             scheme_expected = _scheme_colors(plan)
             theme = next((item for item in settings.get("themes", []) if item.get("name") == _THEME_NAME), None)
+            paired_schemes = {
+                item.get("name"): item
+                for item in settings.get("schemes", [])
+                if isinstance(item, dict) and item.get("name") in {"One Tone Light", "One Tone Dark"}
+            }
+            paired_themes = {
+                item.get("name"): item
+                for item in settings.get("themes", [])
+                if isinstance(item, dict) and item.get("name") in {"One Tone Light", "One Tone Dark"}
+            }
             verified = (
                 all(
                     isinstance(profile, dict)
                     and all(profile.get(key) == value for key, value in expected.items())
                     and profile.get("colorScheme") == _SCHEME_NAME
-                    and profile.get("tabColor") == plan.palette["accent"]
+                    and profile.get("tabColor") == plan.palette_for(plan.mode)["accent"]
                     for profile in profile_list
                 )
                 and settings.get("profiles", {}).get("defaults", {}).get("colorScheme") == _SCHEME_NAME
@@ -180,8 +200,14 @@ class TerminalAdapter:
                 and all(scheme.get(key) == value for key, value in scheme_expected.items())
                 and settings.get("theme") == _THEME_NAME
                 and theme == _theme_colors(plan)
+                and all(paired_schemes.get(f"One Tone {mode.title()}") == _scheme_colors(plan, mode) for mode in ("light", "dark"))
+                and all(paired_themes.get(f"One Tone {mode.title()}") == _theme_colors(plan, mode) for mode in ("light", "dark"))
             )
-            return AdapterResult(self.target, "ok" if verified else "failed", False, verified, f"Terminal Profile verified; {message}" if verified else "Terminal Profile colors do not match Plan")
+            return AdapterResult(
+                self.target, "ok" if verified else "failed", False, verified,
+                f"Terminal Profile verified; {message}" if verified else "Terminal Profile colors do not match Plan",
+                metadata={"field_capabilities": field_capabilities(self.target)},
+            )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Terminal verify failed: {error}")
 

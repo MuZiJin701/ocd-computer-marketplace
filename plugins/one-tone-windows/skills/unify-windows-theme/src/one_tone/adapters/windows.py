@@ -12,7 +12,7 @@ from typing import Any, Mapping, Protocol
 from ..palette import parse_hex_color
 from ..plan import Plan
 from ..storage import atomic_write_text
-from .base import AdapterResult
+from .base import AdapterResult, field_capabilities
 
 try:
     import winreg
@@ -284,16 +284,17 @@ def generate_accent_palette(accent: str) -> bytes:
 
 
 def _theme_registry_values(plan: Plan) -> dict[str, int | bytes]:
-    accent = windows_color_value(plan.palette["accent"])
+    palette = plan.palette_for(plan.mode)
+    accent = windows_color_value(palette["accent"])
     return {
         "StartTaskbarColorPrevalence": 1,
         "TitleBarColorPrevalence": 1,
         "AccentColorMenu": accent,
         "StartColorMenu": accent,
-        "AccentPalette": generate_accent_palette(plan.palette["accent"]),
+        "AccentPalette": generate_accent_palette(palette["accent"]),
         "AccentColor": accent,
-        "ColorizationColor": windows_colorization_value(plan.palette["accent"]),
-        "ColorizationAfterglow": windows_colorization_value(plan.palette["accent"]),
+        "ColorizationColor": windows_colorization_value(palette["accent"]),
+        "ColorizationAfterglow": windows_colorization_value(palette["accent"]),
     }
 
 
@@ -355,7 +356,7 @@ class WindowsAdapter:
         try:
             self.config.wallpaper_dir.mkdir(parents=True, exist_ok=True)
             wallpaper_path = (self.config.wallpaper_dir / f"{plan.id}.png").resolve()
-            self._wallpaper_path = generate_wallpaper(plan.palette, wallpaper_path)
+            self._wallpaper_path = generate_wallpaper(plan.palette_for(plan.mode), wallpaper_path)
             if not self.desktop.set_wallpaper(str(self._wallpaper_path)):
                 return AdapterResult(self.target, "failed", True, False, "Windows wallpaper API rejected the generated wallpaper")
             for name, value in _theme_registry_values(plan).items():
@@ -371,7 +372,10 @@ class WindowsAdapter:
                     True,
                     version=self._version,
                 )
-            return AdapterResult(self.target, "ok", True, False, "theme colors and generated wallpaper applied", version=self._version)
+            return AdapterResult(
+                self.target, "ok", True, False, "theme colors and generated wallpaper applied", version=self._version,
+                metadata={"field_capabilities": field_capabilities(self.target, {"AppsUseLightTheme", "SystemUsesLightTheme", "AutoColorization", "highContrast"})},
+            )
         except (OSError, KeyError, ValueError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Windows apply failed: {error}")
 
@@ -391,7 +395,11 @@ class WindowsAdapter:
                 True,
                 version=self._version,
             )
-        return AdapterResult(self.target, "ok" if verified else "failed", False, verified, "Windows theme and wallpaper verified" if verified else "Windows theme or wallpaper mismatch", version=self._version)
+        return AdapterResult(
+            self.target, "ok" if verified else "failed", False, verified,
+            "Windows theme and wallpaper verified" if verified else "Windows theme or wallpaper mismatch", version=self._version,
+            metadata={"field_capabilities": field_capabilities(self.target, {"AppsUseLightTheme", "SystemUsesLightTheme", "AutoColorization", "highContrast"})},
+        )
 
     def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         try:

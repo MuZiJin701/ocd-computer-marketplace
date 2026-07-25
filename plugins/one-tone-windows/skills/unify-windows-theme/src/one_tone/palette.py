@@ -35,6 +35,18 @@ _CONTRAST_PAIRS = (
     ("selection_foreground", "selection_background", 4.5),
 )
 
+REGION_SEPARATION_PAIRS = (
+    ("surface_subtle", "surface", 1.2),
+    ("surface_raised", "surface", 1.2),
+    ("surface", "background", 1.2),
+)
+
+INTERACTIVE_SEPARATION_PAIRS = (
+    ("accent", "surface", 3),
+    ("selection_background", "surface", 3),
+    ("border", "surface", 3),
+)
+
 
 def parse_hex_color(value: str) -> tuple[int, int, int]:
     if not isinstance(value, str):
@@ -164,19 +176,39 @@ def _contrast_safe_accent(seed_color: str, background: str) -> str:
     return max(candidates, key=lambda candidate: contrast_ratio(candidate, background))
 
 
-def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
-    if mode != "dark":
-        raise ValueError("Only dark mode is supported in this phase")
+def _ensure_contrast(color: str, background: str, minimum_ratio: float) -> str:
+    if contrast_ratio(color, background) >= minimum_ratio:
+        return color
+    candidates = [
+        _blend(color, direction, weight)
+        for weight in (0.12, 0.24, 0.36, 0.48, 0.60, 0.72, 0.84, 1.0)
+        for direction in ("#000000", "#FFFFFF")
+    ]
+    return max(candidates, key=lambda candidate: contrast_ratio(candidate, background))
+
+
+def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
     seed = _to_hex(parse_hex_color(seed_color))
     red, green, blue = parse_hex_color(seed)
-    _hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
-    background = _hls_color(_hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
+    hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+    if mode == "dark":
+        background = _hls_color(hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
+    else:
+        background = _hls_color(hue, max(0.82, min(0.96, lightness + 0.35)), max(0.12, saturation * 0.35))
+    background = _ensure_contrast(background, seed, 1.2)
     surface = seed
+    surface_subtle = _ensure_contrast(_blend(surface, background, 0.35), surface, 1.2)
+    surface_raised = _ensure_contrast(
+        _blend(surface, "#FFFFFF" if mode == "dark" else "#000000", 0.12),
+        surface,
+        1.2,
+    )
     background_foreground = _chromatic_foreground((background,), 7)
     foreground = _chromatic_foreground((surface,), 4.5)
     muted_foreground = _chromatic_foreground((surface,), 4.5)
-    accent = _contrast_safe_accent(seed, background)
-    selection_background = _blend(accent, background, 0.8)
+    accent = _ensure_contrast(_contrast_safe_accent(seed, background), surface, 3)
+    selection_background = _ensure_contrast(_blend(accent, background, 0.8), surface, 3)
+    border = _ensure_contrast(_blend(accent, background, 0.35), surface, 3)
     error = "#F05252"
     warning = "#F3B95F"
     success = "#42D392"
@@ -184,6 +216,8 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
         "background": background,
         "background_foreground": background_foreground,
         "surface": surface,
+        "surface_subtle": surface_subtle,
+        "surface_raised": surface_raised,
         "foreground": foreground,
         "muted_foreground": muted_foreground,
         "accent": accent,
@@ -191,7 +225,7 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
         "accent_foreground": _chromatic_foreground((accent,), 4.5),
         "selection_background": selection_background,
         "selection_foreground": _chromatic_foreground((selection_background,), 4.5),
-        "border": "#4A4D59",
+        "border": border,
         "error": error,
         "error_text": _chromatic_foreground((surface,), 4.5, source_color=error),
         "warning": warning,
@@ -202,6 +236,47 @@ def generate_palette(seed_color: str, mode: str = "dark") -> dict[str, str]:
     errors = validate_palette(palette)
     if errors:
         raise ValueError("Generated palette failed validation: " + "; ".join(errors))
+    return palette
+
+
+def generate_palette(seed_color: str, mode: str | None = None) -> dict[str, str]:
+    """Generate a mode palette; omitted mode preserves the v1 palette shape."""
+    if mode is None:
+        # Keep the public v1 helper stable for callers that only need the original
+        # semantic palette. Plans use the explicit mode form below.
+        seed = _to_hex(parse_hex_color(seed_color))
+        red, green, blue = parse_hex_color(seed)
+        hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+        background = _hls_color(hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
+        background_foreground = _chromatic_foreground((background,), 7)
+        foreground = _chromatic_foreground((seed,), 4.5)
+        accent = _contrast_safe_accent(seed, background)
+        palette = {
+            "background": background,
+            "background_foreground": background_foreground,
+            "surface": seed,
+            "foreground": foreground,
+            "muted_foreground": foreground,
+            "accent": accent,
+            "accent_text": _chromatic_foreground((seed,), 4.5, source_color=accent),
+            "accent_foreground": _chromatic_foreground((accent,), 4.5),
+            "selection_background": _blend(accent, background, 0.8),
+            "selection_foreground": _chromatic_foreground((_blend(accent, background, 0.8),), 4.5),
+            "border": "#4A4D59",
+            "error": "#F05252",
+            "error_text": _chromatic_foreground((seed,), 4.5, source_color="#F05252"),
+            "warning": "#F3B95F",
+            "warning_text": _chromatic_foreground((seed,), 4.5, source_color="#F3B95F"),
+            "success": "#42D392",
+            "success_text": _chromatic_foreground((seed,), 4.5, source_color="#42D392"),
+        }
+        errors = validate_palette(palette)
+        if errors:
+            raise ValueError("Generated palette failed validation: " + "; ".join(errors))
+        return palette
+    if mode not in {"light", "dark"}:
+        raise ValueError("mode must be 'light' or 'dark'")
+    palette = _generate_palette(seed_color, mode)
     return palette
 
 
@@ -221,4 +296,10 @@ def validate_palette(palette: Mapping[str, str]) -> list[str]:
             ratio = contrast_ratio(palette[foreground], palette[background])
             if ratio < minimum_ratio:
                 errors.append(f"{foreground}/{background} contrast is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
+    if "surface_subtle" in palette:
+        for foreground, background, minimum_ratio in REGION_SEPARATION_PAIRS + INTERACTIVE_SEPARATION_PAIRS:
+            if foreground in palette and background in palette:
+                ratio = contrast_ratio(palette[foreground], palette[background])
+                if ratio < minimum_ratio:
+                    errors.append(f"{foreground}/{background} separation is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
     return errors

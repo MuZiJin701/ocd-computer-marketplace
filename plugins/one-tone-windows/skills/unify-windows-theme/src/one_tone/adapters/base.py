@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Literal, Mapping, Protocol
 
 from ..plan import Plan
+from ..inventory import inventory_for
 
 AdapterStatus = Literal["ok", "partial", "failed", "skipped"]
 
@@ -70,3 +71,8 @@ def write_json(path: Path, payload: object) -> None:
         path,
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
     )
+
+
+def field_capabilities(target: str, unsupported: set[str] | None = None) -> dict[str, str]:
+    unsupported = unsupported or set()
+    return {name: ("unsupported" if name in unsupported else "supported") for name in inventory_for(target)}

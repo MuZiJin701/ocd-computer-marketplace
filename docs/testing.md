@@ -1,31 +1,38 @@
 # Testing
 
-Run the complete repository suite from the root:
+## Default verification
 
-```powershell
+Run from the repository root:
+
+~~~powershell
 uv run pytest
-```
-
-The root `pyproject.toml` is a non-package test harness. To run the Skill CLI from the repository root, point `uv` at the Skill project:
-
-```powershell
 uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone --help
-```
+git diff --check
+~~~
 
-The Skill can also be run from its own directory with `uv run --project . one-tone --help`.
+The root project is a test harness. The Skill project owns the one-tone console script. Tests remain outside the distributable Skill and mirror the Marketplace → Plugin → Skill hierarchy. Runtime tests for One-Tone live under the matching Plugin and Skill test directory.
 
-Tests stay in the repository and are not included in the distributable Skill.
+## Required coverage for the theme-field work
 
-## Test layers
+- Palette tests cover both light and dark modes, exact Seed Color preservation, distinct surface roles, passive region separation and interactive boundary separation.
+- Plan tests cover mode Palettes, field capability expectations and stable Plan hashes.
+- Windows tests cover safe registry and wallpaper outputs, preserved mode/automatic-color/high-contrast settings, and field-level partial results.
+- Windows Terminal tests cover paired Schemes, all profile entries, all documented color fields, Tab/Tab Row/window fields and system mode selection.
+- VS Code and TRAE tests cover the standard public Workbench field inventory, paired theme definitions and discoverable TRAE-specific fields.
+- Codex tests cover every verified v1 color field in both theme tables and preserve unknown configuration keys.
+- Chrome tests cover separate light/dark manifests, all public colors, tints and display properties, plus manual activation status.
+- Transaction tests retain per-Target Snapshot, operation persistence, compensation and rollback behavior.
 
-- `tests/marketplace/`: Marketplace manifest and paths.
-- `tests/plugins/`: Codex Plugin envelope.
-- `tests/skills/`: Skill files, launcher and active documentation.
-- `tests/runtime/one_tone/`: Palette, Plan, Transaction and Adapter behavior.
-- 当前仓库不包含 `tests/integration/` 目录；真实 Windows 目标测试需单独执行并明确风险，不属于默认 fixture 套件。
+## Test style
 
-The runtime fixture suite covers cross-process-style adapter instances, transaction journaling, failed compensation, safe path components, atomic plan/transaction writes, environment path overrides, Cursor exclusion, default target selection, Scoop Terminal discovery, and Codex `system` appearance detection. It does not prove real Windows registry, desktop wallpaper, editor CLI, or Chrome activation compatibility.
+Tests cross the highest available Seam and assert external behavior:
 
-Palette and adapter tests also verify that the Seed is preserved exactly as `surface`, primary and semantic text variants are readable on `surface`, Codex semantic fields use `success_text`/`error_text`/`accent_text`, `background_foreground` is readable on the deep background, the Windows wallpaper is a solid Seed-colored PNG, Windows accents come from `accent`, and Apply preserves the user's mode and automatic colorization registry values. Terminal fixtures cover all profile entries, the `system` application theme, readable black/bright-black and cursor colors. VS Code/TRAE fixtures cover standard Workbench, terminal ANSI, selection, diagnostic, link, and semantic-token fields. Chrome fixtures require Manifest V3 and verify active/inactive browser text fields. The contrast checks use 7:1 for deep-background text and 4.5:1 for surface/emphasis text; when a Seed's theoretical maximum is lower, the algorithm selects the maximum attainable contrast.
+- Generated Palette and Plan data, not private color helper calls.
+- JSON, TOML and ZIP artifacts, not internal dictionary construction.
+- AdapterResult status and field capability payloads, not logging text.
+- Temporary files and fake registry/desktop backends for default tests.
+- Real installed applications only in separately marked, risk-documented tests.
 
-Default tests use temporary files and fake registry/desktop backends. They do not modify the current desktop or installed applications. A passing fixture test is not evidence of a real target `FULL` result.
+A passing fixture test is not proof that a real desktop Target renders every public field. Manual screenshots remain required for visual acceptance.
+
+The runtime Plan stores both `light` and `dark` Palettes under one canonical `palettes` field. The legacy persisted `palette` field is rejected rather than guessed or migrated. `Plan.palette_for(mode)` returns a copy; single-mode Adapters use the Plan's selected mode, while paired artifact Adapters explicitly cover both modes. Existing v1 callers that invoke `generate_palette(seed)` retain the original single-palette shape; new Plan and artifact paths use explicit modes.

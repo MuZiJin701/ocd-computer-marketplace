@@ -1,50 +1,95 @@
 # Architecture
 
-## Layers
+## Marketplace shape
 
-```text
-Marketplace
-  └─ Plugin package
-      └─ Skill package
-          ├─ SKILL.md
-          ├─ Python runtime
-          └─ target Adapters
-```
+The repository root is the Marketplace. It contains the Marketplace manifest, shared active documentation, the root test harness and one or more Plugin packages.
 
-- `.agents/plugins/marketplace.json` lists installable Codex Plugin packages.
-- `plugins/one-tone-windows/.codex-plugin/plugin.json` is an optional Codex wrapper.
-- `plugins/one-tone-windows/skills/unify-windows-theme/` is the canonical Skill package.
-- The Skill package owns `pyproject.toml`, `src/one_tone/` and its launcher.
-- The root `pyproject.toml` is only the development/test entrypoint; it is not installable and does not expose a runtime command.
-- The Skill `pyproject.toml` owns the `one-tone` console script and is the only runtime project.
+~~~text
+.
+├─ .agents/plugins/marketplace.json
+├─ plugins/
+│  ├─ README.md
+│  └─ <plugin-name>/
+│     ├─ .codex-plugin/plugin.json
+│     ├─ README.md
+│     └─ skills/
+│        └─ <skill-name>/
+│           ├─ SKILL.md
+│           ├─ agents/
+│           ├─ references/
+│           ├─ scripts/
+│           └─ runtime project
+├─ tests/
+│  ├─ README.md
+│  ├─ marketplace/
+│  └─ plugins/<plugin-name>/skills/<skill-name>/
+│     └─ runtime/
+├─ docs/
+│  ├─ agents/
+│  ├─ specs/
+│  ├─ adr/
+│  ├─ architecture.md
+│  └─ testing.md
+├─ CONTEXT.md
+└─ pyproject.toml
+~~~
 
-## Runtime boundaries
+The Plugin is the installable envelope. The Skill is the independently distributable capability. A Skill runtime belongs inside its Skill package; it must not depend on the Marketplace root or another Plugin.
 
-- `palette.py`: Seed Color and contrast-safe, hue-coherent Palette. `surface` preserves the normalized Seed exactly; `foreground` and semantic text variants are selected for `surface` with a target of at least 4.5:1, while `background_foreground` is selected for the deep `background` with a target of at least 7:1.
-- `plan.py`: immutable Plan, serialization and Hash validation.
-- `storage.py`: safe path-component validation and atomic text/JSON persistence.
-- `transaction.py`: per-target Apply journaling, compensation, Verify, rollback metadata and snapshot retention.
-- `adapters/`: target-specific Detect, Snapshot, Apply, Verify and Rollback.
-- `cli.py`: Preview, Apply, Verify and Rollback command wiring.
+## Runtime seams
 
-The runtime has no database, background service or plugin runtime framework.
+- Plan Palette generation is the highest shared Seam for Seed Color, Mode and Visual role calculation.
+- Each Target Adapter is the next Seam for mapping public Color fields to Palette roles and for Detect, Snapshot, Apply, Verify and Rollback.
+- Transaction persistence is the safety Seam; it records each Target operation and keeps compensation local to the failed Target.
+- Field inventory is the documentation and testing Seam; it defines expected coverage without coupling tests to private implementation helpers.
+- Marketplace metadata is the installation Seam; it points to Plugin envelopes but does not contain runtime logic.
 
-## Palette and discovery semantics
+Do not add a shared runtime or cross-Plugin import layer until two Plugins genuinely need the same behavior. Reuse repository tooling and documentation conventions, not hidden runtime coupling.
 
-- Codex `surface` is the normalized Seed Color in both `appearanceLightChromeTheme` and `appearanceDarkChromeTheme`; Codex `ink` maps to the chromatic `foreground`, Codex `accent` maps to Palette `accent`, and both Chrome theme tables use `contrast=100` without changing `appearanceTheme`.
-- Codex semantic text fields use contrast-safe variants: `semanticColors.diffAdded` maps to `success_text`, `diffRemoved` to `error_text`, and `skill` to `accent_text`; Palette `accent` is reserved for visual emphasis surfaces, borders, and system accent values.
-- Windows wallpaper is a solid PNG of the exact Seed Color. Windows registry accent values and the generated accent palette use Palette `accent`, never a darkened `surface`.
-- Windows Apply does not write `AppsUseLightTheme`, `SystemUsesLightTheme`, or `AutoColorization`; the user's current mode and automatic color choice remain under user control.
-- When `AutoColorization` is already enabled, Windows Detect/Apply/Verify reports `partial` and requires user action because Windows may recalculate the accent from the wallpaper after Apply. The runtime does not silently change that setting.
-- Editor discovery uses PATH, standard per-user locations, and explicit environment overrides. No machine-specific absolute path or temporary path is required at runtime. Cursor remains isolated in source for future experiments but is not a production target.
-- Preview defaults to the complete implemented target set and prints one detection result per target; `--targets` is an explicit narrowing option, not a required discovery input.
+## Responsibilities
 
-## Target field coverage
+- Marketplace manifest: list installable Plugin envelopes.
+- Plugin envelope: provide Codex metadata and own its Skills.
+- Skill package: provide instructions, references, launcher and runtime for one capability.
+- Root test harness: run repository-wide marketplace, Plugin, Skill and runtime tests.
+- Palette: generate mode-specific Visual roles and validate text and region contrast.
+- Plan: serialize Seed Color, light/dark Mode Palettes, Target selection and field capability expectations with an integrity hash. `palettes` is the only persisted Palette representation; the selected `mode` is the default lookup mode, not a system-mode switch.
+- Storage: validate safe path components and perform atomic persistence.
+- Transaction: journal Apply operations, preserve Snapshots and coordinate compensation.
+- Target Adapters: map public field inventories to Palette roles and report field-level capability.
+- CLI: expose Preview, Apply, Verify and Rollback without bypassing the workflow.
 
-- Windows Terminal writes a named scheme with `background`, `foreground`, selection colors, cursor color, and all ANSI colors. Black/bright-black use the readable surface foreground instead of the background. The named window theme uses `applicationTheme = system`, so applying a palette does not force Windows Terminal or Windows into dark mode. Every discovered profile receives the scheme and tab color so profile-level overrides cannot leave stale, unreadable text behind. Field names follow the [Windows Terminal themes](https://learn.microsoft.com/en-us/windows/terminal/customize-settings/themes) and [color schemes](https://learn.microsoft.com/en-us/windows/terminal/customize-settings/color-schemes) settings.
-- VS Code and TRAE use the standard [Workbench color IDs](https://code.visualstudio.com/api/references/theme-color), including editor selection foreground, multi-cursor, terminal cursor and ANSI colors, links, notifications, lists, inputs, and diagnostic text. The theme enables `semanticHighlighting` and supplies `semanticTokenColors` according to the [semantic highlighting guide](https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide); TextMate fallback rules remain in `tokenColors`. This covers the common workbench only, not proprietary AI panels.
-- Chrome generates a Manifest V3 theme using the current [Chrome theme color fields](https://chromium.googlesource.com/chromium/src/+/HEAD/chrome/browser/themes/browser_theme_pack.cc), including active/inactive frame, toolbar text/icons, tab text, bookmarks, NTP text/links, and omnibox text. Activation remains a user action.
+## Test layout
 
-Transaction records are persisted after each target operation. Adapter results may carry JSON-safe target metadata; Chrome uses this to remove generated artifacts in a later Rollback process. VS Code-family Verify discovers the installed extension from the persisted extension directory rather than relying on adapter instance state.
+Tests mirror the distribution hierarchy:
 
-`APPLIED` means every selected target completed successfully. `PARTIAL` means at least one target completed while another target was skipped, failed, or requires user action. `FAILED` means no target completed or compensation failed.
+- marketplace tests validate the manifest and cross-package indexes;
+- Plugin tests validate the Codex envelope;
+- Skill tests validate the distributable Skill package;
+- runtime tests live below the matching Plugin and Skill so a future Plugin cannot accidentally reuse another Plugin's fixtures or assumptions.
+
+## Structure audit
+
+### Correct choices
+
+- The Marketplace manifest is separate from Plugin metadata.
+- Each Plugin has its own envelope and Skills directory.
+- The first Plugin owns the complete One-Tone Skill runtime.
+- The root harness is not packaged as a runtime distribution.
+- Tests can exercise the Skill source without being shipped with it.
+
+### Costs kept explicit
+
+- The Skill path is deep because the distribution boundary is real.
+- The root harness and Skill runtime have separate uv projects; commands must name which project they target.
+- Plugin-specific runtime tests are more verbose in exchange for locality and future multi-Plugin isolation.
+
+### Rules for future Plugins
+
+1. Add one direct child under plugins.
+2. Add one local Plugin envelope and README.
+3. Put every Skill under that Plugin's skills directory.
+4. Keep each Skill runtime self-contained.
+5. Add matching tests under tests/plugins/<plugin>/skills/<skill>/.
+6. Register only the Plugin envelope in the Marketplace manifest.
+7. Do not move shared code into a root runtime until a second real implementation needs it and the seam has been reviewed.
