@@ -50,7 +50,12 @@ def test_chrome_apply_requires_explicit_user_action(tmp_path):
     assert result.status == "partial"
     assert result.requires_user_action is True
     assert adapter.verify(plan).verified is True
-    assert (tmp_path / "output" / "one-tone-plan-chrome-002" / "manifest.json").is_file()
+    assert (tmp_path / "output" / "one-tone-plan-chrome-002-dark" / "manifest.json").is_file()
+    assert (tmp_path / "output" / "one-tone-plan-chrome-002-light" / "manifest.json").is_file()
+    assert sorted(path.name for path in (tmp_path / "output").iterdir() if path.is_dir()) == [
+        "one-tone-plan-chrome-002-dark",
+        "one-tone-plan-chrome-002-light",
+    ]
 
 
 def test_chrome_rollback_removes_zip_and_unpacked_artifacts(tmp_path):
@@ -59,8 +64,7 @@ def test_chrome_rollback_removes_zip_and_unpacked_artifacts(tmp_path):
 
     assert adapter.apply(plan).status == "partial"
     assert adapter.rollback(tmp_path / "backup").verified is True
-    assert not (tmp_path / "output" / "one-tone-plan-chrome-rollback-001").exists()
-    assert not (tmp_path / "output" / "one-tone-plan-chrome-rollback-001.zip").exists()
+    assert not any((tmp_path / "output").iterdir())
 
 
 def test_chrome_rollback_removes_artifacts_after_new_adapter_instance(tmp_path):

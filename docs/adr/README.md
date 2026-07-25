@@ -13,4 +13,4 @@ Each ADR should record:
 
 Historical design and implementation notes are not automatically ADRs; promote only durable architectural decisions into this directory.
 
-The current accepted decision about complete public theme-field coverage and adjacent-region separation is recorded in 0001-theme-field-coverage-and-separation.md.
+The accepted decisions about field coverage, the canonical Plan Palette set and user-facing theme coherence are recorded in 0001-theme-field-coverage-and-separation.md, 0002-plan-palette-single-source.md and 0003-user-facing-theme-coherence.md.

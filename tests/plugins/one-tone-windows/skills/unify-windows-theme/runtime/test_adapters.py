@@ -44,3 +44,17 @@ def test_cursor_is_explicitly_skipped_without_touching_files(tmp_path):
     assert isinstance(adapter, UnsupportedAdapter)
     assert result.status == "skipped"
     assert not (tmp_path / "state").exists()
+
+
+def test_field_inventory_keeps_evidence_and_visual_region_details():
+    from one_tone.inventory import inventory_groups
+
+    groups = inventory_groups("chrome")
+
+    assert "browser chrome" in groups
+    field = groups["browser chrome"][0]
+    assert field["technical_field"]
+    assert field["official_source"].startswith("https://")
+    assert field["version_baseline"]
+    assert field["inventory_version"] == "2026-07-25.v1"
+    assert field["capability_status"] == "supported"

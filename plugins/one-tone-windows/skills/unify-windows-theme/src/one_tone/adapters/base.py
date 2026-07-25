@@ -73,6 +73,14 @@ def write_json(path: Path, payload: object) -> None:
     )
 
 
-def field_capabilities(target: str, unsupported: set[str] | None = None) -> dict[str, str]:
+def field_capabilities(
+    target: str,
+    unsupported: set[str] | None = None,
+    statuses: Mapping[str, str] | None = None,
+) -> dict[str, str]:
     unsupported = unsupported or set()
-    return {name: ("unsupported" if name in unsupported else "supported") for name in inventory_for(target)}
+    statuses = statuses or {}
+    return {
+        name: statuses.get(name, "unsupported" if name in unsupported else "supported")
+        for name in inventory_for(target)
+    }

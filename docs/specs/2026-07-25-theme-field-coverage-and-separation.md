@@ -58,11 +58,13 @@
 - Seed Color is immutable. Contrast and region separation may adjust derived roles, saturation and lightness, but never the Seed Color.
 - Palette validation checks text contrast, adjacent-region separation and interactive boundary separation. Relative luminance is used because it already exists in the runtime and requires no dependency.
 - Each Target has a Field inventory based on its public stable theme schema. The inventory is the source of truth for generated-field tests and Verify reporting.
+- Field inventory records the official source, version baseline, technical field, Visual role, Mode support and field-level capability status. Fields without a stable official schema must not be guessed.
 - Version-sensitive fields are capability checked. Supported fields continue to Apply; unsupported fields remain unchanged and contribute to Target partial status.
-- Windows controls only user-visible color outputs that are safe and documented. Mode selectors, automatic accent selection and high-contrast settings remain detect-only.
+- Windows controls only user-visible color outputs that are safe and documented. Accent color and Taskbar accent display are separate fields; Mode selectors, automatic accent selection and high-contrast settings remain detect-only. Taskbar accent display may be `not-applicable` in pure Light mode and must not turn the whole Windows Target into failed.
 - Windows Terminal uses paired light/dark Schemes and a system-selected theme. VS Code and TRAE publish paired light/dark theme definitions in one installable theme package.
-- Chrome publishes separate light and dark static theme packages because a local Chrome theme does not provide a mode-switching color table. User activation remains manual.
-- TRAE-specific fields are optional discoveries from the installed application or its public theme data. They are never guessed from private implementation details.
+- VS Code and TRAE Apply selects the actual contributed Light/Dark theme labels; it does not select a non-existent base label. Existing `window.autoDetectColorScheme` preference is preserved rather than forced.
+- Chrome publishes exactly two user-facing canonical unpacked theme directories, one Light and one Dark. ZIPs, compatibility aliases and transaction copies are internal artifacts, not additional themes for users to choose.
+- TRAE-specific fields are optional discoveries from the installed application or its public theme data. They are never guessed from private implementation details; absence of a stable public schema is itself a reason to report the field as unsupported or partial.
 - Codex coverage is limited to the verified v1 color schema. Unknown configuration keys are preserved, not invented.
 - Field-level capability results roll up to the existing Target status vocabulary. A Target with successful supported fields and unsupported fields is partial; write failures or failed compensation remain failed.
 - The repository keeps one distributable Skill runtime and one root test harness. It does not introduce a new service, database or theme plugin framework.
@@ -75,8 +77,9 @@
 - Plan tests cover serializing both mode Palettes and field capability expectations while preserving hash integrity.
 - Plan tests cover the canonical `palettes` payload, rejection of legacy/malformed Plans, Palette validation on load, copy-on-read behavior and removal of direct `plan.palette` access.
 - Adapter tests cover the existing Windows, Terminal, VS Code-family, Codex and Chrome fixture seams. Each test compares generated fields with the Field inventory and checks mode-specific mappings.
-- Chrome tests inspect both static manifests and validate colors, tints and display properties.
+- Chrome tests inspect both canonical manifests and validate colors, tints and display properties; tests also assert that user-facing output contains only the two canonical unpacked directories.
 - VS Code-family tests verify the paired theme package, standard fields, and discovered TRAE fields when present.
+- VS Code-family tests verify that the selected settings values match the actual contributed Light/Dark labels and that existing auto-detect preferences are preserved.
 - Transaction tests retain the existing per-Target Snapshot, persistence, compensation and rollback checks.
 - A separate real-desktop test matrix records manual screenshots for one dark Seed and one high-lightness Seed across the six Targets. It is explicitly excluded from the default fixture suite.
 

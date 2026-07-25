@@ -6,6 +6,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..inventory import inventory_groups, inventory_report
 from ..palette import parse_hex_color
 from ..plan import Plan
 from ..storage import atomic_write_text, validate_safe_component
@@ -97,6 +98,8 @@ class ChromeAdapter:
         self.preferences_path = preferences_path
         self._artifact: Path | None = None
         self._unpacked_dir: Path | None = None
+        self._artifacts: list[Path] = []
+        self._unpacked_dirs: list[Path] = []
         self._preferences_backup: Path | None = None
 
     def detect(self) -> AdapterResult:
@@ -116,22 +119,29 @@ class ChromeAdapter:
     def apply(self, plan: Plan) -> AdapterResult:
         try:
             paired = build_chrome_themes(plan, self.output_dir)
-            # Keep the v1 names as aliases for existing rollback records and callers.
-            self._unpacked_dir = build_chrome_theme_directory(plan, self.output_dir / f"one-tone-{plan.id}", "dark")
-            self._artifact = build_chrome_theme(plan, self.output_dir / f"one-tone-{plan.id}.zip", "dark")
+            self._unpacked_dir = paired[plan.mode][0]
+            self._artifact = paired[plan.mode][1]
+            self._unpacked_dirs = [path for path, _ in paired.values()]
+            self._artifacts = [path for _, path in paired.values()]
+            unpacked_names = [path.name for path, _ in paired.values()]
+            artifact_names = [path.name for _, path in paired.values()]
             return AdapterResult(
                 self.target,
                 "partial",
                 True,
                 False,
-                f"Chrome theme generated at {self._unpacked_dir}; load it in Chrome and confirm activation",
+                f"Chrome Light/Dark themes generated; load {self._unpacked_dir} in Chrome and confirm activation",
                 True,
                 metadata={
                     "artifact": self._artifact.name,
                     "unpacked_dir": self._unpacked_dir.name,
-                    "artifacts": [path.name for _, path in paired.values()] + [self._artifact.name],
-                    "unpacked_dirs": [path.name for path, _ in paired.values()] + [self._unpacked_dir.name],
+                    "artifacts": artifact_names,
+                    "unpacked_dirs": unpacked_names,
+                    "canonical_unpacked_dirs": unpacked_names,
+                    "user_facing_choices": unpacked_names,
                     "field_capabilities": field_capabilities(self.target),
+                    "field_inventory": inventory_report(self.target),
+                    "field_groups": inventory_groups(self.target),
                 },
             )
         except OSError as error:
@@ -140,13 +150,6 @@ class ChromeAdapter:
     def verify(self, plan: Plan) -> AdapterResult:
         try:
             candidates = []
-            unpacked = self._unpacked_dir or self.output_dir / f"one-tone-{plan.id}"
-            artifact = self._artifact or self.output_dir / f"one-tone-{plan.id}.zip"
-            if (unpacked / "manifest.json").is_file():
-                candidates.append(json.loads((unpacked / "manifest.json").read_text(encoding="utf-8")))
-            if artifact.is_file():
-                with zipfile.ZipFile(artifact) as archive:
-                    candidates.append(json.loads(archive.read("manifest.json")))
             for mode in ("light", "dark"):
                 paired_dir = self.output_dir / f"one-tone-{plan.id}-{mode}" / "manifest.json"
                 paired_zip = self.output_dir / f"one-tone-{plan.id}-{mode}.zip"
@@ -161,7 +164,13 @@ class ChromeAdapter:
             return AdapterResult(
                 self.target, "partial" if verified else "failed", False, verified,
                 "Chrome theme package verified; user activation is still required" if verified else "Chrome theme package mismatch", True,
-                metadata={"field_capabilities": field_capabilities(self.target)},
+                metadata={
+                    "field_capabilities": field_capabilities(self.target),
+                    "field_inventory": inventory_report(self.target),
+                    "field_groups": inventory_groups(self.target),
+                    "canonical_unpacked_dirs": [f"one-tone-{plan.id}-light", f"one-tone-{plan.id}-dark"],
+                    "user_facing_choices": [f"one-tone-{plan.id}-light", f"one-tone-{plan.id}-dark"],
+                },
             )
         except (OSError, KeyError, json.JSONDecodeError, zipfile.BadZipFile) as error:
             return AdapterResult(self.target, "failed", False, False, f"Chrome verify failed: {error}")
@@ -195,6 +204,13 @@ class ChromeAdapter:
                 if isinstance(unpacked_name, str):
                     validate_safe_component(unpacked_name, "Chrome unpacked directory")
                     unpacked_dir = self.output_dir / unpacked_name
+            else:
+                for candidate in self._artifacts:
+                    if candidate.exists():
+                        candidate.unlink()
+                for candidate in self._unpacked_dirs:
+                    if candidate.exists():
+                        shutil.rmtree(candidate)
             if artifact is None and unpacked_dir is None:
                 return AdapterResult(self.target, "failed", False, False, "Chrome artifact metadata not found")
             if artifact is not None and artifact.exists():

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from ..plan import Plan
+from ..inventory import inventory_groups, inventory_report
 from ..storage import atomic_write_text
 from .base import AdapterResult, field_capabilities
 
@@ -182,6 +183,8 @@ def build_theme_json(plan: Plan, theme_name: str, mode: str | None = None) -> di
 
 def build_vsix(plan: Plan, output_path: Path, spec: EditorSpec) -> Path:
     theme_name = f"One Tone {spec.target}"
+    dark_label = f"{theme_name} Dark"
+    light_label = f"{theme_name} Light"
     package = {
         "name": f"one-tone-{spec.target}",
         "displayName": theme_name,
@@ -197,8 +200,8 @@ def build_vsix(plan: Plan, output_path: Path, spec: EditorSpec) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("extension/package.json", json.dumps(package, ensure_ascii=False, indent=2))
-        archive.writestr("extension/themes/one-tone-color-theme.json", json.dumps(build_theme_json(plan, theme_name), ensure_ascii=False, indent=2))
-        archive.writestr("extension/themes/one-tone-light-color-theme.json", json.dumps(build_theme_json(plan, theme_name, "light"), ensure_ascii=False, indent=2))
+        archive.writestr("extension/themes/one-tone-color-theme.json", json.dumps(build_theme_json(plan, dark_label, "dark"), ensure_ascii=False, indent=2))
+        archive.writestr("extension/themes/one-tone-light-color-theme.json", json.dumps(build_theme_json(plan, light_label, "light"), ensure_ascii=False, indent=2))
     return output_path
 
 
@@ -227,6 +230,23 @@ class VSCodeFamilyAdapter:
 
     def _extension_id(self) -> str:
         return f"one-tone.one-tone-{self.target}"
+
+    def _theme_label(self, mode: str) -> str:
+        return f"{self._theme_name} {'Light' if mode == 'light' else 'Dark'}"
+
+    def _theme_labels(self) -> tuple[str, str]:
+        return self._theme_label("dark"), self._theme_label("light")
+
+    def _contributed_labels(self, extension_dir: Path) -> set[str] | None:
+        package_path = extension_dir / "package.json"
+        if not package_path.is_file():
+            return None
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+            themes = package.get("contributes", {}).get("themes", [])
+            return {item["label"] for item in themes if isinstance(item, dict) and isinstance(item.get("label"), str)}
+        except (OSError, TypeError, AttributeError, json.JSONDecodeError):
+            return set()
 
     def _installed_extension_dirs(self) -> list[Path]:
         prefix = f"{self._extension_id()}-"
@@ -469,9 +489,9 @@ class VSCodeFamilyAdapter:
             vsix_path = build_vsix(plan, artifacts_dir / f"{self.target}-{plan.id}.vsix", self.spec)
             self.spec.extensions_dir.mkdir(parents=True, exist_ok=True)
             self._remove_installed_extension_state()
-            settings["workbench.colorTheme"] = self._theme_name
-            settings["workbench.preferredDarkColorTheme"] = self._theme_name
-            settings["workbench.preferredLightColorTheme"] = self._theme_name
+            settings["workbench.colorTheme"] = self._theme_label(plan.mode)
+            settings["workbench.preferredDarkColorTheme"] = self._theme_label("dark")
+            settings["workbench.preferredLightColorTheme"] = self._theme_label("light")
             if self.target == "cursor":
                 self._apply_cursor_settings_fallback(settings, plan)
             atomic_write_text(
@@ -518,7 +538,15 @@ class VSCodeFamilyAdapter:
             self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
             return AdapterResult(
                 self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected",
-                metadata={"field_capabilities": field_capabilities(self.target)},
+                metadata={
+                    "field_capabilities": field_capabilities(self.target),
+                    "field_inventory": inventory_report(self.target),
+                    "field_groups": inventory_groups(self.target),
+                    "theme_registration": "applied",
+                    "theme_activation": "applied",
+                    "theme_labels": list(self._theme_labels()),
+                    "auto_detect_preserved": "window.autoDetectColorScheme" in settings,
+                },
             )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile, subprocess.TimeoutExpired) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} apply failed: {error}")
@@ -533,11 +561,14 @@ class VSCodeFamilyAdapter:
             extension_dir = self._extension_dir if self._extension_dir and self._theme_file(self._extension_dir) else (
                 max(candidates, key=lambda path: path.stat().st_mtime) if candidates else None
             )
+            contributed_labels = self._contributed_labels(extension_dir) if extension_dir else None
+            labels_ok = contributed_labels is None or set(self._theme_labels()) <= contributed_labels
             verified = (
-                settings.get("workbench.colorTheme") == self._theme_name
-                and settings.get("workbench.preferredDarkColorTheme") == self._theme_name
-                and settings.get("workbench.preferredLightColorTheme") == self._theme_name
+                settings.get("workbench.colorTheme") in self._theme_labels()
+                and settings.get("workbench.preferredDarkColorTheme") == self._theme_label("dark")
+                and settings.get("workbench.preferredLightColorTheme") == self._theme_label("light")
                 and extension_dir is not None
+                and labels_ok
             )
             if self.target == "cursor" and not verified and self._cursor_settings_match(settings, plan):
                 return AdapterResult(
@@ -551,8 +582,27 @@ class VSCodeFamilyAdapter:
             if not verified:
                 return AdapterResult(self.target, "failed", False, False, f"{self.target} theme verification failed")
             if self.spec.ai_panel_supported:
-                return AdapterResult(self.target, "ok", False, True, f"{self.target} common workbench verified", metadata={"field_capabilities": field_capabilities(self.target)})
-            return AdapterResult(self.target, "partial", False, True, f"{self.target} common workbench verified; AI-specific panels are outside standard theme fields", metadata={"field_capabilities": field_capabilities(self.target)})
+                status = "ok"
+                message = f"{self.target} registration and active theme verified"
+            else:
+                status = "partial"
+                message = f"{self.target} registration and active theme verified; AI-specific panels are outside standard theme fields"
+            return AdapterResult(
+                self.target,
+                status,
+                False,
+                True,
+                message,
+                metadata={
+                    "field_capabilities": field_capabilities(self.target),
+                    "field_inventory": inventory_report(self.target),
+                    "field_groups": inventory_groups(self.target),
+                    "theme_registration": "verified",
+                    "theme_activation": "verified",
+                    "theme_labels": list(self._theme_labels()),
+                    "auto_detect_preserved": "window.autoDetectColorScheme" in settings,
+                },
+            )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} verify failed: {error}")
 

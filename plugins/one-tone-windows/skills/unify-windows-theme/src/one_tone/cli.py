@@ -22,6 +22,7 @@ from .adapters import (
 )
 from .adapters.vscode_family import EditorSpec
 from .adapters.windows import WindowsDesktopBackend, WindowsRegistryBackend
+from .inventory import inventory_groups
 from .plan import PlanIntegrityError, create_plan, load_plan, save_plan
 from .transaction import TransactionStatus, TransactionStore, apply_plan, verify_plan
 
@@ -80,6 +81,9 @@ def _target_names(raw_targets: str) -> tuple[str, ...]:
 
 
 def _adapter_result_payload(result: dict[str, object]) -> dict[str, object]:
+    metadata = result.get("metadata", {})
+    if isinstance(metadata, dict):
+        metadata = {key: value for key, value in metadata.items() if key not in {"artifact", "artifacts"}}
     return {
         "target": result.get("target"),
         "status": result.get("status"),
@@ -88,7 +92,7 @@ def _adapter_result_payload(result: dict[str, object]) -> dict[str, object]:
         "message": result.get("message", ""),
         "requires_user_action": result.get("requires_user_action", False),
         "version": result.get("version"),
-        "metadata": result.get("metadata", {}),
+        "metadata": metadata,
     }
 
 
@@ -270,9 +274,16 @@ def _preview(args: argparse.Namespace) -> int:
                     "message": result.message,
                     "requires_user_action": result.requires_user_action,
                     "version": result.version,
+                    "metadata": result.metadata,
                 }
                 for target, result in detected.items()
             ],
+            "selected_mode": plan.mode,
+            "mode_semantics": "Mode is a presentation variant of the Seed Color; it does not change Windows system mode",
+            "field_inventory": {
+                target: inventory_groups(target)
+                for target in plan.targets
+            },
             "warnings": unsupported_count,
             "path": str(path),
         }, args.output)

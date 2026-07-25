@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
+from ..inventory import inventory_groups, inventory_report
 from ..palette import parse_hex_color
 from ..plan import Plan
 from ..storage import atomic_write_text
-from .base import AdapterResult, field_capabilities
+from .base import AdapterResult
 
 try:
     import winreg
@@ -286,8 +287,7 @@ def generate_accent_palette(accent: str) -> bytes:
 def _theme_registry_values(plan: Plan) -> dict[str, int | bytes]:
     palette = plan.palette_for(plan.mode)
     accent = windows_color_value(palette["accent"])
-    return {
-        "StartTaskbarColorPrevalence": 1,
+    values = {
         "TitleBarColorPrevalence": 1,
         "AccentColorMenu": accent,
         "StartColorMenu": accent,
@@ -295,6 +295,36 @@ def _theme_registry_values(plan: Plan) -> dict[str, int | bytes]:
         "AccentColor": accent,
         "ColorizationColor": windows_colorization_value(palette["accent"]),
         "ColorizationAfterglow": windows_colorization_value(palette["accent"]),
+    }
+    if plan.mode == "dark":
+        values["StartTaskbarColorPrevalence"] = 1
+    return values
+
+
+def _field_statuses(plan: Plan, status: str, auto_colorization: bool) -> dict[str, str]:
+    statuses = {name: status for name in _theme_registry_values(plan)}
+    statuses["wallpaper"] = status
+    statuses["StartTaskbarColorPrevalence"] = "not-applicable" if plan.mode == "light" else status
+    statuses.update({
+        "AppsUseLightTheme": "unsupported",
+        "SystemUsesLightTheme": "unsupported",
+        "AutoColorization": "unsupported",
+        "highContrast": "unsupported",
+    })
+    return statuses
+
+
+def _field_metadata(
+    plan: Plan,
+    status: str,
+    auto_colorization: bool,
+    generated_values: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    statuses = _field_statuses(plan, status, auto_colorization)
+    return {
+        "field_capabilities": statuses,
+        "field_inventory": inventory_report("windows", statuses, generated_values),
+        "field_groups": inventory_groups("windows", statuses),
     }
 
 
@@ -322,6 +352,14 @@ class WindowsAdapter:
             return AdapterResult(self.target, "skipped", False, False, "Windows 10 22H2+ or Windows 11 22H2+ not detected")
         family, build = detected
         self._version = f"{family} build {build}"
+        system_mode_value = self.registry.get_value("AppsUseLightTheme")
+        system_mode = "light" if system_mode_value == 1 else "dark" if system_mode_value == 0 else "unknown"
+        metadata = {
+            "system_mode": system_mode,
+            "selected_mode_is_independent": True,
+            "automatic_accent_enabled": self._auto_colorization_active(),
+            "high_contrast": self.registry.get_value("highContrast"),
+        }
         if self._auto_colorization_active():
             return AdapterResult(
                 self.target,
@@ -331,8 +369,9 @@ class WindowsAdapter:
                 "detected " + self._version + "; Windows automatic accent color is enabled and may overwrite the selected accent",
                 True,
                 version=self._version,
+                metadata=metadata,
             )
-        return AdapterResult(self.target, "ok", False, True, f"detected {self._version}", version=self._version)
+        return AdapterResult(self.target, "ok", False, True, f"detected {self._version}", version=self._version, metadata=metadata)
 
     def snapshot(self, backup_dir: Path) -> AdapterResult:
         try:
@@ -362,19 +401,32 @@ class WindowsAdapter:
             for name, value in _theme_registry_values(plan).items():
                 self.registry.set_value(name, value)
             self.desktop.refresh_theme()
-            if self._auto_colorization_active():
+            auto_colorization = self._auto_colorization_active()
+            metadata = _field_metadata(
+                plan,
+                "applied",
+                auto_colorization,
+                {**_theme_registry_values(plan), "wallpaper": str(self._wallpaper_path)},
+            )
+            if auto_colorization or plan.mode == "light":
+                message = "theme colors and generated wallpaper applied"
+                if plan.mode == "light":
+                    message += "; taskbar accent display is not applicable in Light mode"
+                if auto_colorization:
+                    message += "; turn off Windows automatic accent color to keep the selected accent"
                 return AdapterResult(
                     self.target,
                     "partial",
                     True,
                     False,
-                    "theme colors and generated wallpaper applied; turn off Windows automatic accent color to keep the selected accent",
-                    True,
+                    message,
+                    auto_colorization,
                     version=self._version,
+                    metadata=metadata,
                 )
             return AdapterResult(
                 self.target, "ok", True, False, "theme colors and generated wallpaper applied", version=self._version,
-                metadata={"field_capabilities": field_capabilities(self.target, {"AppsUseLightTheme", "SystemUsesLightTheme", "AutoColorization", "highContrast"})},
+                metadata=metadata,
             )
         except (OSError, KeyError, ValueError) as error:
             return AdapterResult(self.target, "failed", False, False, f"Windows apply failed: {error}")
@@ -385,20 +437,33 @@ class WindowsAdapter:
         colors_ok = all(self.registry.get_value(name) == value for name, value in expected_registry.items())
         wallpaper_ok = expected_path is not None and Path(expected_path).is_file() and self.desktop.get_wallpaper() == str(expected_path)
         verified = colors_ok and wallpaper_ok
-        if verified and self._auto_colorization_active():
+        auto_colorization = self._auto_colorization_active()
+        metadata = _field_metadata(
+            plan,
+            "verified" if verified else "failed",
+            auto_colorization,
+            {**expected_registry, "wallpaper": str(expected_path)},
+        )
+        if verified and (auto_colorization or plan.mode == "light"):
+            message = "Windows theme and wallpaper verified"
+            if plan.mode == "light":
+                message += "; taskbar accent display is not applicable in Light mode"
+            if auto_colorization:
+                message += "; automatic accent color is still enabled and may overwrite the accent later"
             return AdapterResult(
                 self.target,
                 "partial",
                 False,
                 True,
-                "Windows theme and wallpaper verified; automatic accent color is still enabled and may overwrite the accent later",
-                True,
+                message,
+                auto_colorization,
                 version=self._version,
+                metadata=metadata,
             )
         return AdapterResult(
             self.target, "ok" if verified else "failed", False, verified,
             "Windows theme and wallpaper verified" if verified else "Windows theme or wallpaper mismatch", version=self._version,
-            metadata={"field_capabilities": field_capabilities(self.target, {"AppsUseLightTheme", "SystemUsesLightTheme", "AutoColorization", "highContrast"})},
+            metadata=metadata,
         )
 
     def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:

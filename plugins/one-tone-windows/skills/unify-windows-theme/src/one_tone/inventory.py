@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 FIELD_INVENTORY: dict[str, tuple[str, ...]] = {
     "windows": (
         "wallpaper", "AccentPalette", "StartTaskbarColorPrevalence", "TitleBarColorPrevalence",
@@ -58,6 +60,106 @@ FIELD_INVENTORY: dict[str, tuple[str, ...]] = {
 }
 
 FIELD_INVENTORY["trae"] = FIELD_INVENTORY["vscode"]
+
+
+_SOURCES = {
+    "windows": "https://learn.microsoft.com/en-us/windows/apps/develop/settings/settings-common",
+    "terminal": "https://learn.microsoft.com/en-us/windows/terminal/customize-settings/color-schemes",
+    "vscode": "https://code.visualstudio.com/api/references/theme-color",
+    "trae": "https://code.visualstudio.com/api/references/theme-color",
+    "codex": "verified-v1-runtime-schema",
+    "chrome": "https://developer.chrome.com/docs/extensions/develop/ui/themes",
+}
+_BASELINES = {
+    "windows": "Windows 10 22H2 / Windows 11 22H2",
+    "terminal": "Windows Terminal documented profile schema",
+    "vscode": "VS Code theme color reference",
+    "trae": "installed public Workbench-compatible schema",
+    "codex": "verified v1 color schema",
+    "chrome": "Chrome Manifest V3 theme schema",
+}
+_INVENTORY_VERSION = "2026-07-25.v1"
+
+
+def _field_label(name: str) -> str:
+    return name.rsplit(".", 1)[-1].replace("_", " ").replace("Color", " color").strip().capitalize()
+
+
+def _field_region(target: str, name: str) -> str:
+    lowered = name.casefold()
+    if target == "windows":
+        return "taskbar" if "taskbar" in lowered or "start" in lowered else "windows shell"
+    if target == "terminal":
+        return "terminal tabs" if "tab" in lowered else "terminal"
+    if target in {"vscode", "trae"}:
+        return "editor" if lowered.startswith("editor") or lowered.startswith("terminal") else "workbench"
+    if target == "chrome":
+        return "browser chrome"
+    if target == "codex":
+        return "codex"
+    return target
+
+
+def _field_role(name: str) -> str:
+    lowered = name.casefold()
+    for token, role in (
+        ("background", "surface"),
+        ("foreground", "foreground"),
+        ("border", "border"),
+        ("cursor", "accent_text"),
+        ("selection", "selection"),
+        ("accent", "accent"),
+        ("link", "accent_text"),
+        ("error", "error_text"),
+        ("warning", "warning_text"),
+    ):
+        if token in lowered:
+            return role
+    return "surface"
+
+
+def field_inventory_for(target: str) -> tuple[dict[str, str], ...]:
+    """Return the evidence-backed, user-readable Field inventory for a Target."""
+    return tuple(
+        {
+            "technical_field": name,
+            "label": _field_label(name),
+            "field_category": "display_property" if "display" in name or "Prevalence" in name else "color",
+            "visual_role": _field_role(name),
+            "visual_region": _field_region(target, name),
+            "mode_support": "light,dark",
+            "official_source": _SOURCES.get(target, "unknown"),
+            "version_baseline": _BASELINES.get(target, "verified runtime schema"),
+            "inventory_version": _INVENTORY_VERSION,
+            "capability_status": "supported",
+        }
+        for name in inventory_for(target)
+    )
+
+
+def inventory_report(
+    target: str,
+    statuses: dict[str, str] | None = None,
+    generated_values: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], ...]:
+    statuses = statuses or {}
+    generated_values = generated_values or {}
+    return tuple(
+        {
+            **entry,
+            "capability_status": statuses.get(entry["technical_field"], entry["capability_status"]),
+            "generated_value": generated_values.get(entry["technical_field"]),
+            "verification_evidence": entry["official_source"],
+        }
+        for entry in field_inventory_for(target)
+    )
+
+
+def inventory_groups(target: str, statuses: dict[str, str] | None = None) -> dict[str, list[dict[str, Any]]]:
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for entry in inventory_report(target, statuses):
+        groups.setdefault(entry["visual_region"], []).append(entry)
+    return groups
 
 
 def inventory_for(target: str) -> tuple[str, ...]:

@@ -26,6 +26,18 @@ _Avoid_: 任意两个颜色、所有颜色必须不同
 某个 Target 公开主题 schema 中接受颜色、色调或显示属性的字段。  
 _Avoid_: 所有配置项
 
+**Accent color**
+
+Windows 或应用用于强调控件、链接、标题栏和边框的用户可见颜色。它可以存在于浅色和深色系统模式中。
+
+_Avoid_: 任务栏一定会显示的颜色
+
+**Taskbar accent display**
+
+Windows Shell 是否把 Accent color 显示到开始菜单和任务栏的独立能力；它受系统模式和用户设置限制。
+
+_Avoid_: Accent color 本身
+
 ### Target language
 
 **Marketplace**  
@@ -41,16 +53,34 @@ Plugin 内可独立分发的能力单元；其说明、引用资料、脚本和�
 一个独立的主题集成：Windows、Windows Terminal、VS Code、TRAE、Codex 或 Chrome。  
 _Avoid_: 应用（当 Windows 系统也在讨论范围内时）
 
+**Theme registration**
+
+Target 记录主题扩展或主题包，使其出现在可选择的主题清单中。注册成功不代表该主题已经成为当前活动主题。
+
+_Avoid_: 已自动生效
+
+**Theme activation**
+
+Target 将已注册的主题明确设为当前活动主题；Light/Dark 变体是否自动切换由 Target 和用户偏好决定。
+
+_Avoid_: 扩展已安装
+
+**Canonical theme artifact**
+
+面向用户的唯一推荐主题产物；同一 Mode 的压缩包、兼容别名和事务内部副本不属于可选主题。
+
+_Avoid_: 每个生成文件都是一个主题
+
 **Field inventory**  
 某个 Target 在指定版本基线下应覆盖的公开主题字段清单，是测试和 Verify 的依据。  
 _Avoid_: 可能存在的字段、未经验证的私有字段
 
 **Capability status**  
-某个字段在实际 Target 上的状态：supported、applied、verified 或 unsupported。  
+某个字段在实际 Target 上的状态：supported、applied、verified、unsupported 或 not-applicable。
 _Avoid_: 用 Target 总体状态掩盖字段差异
 
 **Mode**  
-用户可见的浅色或深色主题变体。Mode 只描述主题变体，不代表工具可以替用户切换系统模式。  
+用户可见的浅色或深色主题变体。Mode 只描述同一 Seed Color 的呈现变体，不等于 Windows 系统模式；工具不替用户切换系统模式。
 _Avoid_: 强制模式、运行模式
 
 ### Workflow language

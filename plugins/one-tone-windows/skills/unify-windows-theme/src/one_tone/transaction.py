@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 import shutil
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping
 
 from .adapters import AdapterResult, ThemeAdapter, UnsupportedAdapter
+from .inventory import inventory_groups, inventory_report
 from .plan import Plan
 from .storage import atomic_write_text, validate_safe_component
 
@@ -259,7 +260,14 @@ def apply_plan(
 
 def verify_plan(plan: Plan, adapters: Mapping[str, ThemeAdapter]) -> dict[str, AdapterResult]:
     """Read current target state and compare it with the saved Plan."""
-    return {
-        target: adapters.get(target, UnsupportedAdapter(target)).verify(plan)
-        for target in plan.targets
-    }
+    results = {}
+    for target in plan.targets:
+        result = adapters.get(target, UnsupportedAdapter(target)).verify(plan)
+        metadata = dict(result.metadata)
+        statuses = metadata.get("field_capabilities", {})
+        if not isinstance(statuses, dict):
+            statuses = {}
+        metadata.setdefault("field_inventory", inventory_report(target, statuses))
+        metadata.setdefault("field_groups", inventory_groups(target, statuses))
+        results[target] = replace(result, metadata=metadata)
+    return results

@@ -156,6 +156,26 @@ def test_windows_apply_sets_green_accent_and_taskbar_prevalence(tmp_path):
     assert adapter.verify(plan).verified is True
 
 
+def test_windows_light_mode_keeps_taskbar_setting_and_reports_not_applicable(tmp_path):
+    registry = InMemoryRegistryBackend({
+        "CurrentBuild": "26200",
+        "AppsUseLightTheme": 0,
+        "SystemUsesLightTheme": 0,
+        "AutoColorization": 0,
+        "StartTaskbarColorPrevalence": 0,
+    })
+    adapter = WindowsAdapter(WindowsConfig(tmp_path), registry, InMemoryDesktopBackend())
+    plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-light-001", mode="light")
+
+    result = adapter.apply(plan)
+
+    assert result.status == "partial"
+    assert registry.values["StartTaskbarColorPrevalence"] == 0
+    assert result.metadata["field_capabilities"]["AccentColorMenu"] == "applied"
+    assert result.metadata["field_capabilities"]["StartTaskbarColorPrevalence"] == "not-applicable"
+    assert adapter.verify(plan).metadata["field_capabilities"]["StartTaskbarColorPrevalence"] == "not-applicable"
+
+
 def test_windows_accent_palette_is_an_eight_color_bgra_binary_value():
     palette = generate_accent_palette("#005436")
 

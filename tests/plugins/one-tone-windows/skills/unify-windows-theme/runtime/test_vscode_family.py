@@ -13,6 +13,23 @@ def test_vsix_contains_manifest_and_theme(tmp_path):
         names = set(archive.namelist())
         assert "extension/package.json" in names
         assert "extension/themes/one-tone-color-theme.json" in names
+        package = json.loads(archive.read("extension/package.json"))
+        assert [theme["label"] for theme in package["contributes"]["themes"]] == [
+            "One Tone trae Dark",
+            "One Tone trae Light",
+        ]
+
+
+def test_vsix_keeps_dark_label_bound_to_dark_palette_when_plan_selects_light(tmp_path):
+    plan = create_plan("#7C3AED", ["trae"], plan_id="plan-editor-mode-pair-001", mode="light")
+    path = build_vsix(plan, tmp_path / "theme.vsix", EditorSpec("trae", "trae", tmp_path / "settings.json", tmp_path / "extensions"))
+
+    with zipfile.ZipFile(path) as archive:
+        dark_theme = json.loads(archive.read("extension/themes/one-tone-color-theme.json"))
+
+    assert dark_theme["name"] == "One Tone trae Dark"
+    assert dark_theme["type"] == "dark"
+    assert dark_theme["colors"]["editor.background"] == plan.palette_for("dark")["surface"]
 
 
 def test_editor_theme_uses_surface_for_primary_backgrounds():
@@ -65,7 +82,7 @@ def test_editor_theme_uses_contrast_safe_text_for_accented_tokens():
 
 def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     settings = tmp_path / "settings.json"
-    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
+    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+", "window.autoDetectColorScheme": True}), encoding="utf-8")
     spec = EditorSpec("trae", "trae", settings, tmp_path / "extensions", ai_panel_supported=False)
     def command_runner(command, **kwargs):
         actual = spec.extensions_dir / "one-tone.one-tone-trae-0.1.0"
@@ -83,8 +100,10 @@ def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     assert result.verified is True
     assert result.status == "partial"
     changed = json.loads(settings.read_text(encoding="utf-8"))
-    assert changed["workbench.preferredDarkColorTheme"] == "One Tone trae"
-    assert changed["workbench.preferredLightColorTheme"] == "One Tone trae"
+    assert changed["workbench.colorTheme"] == "One Tone trae Dark"
+    assert changed["workbench.preferredDarkColorTheme"] == "One Tone trae Dark"
+    assert changed["workbench.preferredLightColorTheme"] == "One Tone trae Light"
+    assert changed["window.autoDetectColorScheme"] is True
     assert adapter.rollback(tmp_path / "backup").verified is True
 
 
