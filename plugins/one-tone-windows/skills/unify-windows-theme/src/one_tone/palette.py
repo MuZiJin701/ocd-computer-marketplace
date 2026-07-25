@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import colorsys
+import math
 from collections.abc import Mapping
 
 REQUIRED_KEYS = (
@@ -61,6 +62,43 @@ def parse_hex_color(value: str) -> tuple[int, int, int]:
 
 def _to_hex(rgb: tuple[int, int, int]) -> str:
     return "#" + "".join(f"{max(0, min(255, channel)):02X}" for channel in rgb)
+
+
+def _srgb_to_linear(channel: float) -> float:
+    return channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+
+
+def _linear_to_srgb(channel: float) -> float:
+    return 12.92 * channel if channel <= 0.0031308 else 1.055 * (max(0.0, channel) ** (1 / 2.4)) - 0.055
+
+
+def _cbrt(value: float) -> float:
+    return math.copysign(abs(value) ** (1 / 3), value)
+
+
+def _oklch_components(color: str) -> tuple[float, float, float]:
+    red, green, blue = ( _srgb_to_linear(channel / 255) for channel in parse_hex_color(color))
+    l = _cbrt(0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue)
+    m = _cbrt(0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue)
+    s = _cbrt(0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue)
+    lightness = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+    a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+    b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+    return lightness, math.hypot(a, b), math.atan2(b, a) / (2 * math.pi) % 1
+
+
+def _oklch_color(hue: float, lightness: float, chroma: float) -> str:
+    angle = hue * 2 * math.pi
+    a = chroma * math.cos(angle)
+    b = chroma * math.sin(angle)
+    l = lightness + 0.3963377774 * a + 0.2158037573 * b
+    m = lightness - 0.1055613458 * a - 0.0638541728 * b
+    s = lightness - 0.0894841775 * a - 1.2914855480 * b
+    l, m, s = l**3, m**3, s**3
+    red = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
+    green = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
+    blue = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
+    return _to_hex(tuple(round(max(0.0, min(1.0, _linear_to_srgb(channel))) * 255) for channel in (red, green, blue)))
 
 
 def _blend(first: str, second: str, second_weight: float) -> str:
@@ -159,56 +197,82 @@ def _chromatic_foreground(
     )
 
 
+def _readable_foreground(backgrounds: tuple[str, ...], minimum_ratio: float, hue: float = 0.58) -> str:
+    candidates = [
+        _hls_color(hue, lightness / 100, saturation)
+        for lightness in range(4, 98)
+        for saturation in (0.08, 0.12, 0.18)
+    ]
+    valid = [
+        candidate
+        for candidate in candidates
+        if min(contrast_ratio(candidate, background) for background in backgrounds) >= minimum_ratio
+    ]
+    if not valid:
+        return max(candidates, key=lambda candidate: min(contrast_ratio(candidate, background) for background in backgrounds))
+    desired_lightness = 0.14 if max(relative_luminance(background) for background in backgrounds) > 0.179 else 0.88
+    return min(
+        valid,
+        key=lambda candidate: abs(colorsys.rgb_to_hls(*(channel / 255 for channel in parse_hex_color(candidate)))[1] - desired_lightness),
+    )
+
+
 def _chromatic_saturation(color: str) -> float:
     red, green, blue = parse_hex_color(color)
     return colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)[2]
 
 
 def _contrast_safe_accent(seed_color: str, background: str) -> str:
-    red, green, blue = parse_hex_color(seed_color)
-    hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+    _lightness, seed_chroma, hue = _oklch_components(seed_color)
     candidates = [
-        _hls_color(hue, lightness + delta, min(0.95, max(0.2, saturation * factor)))
-        for delta in (0.28, -0.28, 0.18, -0.18, 0.38, -0.38)
-        for factor in (1.0, 0.75)
+        _oklch_color(hue, candidate_lightness / 100, min(0.16, max(0.035, seed_chroma * factor)))
+        for candidate_lightness in range(8, 93)
+        for factor in (1.0, 0.8, 0.6)
     ]
-    candidates = [candidate for candidate in candidates if candidate != seed_color]
-    return max(candidates, key=lambda candidate: contrast_ratio(candidate, background))
+    candidates = [candidate for candidate in candidates if candidate != seed_color and candidate not in {"#000000", "#FFFFFF"}]
+    valid = [candidate for candidate in candidates if contrast_ratio(candidate, background) >= 3]
+    return max(valid or candidates, key=lambda candidate: contrast_ratio(candidate, background))
 
 
 def _ensure_contrast(color: str, background: str, minimum_ratio: float) -> str:
     if contrast_ratio(color, background) >= minimum_ratio:
         return color
+    _lightness, chroma, hue = _oklch_components(color)
     candidates = [
-        _blend(color, direction, weight)
-        for weight in (0.12, 0.24, 0.36, 0.48, 0.60, 0.72, 0.84, 1.0)
-        for direction in ("#000000", "#FFFFFF")
+        _oklch_color(hue, lightness / 100, min(0.16, max(0.02, chroma * factor)))
+        for lightness in range(4, 98)
+        for factor in (1.0, 0.8, 0.6, 0.35)
     ]
+    candidates = [candidate for candidate in candidates if candidate not in {"#000000", "#FFFFFF"}]
     return max(candidates, key=lambda candidate: contrast_ratio(candidate, background))
 
 
 def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
     seed = _to_hex(parse_hex_color(seed_color))
-    red, green, blue = parse_hex_color(seed)
-    hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+    _lightness, seed_chroma, hue = _oklch_components(seed)
+    tonal_chroma = min(0.045, max(0.018, seed_chroma * 0.22))
     if mode == "dark":
-        background = _hls_color(hue, min(0.18, max(0.06, lightness * 0.38)), max(0.24, saturation * 0.72))
+        background = _oklch_color(hue, 0.10, tonal_chroma)
+        surface = _oklch_color(hue, 0.24, tonal_chroma)
+        surface_subtle = _oklch_color(hue, 0.08, tonal_chroma)
+        surface_raised = _oklch_color(hue, 0.40, tonal_chroma)
     else:
-        background = _hls_color(hue, max(0.82, min(0.96, lightness + 0.35)), max(0.12, saturation * 0.35))
-    background = _ensure_contrast(background, seed, 1.2)
-    surface = seed
-    surface_subtle = _ensure_contrast(_blend(surface, background, 0.35), surface, 1.2)
-    surface_raised = _ensure_contrast(
-        _blend(surface, "#FFFFFF" if mode == "dark" else "#000000", 0.12),
-        surface,
-        1.2,
-    )
-    background_foreground = _chromatic_foreground((background,), 7)
-    foreground = _chromatic_foreground((surface,), 4.5)
-    muted_foreground = _chromatic_foreground((surface,), 4.5)
-    accent = _ensure_contrast(_contrast_safe_accent(seed, background), surface, 3)
-    selection_background = _ensure_contrast(_blend(accent, background, 0.8), surface, 3)
-    border = _ensure_contrast(_blend(accent, background, 0.35), surface, 3)
+        background = _oklch_color(hue, 0.76, tonal_chroma)
+        surface = _oklch_color(hue, 0.90, tonal_chroma)
+        surface_subtle = _oklch_color(hue, 0.80, tonal_chroma)
+        surface_raised = _oklch_color(hue, 0.995, tonal_chroma)
+    background_foreground = _readable_foreground((background,), 7)
+    foreground = _readable_foreground((surface,), 4.5)
+    muted_foreground = _readable_foreground((surface,), 4.5, hue=0.52)
+    accent = _contrast_safe_accent(seed, surface)
+    accent_lightness, accent_chroma, accent_hue = _oklch_components(accent)
+    selection_background = _oklch_color(accent_hue, accent_lightness, accent_chroma * 0.72)
+    if contrast_ratio(selection_background, surface) < 3:
+        selection_background = accent
+    border_lightness = accent_lightness - 0.12 if accent_lightness > 0.5 else accent_lightness + 0.12
+    border = _oklch_color(accent_hue, max(0.04, min(0.96, border_lightness)), accent_chroma * 0.72)
+    if contrast_ratio(border, surface) < 3:
+        border = accent
     error = "#F05252"
     warning = "#F3B95F"
     success = "#42D392"
@@ -221,17 +285,17 @@ def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
         "foreground": foreground,
         "muted_foreground": muted_foreground,
         "accent": accent,
-        "accent_text": _chromatic_foreground((surface,), 4.5, source_color=accent),
-        "accent_foreground": _chromatic_foreground((accent,), 4.5),
+        "accent_text": _readable_foreground((surface,), 4.5),
+        "accent_foreground": _readable_foreground((accent,), 4.5),
         "selection_background": selection_background,
-        "selection_foreground": _chromatic_foreground((selection_background,), 4.5),
+        "selection_foreground": _readable_foreground((selection_background,), 4.5),
         "border": border,
         "error": error,
-        "error_text": _chromatic_foreground((surface,), 4.5, source_color=error),
+        "error_text": _readable_foreground((surface,), 4.5, hue=0.02),
         "warning": warning,
-        "warning_text": _chromatic_foreground((surface,), 4.5, source_color=warning),
+        "warning_text": _readable_foreground((surface,), 4.5, hue=0.12),
         "success": success,
-        "success_text": _chromatic_foreground((surface,), 4.5, source_color=success),
+        "success_text": _readable_foreground((surface,), 4.5, hue=0.40),
     }
     errors = validate_palette(palette)
     if errors:
@@ -295,11 +359,21 @@ def validate_palette(palette: Mapping[str, str]) -> list[str]:
         if foreground in palette and background in palette:
             ratio = contrast_ratio(palette[foreground], palette[background])
             if ratio < minimum_ratio:
-                errors.append(f"{foreground}/{background} contrast is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
+                errors.append(f"contrast: {foreground}/{background} is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
     if "surface_subtle" in palette:
+        tonal_roles = ("background", "surface", "surface_subtle", "surface_raised")
+        interactive_roles = ("accent", "border", "selection_background")
+        for role in tonal_roles + interactive_roles:
+            if role not in palette:
+                continue
+            color = palette[role].upper()
+            if color in {"#000000", "#FFFFFF"}:
+                errors.append(f"appearance safety: {role} must not be pure black or white")
+            if role in tonal_roles and _oklch_components(color)[1] > 0.06:
+                errors.append(f"appearance safety: {role} chroma is too high for a large area")
         for foreground, background, minimum_ratio in REGION_SEPARATION_PAIRS + INTERACTIVE_SEPARATION_PAIRS:
             if foreground in palette and background in palette:
                 ratio = contrast_ratio(palette[foreground], palette[background])
                 if ratio < minimum_ratio:
-                    errors.append(f"{foreground}/{background} separation is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
+                    errors.append(f"separation: {foreground}/{background} is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
     return errors

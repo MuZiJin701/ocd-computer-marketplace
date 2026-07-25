@@ -26,7 +26,7 @@
 ## User Stories
 
 1. As a Windows 用户, I want to preview all six Targets before applying a theme, so that I know which fields and versions are supported.
-2. As a Windows 用户, I want my Seed Color to remain exact in the main surface role, so that the theme still reflects the color I chose.
+2. As a Windows 用户, I want my Seed Color to remain the exact Theme anchor and Accent source, so that the theme still reflects the color I chose without covering large regions in an uncomfortable raw color.
 3. As a Windows 用户, I want adjacent background regions to be visibly different, so that toolbars, panels, tabs, inputs and content areas do not merge visually.
 4. As a Windows 用户, I want active, inactive, hover, focus and selected states to be distinguishable, so that I can understand the current UI state.
 5. As a Windows 用户, I want normal text to meet the 4.5:1 contrast target, so that labels and content remain readable.
@@ -54,9 +54,9 @@
 - Plan has one canonical Palette representation: new persisted Plans contain `palettes` with exactly `light` and `dark`; `palette` is not serialized or exposed. The top-level `mode` remains the user's selected/default lookup Mode and never changes the Windows system mode.
 - Loading a Plan rejects legacy single-Palette data, missing or extra Modes, invalid Palette content and hash mismatches. A legacy Plan must be re-created through Preview rather than silently migrated.
 - Adapters use `palette_for(mode)`, which returns a copy. Single-Mode outputs use the Plan's selected Mode; paired artifacts explicitly generate both Modes. Adapter interfaces and Target-specific responsibilities remain unchanged.
-- Palette gains a small number of surface roles: surface, surface_subtle and surface_raised. Existing background, selection, border, foreground and semantic text roles remain shared where their meaning is the same.
-- Seed Color is immutable. Contrast and region separation may adjust derived roles, saturation and lightness, but never the Seed Color.
-- Palette validation checks text contrast, adjacent-region separation and interactive boundary separation. Relative luminance is used because it already exists in the runtime and requires no dependency.
+- Palette gains a small number of Tonal surface roles: surface, surface_subtle and surface_raised. Existing background, selection, border, foreground and semantic text roles remain shared where their meaning is the same.
+- Seed Color is immutable as the Theme anchor and Accent source. Large-area Tonal surfaces, editor backgrounds and wallpapers may use derived low-chroma colors rather than the raw Seed Color.
+- Palette generation uses OKLCH/OKLab-style perceptual lightness/chroma/hue control. Palette validation continues to use relative luminance for WCAG contrast and additionally checks appearance safety: bounded surface chroma, stable Accent hue, explicit mode tone ladders and no unjustified pure-black/pure-white fallback for ordinary roles.
 - Each Target has a Field inventory based on its public stable theme schema. The inventory is the source of truth for generated-field tests and Verify reporting.
 - Field inventory records the official source, version baseline, technical field, Visual role, Mode support and field-level capability status. Fields without a stable official schema must not be guessed.
 - Version-sensitive fields are capability checked. Supported fields continue to Apply; unsupported fields remain unchanged and contribute to Target partial status.
@@ -73,7 +73,7 @@
 ## Testing Decisions
 
 - Tests verify observable generated plans, theme artifacts, persisted settings and status payloads; they do not assert private helper structure.
-- Palette tests cover both modes, immutable Seed Color, role uniqueness for adjacent regions, 1.2:1 passive separation, 3:1 interactive separation and existing text contrast.
+- Palette tests cover both modes, immutable Theme anchor, low-chroma Tonal surfaces, stable Accent hue, no unjustified pure-black/pure-white ordinary roles, 1.2:1 passive separation, 3:1 interactive separation and existing text contrast across representative and extreme Seed Colors.
 - Plan tests cover serializing both mode Palettes and field capability expectations while preserving hash integrity.
 - Plan tests cover the canonical `palettes` payload, rejection of legacy/malformed Plans, Palette validation on load, copy-on-read behavior and removal of direct `plan.palette` access.
 - Adapter tests cover the existing Windows, Terminal, VS Code-family, Codex and Chrome fixture seams. Each test compares generated fields with the Field inventory and checks mode-specific mappings.

@@ -151,8 +151,6 @@ def load_plan(plan_id: str, plans_dir: Path) -> Plan:
         errors = validate_palette(palette)
         if errors:
             raise PlanIntegrityError(f"Plan {mode} palette is invalid: {'; '.join(errors)}")
-        if palette["surface"] != payload.get("seed_color"):
-            raise PlanIntegrityError(f"Plan {mode} palette does not preserve Seed Color")
     expected_hash = payload.get("hash", "")
     actual_hash = compute_plan_hash(payload)
     if expected_hash != actual_hash:

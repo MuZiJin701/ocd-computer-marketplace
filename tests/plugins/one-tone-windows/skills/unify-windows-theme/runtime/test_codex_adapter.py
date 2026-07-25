@@ -74,7 +74,7 @@ def test_codex_v1_fixture_applies_verifies_and_restores_preserving_fields(tmp_pa
         palette = plan.palette_for(palette_mode)
         assert theme["accent"] == palette["accent"]
         assert theme["ink"] == palette["foreground"]
-        assert theme["surface"] == plan.seed_color
+        assert theme["surface"] == palette["surface"]
         assert theme["contrast"] == 100
         assert theme["opaqueWindows"] is True
         assert theme["fonts"]["editor"] == "keep"

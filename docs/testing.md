@@ -14,7 +14,8 @@ The root project is a test harness. The Skill project owns the one-tone console 
 
 ## Required coverage for the theme-field work
 
-- Palette tests cover both light and dark modes, exact Seed Color preservation, distinct surface roles, passive region separation and interactive boundary separation.
+- Palette tests cover both light and dark modes, exact Seed Color anchor preservation, distinct surface roles, passive region separation and interactive boundary separation.
+- Palette tests also cover appearance-safe Tonal surfaces, Theme anchor hue retention, bounded chroma, no unjustified pure-black/pure-white ordinary roles and extreme Seed Colors such as red, yellow, cyan and near-black.
 - Plan tests cover mode Palettes, field capability expectations and stable Plan hashes.
 - Windows tests cover safe registry and wallpaper outputs, preserved mode/automatic-color/high-contrast settings, and field-level partial results.
 - Windows Terminal tests cover paired Schemes, all profile entries, all documented color fields, Tab/Tab Row/window fields and system mode selection.

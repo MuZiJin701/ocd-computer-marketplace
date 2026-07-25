@@ -116,9 +116,12 @@ def test_cli_defaults_runtime_data_to_single_project_directory():
 
     args = _build_parser().parse_args(["preview", "#FFD700", "--targets", "windows"])
 
-    assert args.plans_dir == Path(".one-tone") / "plans"
-    assert args.transactions_dir == Path(".one-tone") / "transactions"
-    assert args.state_dir == Path(".one-tone") / "state"
+    from one_tone.cli import _default_runtime_dir
+
+    runtime_dir = _default_runtime_dir()
+    assert args.plans_dir == runtime_dir / "plans"
+    assert args.transactions_dir == runtime_dir / "transactions"
+    assert args.state_dir == runtime_dir / "state"
 
 
 def test_apply_parser_defaults_transaction_retention_to_five():

@@ -54,8 +54,8 @@ def test_plan_persists_both_mode_palettes_and_capabilities(tmp_path):
     loaded = load_plan("plan-modes-001", tmp_path)
 
     assert set(loaded.palettes) == {"light", "dark"}
-    assert loaded.palettes["light"]["surface"] == loaded.seed_color
-    assert loaded.palettes["dark"]["surface"] == loaded.seed_color
+    assert loaded.palettes["light"]["surface"] != loaded.seed_color
+    assert loaded.palettes["dark"]["surface"] != loaded.seed_color
     assert loaded.field_capabilities["chrome"]["frame"] == "supported"
 
 
@@ -67,8 +67,9 @@ def test_plan_persists_only_canonical_palettes_and_reads_a_copy(tmp_path):
     assert set(payload["palettes"]) == {"light", "dark"}
 
     selected = plan.palette_for("light")
+    original_surface = selected["surface"]
     selected["surface"] = "#000000"
-    assert plan.palette_for("light")["surface"] == plan.seed_color
+    assert plan.palette_for("light")["surface"] == original_surface
 
 
 def test_plan_rejects_legacy_and_incomplete_palettes(tmp_path):

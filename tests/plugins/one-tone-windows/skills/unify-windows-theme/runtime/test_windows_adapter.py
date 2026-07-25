@@ -35,7 +35,7 @@ def test_wallpaper_generation_is_png_and_deterministic(tmp_path):
     assert first.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
 
 
-def test_wallpaper_generation_is_one_solid_seed_color(tmp_path):
+def test_wallpaper_generation_is_one_solid_tonal_surface_color(tmp_path):
     plan = create_plan("#00A86B", ["windows"], plan_id="plan-windows-solid-wallpaper-001")
     wallpaper = generate_wallpaper(plan.palette_for(plan.mode), tmp_path / "solid.png", width=8, height=4)
     payload = wallpaper.read_bytes()
@@ -61,7 +61,7 @@ def test_wallpaper_generation_is_one_solid_seed_color(tmp_path):
         assert scanline[0] == 0
         pixels.update(tuple(scanline[index:index + 3]) for index in range(1, stride, 3))
 
-    expected = tuple(bytes.fromhex(plan.seed_color[1:]))
+    expected = tuple(bytes.fromhex(plan.palette_for(plan.mode)["surface"][1:]))
     assert pixels == {expected}
 
 

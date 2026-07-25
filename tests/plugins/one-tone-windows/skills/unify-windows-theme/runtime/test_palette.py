@@ -67,10 +67,23 @@ def test_surface_text_uses_the_4_5_minimum_to_preserve_more_seed_colors():
     assert 4.5 <= ratio < 5.5
 
 
-def test_explicit_modes_keep_seed_and_separate_surface_roles():
+def test_explicit_modes_keep_seed_anchor_and_separate_tonal_surface_roles():
     for mode in ("light", "dark"):
         palette = generate_palette("#7C3AED", mode)
-        assert palette["surface"] == "#7C3AED"
+        assert palette["surface"] != "#7C3AED"
         assert len({palette["surface"], palette["surface_subtle"], palette["surface_raised"]}) == 3
         assert contrast_ratio(palette["surface_subtle"], palette["surface"]) >= 1.2
         assert contrast_ratio(palette["surface_raised"], palette["surface"]) >= 1.2
+
+
+def test_extreme_seed_colors_keep_tonal_surfaces_and_readable_interactions():
+    for seed in ("#FF0000", "#FFFF00", "#00FFFF", "#800080", "#010101", "#FAFAFA"):
+        for mode in ("light", "dark"):
+            palette = generate_palette(seed, mode)
+            assert palette["surface"] != seed
+            assert all(palette[role] not in {"#000000", "#FFFFFF"} for role in (
+                "background", "surface", "surface_subtle", "surface_raised", "accent", "border",
+                "selection_background",
+            ))
+            assert contrast_ratio(palette["accent"], palette["surface"]) >= 3
+            assert validate_palette(palette) == []

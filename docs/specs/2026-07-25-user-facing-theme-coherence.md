@@ -17,10 +17,12 @@
 建立以 Seed Color 为唯一视觉来源、以 Mode 为呈现变体、以 Target 能力为边界的统一模型：
 
 - 同一 Seed Color 同时生成 Light 和 Dark 两套 Palette；Mode 不等于 Windows 系统模式；
+- Palette 使用 Appearance-safe 规则：Seed Color 是 Theme anchor/Accent source，大面积区域使用低饱和 Tonal surface，并通过 OKLCH/OKLab 风格控制与 WCAG 验证共同保证舒适度和可读性；
 - 不修改 Windows 系统模式、自动取色或高对比度设置；
 - Windows 将 Accent color 与 Taskbar accent display 分开报告；
 - VS Code/TRAЕ 使用扩展实际贡献的 Light/Dark 主题名完成注册和激活；
 - Chrome 只向用户暴露两个 canonical unpacked 主题目录；
+- 所有 `.one-tone` 运行时数据固定在 Skill-local runtime root 下，不随 Agent 当前工作目录变化；
 - 每个 Target 使用有官方证据的版本化 Field inventory；
 - Preview 和 Verify 按视觉区域展示结果，技术字段和来源作为可展开详情。
 
@@ -51,10 +53,19 @@
 21. As a maintainer, I want Verify to report field-level results and aggregate them into the existing Target status vocabulary, so that partial results explain exactly what remains unresolved.
 22. As a maintainer, I want fixture tests to validate generated artifacts and persisted settings through existing Adapter seams, so that tests prove observable behavior rather than helper structure.
 23. As a maintainer, I want real-desktop checks kept separate from the default fixture suite, so that installed application behavior is verified without making ordinary tests environment-dependent.
+24. As a user, I want a saturated Seed Color such as red to remain recognizable without filling large areas with harsh raw color, so that the theme is comfortable for long sessions.
+25. As a user, I want ordinary Palette roles not to collapse to pure black or pure white, so that contrast repair does not create visually broken regions.
+26. As a maintainer, I want Palette generation to use perceptual lightness, chroma and hue controls, so that visual quality is not determined only by RGB blending.
+27. As a maintainer, I want extreme Seed Colors tested across both Modes and all Target artifacts, so that red, yellow, cyan, purple, near-black and near-white inputs remain stable.
+28. As a maintainer, I want the default `.one-tone` directory to live beside the installed Skill package, so that Agents cannot scatter runtime state across working directories.
 
 ## Implementation Decisions
 
-- Seed Color is immutable and is the common visual source for all Targets.
+- Seed Color is immutable as the Theme anchor and Accent source for all Targets; it is not required to equal a large-area `surface` role.
+- Large-area `background`, `surface`, `surface_subtle`, `surface_raised`, editor backgrounds and wallpapers use low-chroma Tonal surfaces. Accent and interactive states retain the Theme anchor relationship.
+- Palette generation uses OKLCH/OKLab-style perceptual lightness/chroma/hue controls. WCAG relative luminance remains the independent contrast check.
+- Ordinary roles cannot use pure black or pure white as an unqualified contrast fallback. Accent keeps the Seed Color hue within a bounded tolerance; repair adjusts perceptual lightness/chroma instead of unrestricted blending to black or white.
+- Palette validation reports appearance-safety failures separately from contrast failures. Representative and extreme Seed Colors must pass deterministic role, hue, chroma, separation and readability constraints.
 - Plan contains Light and Dark Palettes. The selected Mode is a lookup/default choice, not permission to modify Windows system mode.
 - Windows system mode, automatic accent selection and high-contrast settings remain detect-only.
 - Windows exposes separate field-level statuses for Accent color and Taskbar accent display. A Taskbar accent display unavailable in pure Light mode is `not-applicable`; successful Accent color application remains visible.
@@ -64,21 +75,27 @@
 - Theme registration and Theme activation are separate capabilities. Verify must check both extension presence and active theme selection.
 - Chrome generates two canonical user-facing unpacked directories, one per Mode. ZIPs, compatibility aliases and transaction copies may exist internally but are not user-facing choices and must not be listed as separate themes.
 - Chrome remains manual activation; the tool does not silently install or activate a local Chrome theme.
+- The default `.one-tone` runtime directory is resolved from the installed Skill package root, not from the process current working directory. Plans, Transactions, generated wallpapers, editor artifacts and Chrome artifacts use this root unless an explicit test/runtime override is supplied.
 - Field inventory is versioned per Target and records: official source, version baseline, technical field, field category, Visual role, Mode support, generated value, capability status and verification evidence.
 - Official stable schemas are preferred. Windows and Windows Terminal use Microsoft documentation; VS Code uses the official Theme Color Reference and theme contribution schema; Chrome uses the official theme manifest schema. TRAE-specific fields require installed-version or public-theme discovery. Codex remains bounded by its verified v1 schema until an authoritative public schema exists.
 - Human-facing Preview/Verify groups inventory entries by visual region and uses plain-language labels. Technical names and source evidence remain available as details.
 - Existing Plan, AdapterResult, Snapshot, Apply, Verify and Rollback contracts remain in place. No new service, database, background process or Adapter framework is introduced.
+- Runtime path resolution must derive the Skill root from the runtime module location and must not hard-code the repository root, a drive letter or an Agent working directory.
+- Chrome theme tints must use a no-change or Palette-derived value; fixed all-zero HSL tints are not allowed.
 
 ## Testing Decisions
 
 - Tests assert observable JSON, ZIP/directory manifests, persisted settings, extension registration, active theme selection and status payloads. They do not assert private helper structure.
 - Plan tests verify both Mode Palettes, immutable Seed Color and the distinction between selected Mode and Windows system mode.
+- Palette tests verify Theme anchor preservation, low-chroma Tonal surfaces, deterministic Mode tone ladders, Accent hue retention, no unjustified pure-black/pure-white ordinary roles and extreme Seed Colors.
 - Windows tests verify Accent color independently from Taskbar accent display, including the pure Light-mode `not-applicable`/`partial` result and preservation of system mode, automatic accent selection and high-contrast settings.
 - VS Code/TRAЕ tests verify that the extension contributes the exact Light/Dark labels, settings select those labels, extension registration is detected, activation is verified, and an existing auto-detect setting is preserved.
 - Chrome tests verify exactly two canonical unpacked directories, correct Light/Dark manifests, all inventory `colors`, `tints` and display-property fields, and that ZIP/alias artifacts are not presented as user choices.
 - Field inventory tests compare generated fields against the documented inventory and reject undocumented guessed fields.
 - Preview/Verify tests verify visual-region grouping, technical-field detail, evidence metadata and field-level status aggregation into `ok`, `partial`, `failed`, `skipped` or `not-applicable` semantics as applicable.
 - Existing transaction tests retain per-Target Snapshot, persistence, compensation and explicit Rollback guarantees.
+- CLI tests run from different current working directories and verify that the default `.one-tone` path remains the Skill-local runtime root; fixture tests continue to use explicit temporary overrides.
+- Chrome tests reject all-zero tints and verify that large browser regions use Tonal surfaces while interactive regions retain the Accent relationship.
 - Real desktop validation remains a separate matrix for Windows, Windows Terminal, VS Code, TRAE, Codex and Chrome; it is not part of the default fixture suite.
 
 ## Out of Scope
@@ -87,7 +104,7 @@
 - Making Chrome switch Light/Dark themes automatically.
 - Silent Chrome theme installation or bypassing Chrome's manual local-theme confirmation.
 - Guessing undocumented TRAE AI-panel fields from VS Code similarity or private implementation details.
-- Redesigning the Palette algorithm, contrast thresholds, Transaction model or Adapter interface.
+- Replacing WCAG contrast checks with a subjective screenshot-only score, or changing the existing contrast thresholds without a separate decision.
 - Adding fonts, layout settings, animations, behavior switches or non-color configuration.
 - Publishing Chrome themes to the Web Store or introducing enterprise deployment.
 - Treating a passing fixture test as proof that every installed application renders every field correctly.

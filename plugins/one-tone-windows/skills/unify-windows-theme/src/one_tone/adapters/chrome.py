@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import colorsys
 import json
 import shutil
 import zipfile
@@ -15,6 +16,12 @@ from .base import AdapterResult, field_capabilities
 
 def _rgb(color: str) -> list[int]:
     return list(parse_hex_color(color))
+
+
+def _tint(color: str) -> list[float]:
+    red, green, blue = (channel / 255 for channel in parse_hex_color(color))
+    hue, lightness, saturation = colorsys.rgb_to_hls(red, green, blue)
+    return [round(hue, 4), round(saturation, 4), round(lightness, 4)]
 
 
 def _manifest(plan: Plan, mode: str | None = None) -> dict[str, Any]:
@@ -51,9 +58,9 @@ def _manifest(plan: Plan, mode: str | None = None) -> dict[str, Any]:
                 "separator": _rgb(palette["border"]),
             },
             "tints": {
-                "buttons": [0.0, 0.0, 0.0],
-                "frame": [0.0, 0.0, 0.0],
-                "background_tab": [0.0, 0.0, 0.0],
+                "buttons": _tint(palette["accent"]),
+                "frame": _tint(palette["surface"]),
+                "background_tab": _tint(palette["surface_subtle"]),
             },
             "display_properties": {
                 "control_style": 1,

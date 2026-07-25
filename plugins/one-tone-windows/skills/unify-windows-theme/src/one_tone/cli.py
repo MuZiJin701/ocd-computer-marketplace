@@ -30,7 +30,7 @@ DEFAULT_TARGETS = ("windows", "terminal", "vscode", "trae", "codex", "chrome")
 
 
 def _default_runtime_dir() -> Path:
-    return Path(".one-tone")
+    return Path(__file__).resolve().parents[2] / ".one-tone"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -297,6 +297,10 @@ def _preview(args: argparse.Namespace) -> int:
         print(f"- {target}: {result.status} — {result.message}")
     print("Validation:")
     print("- Contrast: PASS")
+    print("- Appearance safety: PASS")
+    print("Field regions:")
+    for target in plan.targets:
+        print(f"- {target}: {', '.join(inventory_groups(target)) or 'none'}")
     print(f"- Saved: {path}")
     return 0
 
@@ -360,6 +364,9 @@ def _verify(args: argparse.Namespace) -> int:
     print(f"Status: {status.upper()}")
     for target in plan.targets:
         print(f"{target}: {results[target].status}")
+    print("Field regions:")
+    for target in plan.targets:
+        print(f"- {target}: {', '.join(inventory_groups(target)) or 'none'}")
     return 0 if status in {"ok", "partial"} else 1
 
 

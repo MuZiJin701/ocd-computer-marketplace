@@ -14,6 +14,24 @@ _Avoid_: 随机主题色、默认主色
 由 Seed Color 派生的一组颜色角色，而不是一组按界面字段随意生成的颜色。  
 _Avoid_: 颜色字典、字段颜色
 
+**Theme anchor**
+
+Seed Color 在 Palette 中保留的身份和色相来源，用于生成 Accent 和主题强调状态；它不要求直接铺满大面积 Surface。
+
+_Avoid_: 所有背景必须使用的颜色
+
+**Tonal surface**
+
+围绕 Theme anchor 的低饱和、分明明度层级的背景角色，用于大面积界面区域；它保留主题色相但不复制 Seed Color 的完整饱和度。
+
+_Avoid_: 把 Accent 直接当作所有背景
+
+**Appearance-safe Palette**
+
+同时满足可读性、相邻区域区分和视觉舒适度的 Palette；它限制大面积饱和度、保持 Accent 的色相身份，并避免普通角色无理由坍缩为纯黑或纯白。
+
+_Avoid_: 只通过对比度检查的 Palette
+
 **Visual role**  
 Palette 中描述一种稳定视觉语义的角色，例如 surface、surface_subtle、surface_raised、foreground、selection 或 border。  
 _Avoid_: 某个应用的临时颜色、每个字段一个颜色
@@ -70,6 +88,12 @@ _Avoid_: 扩展已安装
 面向用户的唯一推荐主题产物；同一 Mode 的压缩包、兼容别名和事务内部副本不属于可选主题。
 
 _Avoid_: 每个生成文件都是一个主题
+
+**Skill-local runtime root**
+
+由 Skill 自身安装目录解析出的固定运行时根目录；默认的 `.one-tone`、Plan、Transaction 和生成产物都位于该目录下，与 Agent 当前工作目录无关。
+
+_Avoid_: 当前命令所在目录
 
 **Field inventory**  
 某个 Target 在指定版本基线下应覆盖的公开主题字段清单，是测试和 Verify 的依据。  

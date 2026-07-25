@@ -30,6 +30,7 @@ def test_chrome_theme_zip_has_manifest_and_palette_colors(tmp_path):
     assert manifest["theme"]["colors"]["ntp_header"] == expected_foreground
     assert manifest["theme"]["colors"]["ntp_link"] == expected_accent_text
     assert all(isinstance(value, list) for value in manifest["theme"]["colors"].values())
+    assert all(any(value) for value in manifest["theme"]["tints"].values())
 
 
 def test_chrome_theme_directory_contains_loadable_manifest(tmp_path):
