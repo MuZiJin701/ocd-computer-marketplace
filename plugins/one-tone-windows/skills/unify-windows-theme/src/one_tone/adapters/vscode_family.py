@@ -360,23 +360,6 @@ class VSCodeFamilyAdapter:
         if filtered != entries:
             atomic_write_text(index, json.dumps(filtered, ensure_ascii=False, separators=(",", ":")))
 
-    def _cursor_color_customizations(self, plan: Plan) -> dict[str, str]:
-        return build_theme_json(plan, self._theme_name)["colors"]
-
-    def _apply_cursor_settings_fallback(self, settings: dict[str, Any], plan: Plan) -> None:
-        customizations = settings.get("workbench.colorCustomizations")
-        if not isinstance(customizations, dict):
-            customizations = {}
-        customizations.update(self._cursor_color_customizations(plan))
-        settings["workbench.colorCustomizations"] = customizations
-
-    def _cursor_settings_match(self, settings: dict[str, Any], plan: Plan) -> bool:
-        customizations = settings.get("workbench.colorCustomizations")
-        if not isinstance(customizations, dict):
-            return False
-        expected = self._cursor_color_customizations(plan)
-        return all(customizations.get(key) == value for key, value in expected.items())
-
     def _cli_requires_restart(self, completed: Any) -> bool:
         output = b"\n".join(
             value if isinstance(value, bytes) else str(value or "").encode("utf-8", errors="replace")
@@ -385,9 +368,7 @@ class VSCodeFamilyAdapter:
         restart_markers = (
             b"please restart vscode before reinstalling",
             b"please restart vs code before reinstalling",
-            b"please restart cursor before reinstalling",
             b"please restart trae before reinstalling",
-            b"restart cursor before reinstalling",
             b"restart trae before reinstalling",
         )
         return any(marker in output for marker in restart_markers)
@@ -477,14 +458,6 @@ class VSCodeFamilyAdapter:
     def apply(self, plan: Plan) -> AdapterResult:
         try:
             settings = self._read_settings()
-            original_theme_values = {
-                key: settings.get(key)
-                for key in (
-                    "workbench.colorTheme",
-                    "workbench.preferredDarkColorTheme",
-                    "workbench.preferredLightColorTheme",
-                )
-            }
             artifacts_dir = self.spec.artifacts_dir or self.spec.extensions_dir.parent / ".one-tone-artifacts"
             vsix_path = build_vsix(plan, artifacts_dir / f"{self.target}-{plan.id}.vsix", self.spec)
             self.spec.extensions_dir.mkdir(parents=True, exist_ok=True)
@@ -492,48 +465,22 @@ class VSCodeFamilyAdapter:
             settings["workbench.colorTheme"] = self._theme_label(plan.mode)
             settings["workbench.preferredDarkColorTheme"] = self._theme_label("dark")
             settings["workbench.preferredLightColorTheme"] = self._theme_label("light")
-            if self.target == "cursor":
-                self._apply_cursor_settings_fallback(settings, plan)
             atomic_write_text(
                 self.spec.settings_path,
                 json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
             )
             command = [str(self.spec.executable), "--install-extension", str(vsix_path), "--force"]
-            try:
-                if self.command_runner is None:
-                    completed = subprocess.run(command, check=False, capture_output=True, timeout=30)
-                else:
-                    completed = self.command_runner(command, check=False, capture_output=True)
-            except (OSError, subprocess.TimeoutExpired):
-                if self.target != "cursor":
-                    raise
-                completed = None
+            if self.command_runner is None:
+                completed = subprocess.run(command, check=False, capture_output=True, timeout=30)
+            else:
+                completed = self.command_runner(command, check=False, capture_output=True)
             if completed is not None and getattr(completed, "returncode", 0) not in (0, None):
                 if self._cli_requires_restart(completed):
                     self._manual_install_vsix(vsix_path)
-                elif self.target != "cursor":
+                else:
                     return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install failed")
             installed_dirs = self._installed_extension_dirs()
             if not installed_dirs:
-                if self.target == "cursor" and self._cursor_settings_match(self._read_settings(), plan):
-                    fallback_settings = self._read_settings()
-                    for key, value in original_theme_values.items():
-                        if value is None:
-                            fallback_settings.pop(key, None)
-                        else:
-                            fallback_settings[key] = value
-                    atomic_write_text(
-                        self.spec.settings_path,
-                        json.dumps(fallback_settings, ensure_ascii=False, indent=2) + "\n",
-                    )
-                    return AdapterResult(
-                        self.target,
-                        "partial",
-                        True,
-                        False,
-                        "Cursor color customizations applied; VSIX registration was unavailable, so restart Cursor to reload settings",
-                        True,
-                    )
                 return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install produced no registered extension")
             self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
             return AdapterResult(
@@ -570,15 +517,6 @@ class VSCodeFamilyAdapter:
                 and extension_dir is not None
                 and labels_ok
             )
-            if self.target == "cursor" and not verified and self._cursor_settings_match(settings, plan):
-                return AdapterResult(
-                    self.target,
-                    "partial",
-                    False,
-                    True,
-                    "Cursor color customizations verified; VSIX registration is unavailable",
-                    True,
-                )
             if not verified:
                 return AdapterResult(self.target, "failed", False, False, f"{self.target} theme verification failed")
             if self.spec.ai_panel_supported:

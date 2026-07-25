@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from one_tone.adapters import UnsupportedAdapter
 from one_tone.cli import build_target_adapters, main
 
 
@@ -48,26 +49,12 @@ def test_apply_requires_plan_id_and_confirmation(capsys):
     assert "--confirm" in capsys.readouterr().err
 
 
-def test_apply_consumes_saved_plan_for_file_adapter(tmp_path, capsys):
-    plans = tmp_path / "plans"
-    transactions = tmp_path / "transactions"
-    state = tmp_path / "state"
-    state.mkdir()
-    (state / "file-demo.json").write_text('{"theme": "original"}', encoding="utf-8")
+def test_undocumented_file_demo_target_is_skipped_without_writing(tmp_path):
+    adapter = build_target_adapters(("file-demo",), tmp_path / "state")["file-demo"]
 
-    assert main([
-        "preview", "#7C3AED", "--targets", "file-demo",
-        "--plans-dir", str(plans),
-    ]) == 0
-    plan_id = json.loads(next(plans.glob("*.json")).read_text(encoding="utf-8"))["id"]
-
-    assert main([
-        "apply", plan_id, "--confirm",
-        "--plans-dir", str(plans),
-        "--transactions-dir", str(transactions),
-        "--state-dir", str(state),
-    ]) == 0
-    assert "APPLIED" in capsys.readouterr().out
+    assert isinstance(adapter, UnsupportedAdapter)
+    assert adapter.detect().status == "skipped"
+    assert not (tmp_path / "state").exists()
 
 
 def test_verify_cli_reports_missing_plan(capsys):

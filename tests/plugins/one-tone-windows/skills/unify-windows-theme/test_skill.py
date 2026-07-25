@@ -4,19 +4,12 @@ def test_package_exposes_version():
     assert one_tone.__version__ == "0.1.0"
 
 
-def test_readme_describes_stage_one_two_limits():
-    from pathlib import Path
-
-    text = Path("README.md").read_text(encoding="utf-8")
-    assert "Plan" in text
-    assert "Windows 10 22H2+" in text
-    assert "Preview" in text
-
-
 def test_readme_documents_full_adapter_boundaries():
     from pathlib import Path
 
     text = Path("README.md").read_text(encoding="utf-8")
+    assert "Plan" in text
+    assert "Preview" in text
     assert "Windows 10 22H2+" in text
     assert "verify" in text
     assert "verify plan-..." in text
@@ -60,16 +53,6 @@ def test_agents_documents_current_scope():
     assert "Windows 10" in agents
     assert "Windows 11" in agents
     assert "只回滚失败目标" in agents
-
-
-def test_active_docs_describe_current_workflow():
-    from pathlib import Path
-
-    readme = Path("README.md").read_text(encoding="utf-8")
-    assert "Windows 10 22H2+" in readme
-    assert "verify plan-..." in readme
-    assert "Transaction ID" in readme
-    assert "八步" not in readme
 
 
 def test_root_project_is_test_only_and_skill_owns_cli():

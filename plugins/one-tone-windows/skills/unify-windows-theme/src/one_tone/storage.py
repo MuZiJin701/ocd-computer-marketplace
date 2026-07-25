@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
 import os
 import re
 import uuid
 from pathlib import Path
-from typing import Any, Mapping
 
 
 _SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -31,10 +29,3 @@ def atomic_write_text(path: Path, text: str, *, encoding: str = "utf-8", newline
             temporary.unlink()
         except FileNotFoundError:
             pass
-
-
-def atomic_write_json(path: Path, payload: Mapping[str, Any], *, sort_keys: bool = True) -> None:
-    atomic_write_text(
-        path,
-        json.dumps(payload, ensure_ascii=False, sort_keys=sort_keys, separators=(",", ":")) + "\n",
-    )

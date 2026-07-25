@@ -52,9 +52,9 @@ def test_editor_theme_uses_surface_for_primary_backgrounds():
 
 
 def test_editor_theme_uses_matching_foregrounds_for_surface_and_background():
-    plan = create_plan("#10B981", ["cursor"], plan_id="plan-editor-contrast-001")
+    plan = create_plan("#10B981", ["trae"], plan_id="plan-editor-contrast-001")
 
-    colors = build_theme_json(plan, "One Tone cursor")["colors"]
+    colors = build_theme_json(plan, "One Tone trae")["colors"]
 
     palette = plan.palette_for(plan.mode)
     assert colors["editor.foreground"] == palette["foreground"]
@@ -107,25 +107,6 @@ def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     assert adapter.rollback(tmp_path / "backup").verified is True
 
 
-def test_cursor_uses_settings_fallback_when_extension_is_not_registered(tmp_path):
-    settings = tmp_path / "settings.json"
-    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
-    spec = EditorSpec("cursor", "cursor", settings, tmp_path / "extensions", ai_panel_supported=False)
-    adapter = VSCodeFamilyAdapter(spec, command_runner=lambda *args, **kwargs: None)
-    plan = create_plan("#7C3AED", ["cursor"], plan_id="plan-editor-uninstalled-001")
-
-    assert adapter.snapshot(tmp_path / "backup").status == "ok"
-    result = adapter.apply(plan)
-
-    assert result.status == "partial"
-    changed = json.loads(settings.read_text(encoding="utf-8"))
-    assert changed["workbench.colorTheme"] == "Default Dark+"
-    assert changed["workbench.colorCustomizations"]["editor.background"] == plan.palette_for(plan.mode)["surface"]
-    verified = adapter.verify(plan)
-    assert verified.status == "partial"
-    assert verified.verified is True
-
-
 def test_editor_apply_leaves_valid_installed_extension_for_cli_force(tmp_path):
     settings = tmp_path / "settings.json"
     extensions = tmp_path / "extensions"
@@ -174,67 +155,6 @@ def test_editor_apply_recovers_from_cli_restart_required_state(tmp_path):
     assert (installed / "package.json").is_file()
     assert (installed / "themes" / "one-tone-color-theme.json").is_file()
     assert adapter.verify(plan).verified is True
-
-
-def test_cursor_apply_recovers_from_cursor_restart_required_state(tmp_path):
-    settings = tmp_path / "settings.json"
-    extensions = tmp_path / "extensions"
-    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
-    extensions.mkdir()
-    index = extensions / "extensions.json"
-    index.write_text(json.dumps([{
-        "identifier": {"id": "one-tone.one-tone-cursor"},
-        "version": "0.1.0",
-        "relativeLocation": "one-tone.one-tone-cursor-0.1.0",
-    }]), encoding="utf-8")
-    spec = EditorSpec("cursor", "cursor", settings, extensions, ai_panel_supported=False)
-
-    def command_runner(command, **kwargs):
-        return subprocess.CompletedProcess(
-            command,
-            1,
-            stdout=b"",
-            stderr=b"Please restart Cursor before reinstalling One Tone cursor.",
-        )
-
-    adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
-    plan = create_plan("#00A86B", ["cursor"], plan_id="plan-editor-cursor-restart-001")
-
-    assert adapter.apply(plan).status == "ok"
-    installed = extensions / "one-tone.one-tone-cursor-0.1.0"
-    assert (installed / "package.json").is_file()
-    assert adapter.verify(plan).verified is True
-
-
-def test_cursor_manual_install_preserves_single_object_extension_index(tmp_path):
-    settings = tmp_path / "settings.json"
-    extensions = tmp_path / "extensions"
-    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
-    extensions.mkdir()
-    index = extensions / "extensions.json"
-    existing = {
-        "identifier": {"id": "anysphere.remote-ssh"},
-        "version": "1.1.7",
-        "relativeLocation": "anysphere.remote-ssh-1.1.7",
-    }
-    index.write_text(json.dumps(existing), encoding="utf-8")
-    spec = EditorSpec("cursor", "cursor", settings, extensions, ai_panel_supported=False)
-
-    def command_runner(command, **kwargs):
-        return subprocess.CompletedProcess(
-            command,
-            1,
-            stdout=b"",
-            stderr=b"Please restart Cursor before reinstalling One Tone cursor.",
-        )
-
-    adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
-    plan = create_plan("#10B981", ["cursor"], plan_id="plan-editor-cursor-object-index-001")
-
-    assert adapter.apply(plan).status == "ok"
-    installed = extensions / "one-tone.one-tone-cursor-0.1.0"
-    assert (installed / "package.json").is_file()
-    assert json.loads(index.read_text(encoding="utf-8")) == existing
 
 
 def test_editor_adapter_tracks_and_uninstalls_actual_extension_directory(tmp_path):

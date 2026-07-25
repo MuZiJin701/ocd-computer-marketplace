@@ -14,9 +14,6 @@ from .inventory import inventory_groups, inventory_report
 from .plan import Plan
 from .storage import atomic_write_text, validate_safe_component
 
-SupportLevel = str
-
-
 class TransactionStatus(str, Enum):
     PENDING = "PENDING"
     APPLIED = "APPLIED"

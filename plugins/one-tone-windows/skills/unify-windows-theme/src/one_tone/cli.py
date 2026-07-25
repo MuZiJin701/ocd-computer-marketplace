@@ -13,7 +13,6 @@ from typing import Sequence
 from .adapters import (
     ChromeAdapter,
     CodexAdapter,
-    FileAdapter,
     TerminalAdapter,
     UnsupportedAdapter,
     VSCodeFamilyAdapter,
@@ -230,9 +229,7 @@ def build_target_adapters(targets, state_dir: Path):
     )
     registry = {}
     for target in targets:
-        if target == "file-demo":
-            registry[target] = FileAdapter(target, state_dir / "file-demo.json")
-        elif target == "windows":
+        if target == "windows":
             registry[target] = WindowsAdapter(WindowsConfig(state_dir / "windows-wallpapers"), WindowsRegistryBackend(), WindowsDesktopBackend())
         elif target == "terminal":
             registry[target] = TerminalAdapter(terminal_settings)

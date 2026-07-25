@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Mapping, Protocol
@@ -62,15 +61,6 @@ class UnsupportedAdapter:
 
     def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
         return self._skipped("rollback")
-
-
-def write_json(path: Path, payload: object) -> None:
-    from ..storage import atomic_write_text
-
-    atomic_write_text(
-        path,
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
-    )
 
 
 def field_capabilities(

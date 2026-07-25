@@ -1,11 +1,58 @@
 import json
+import shutil
+from pathlib import Path
+from typing import Any, Mapping
 
 import pytest
 
-from one_tone.adapters import AdapterResult, FileAdapter, UnsupportedAdapter
+from one_tone.adapters import AdapterResult, UnsupportedAdapter
 from one_tone.plan import create_plan
 from one_tone.transaction import TransactionRecord, TransactionStatus, TransactionStore, apply_plan
 import one_tone.transaction as transaction_module
+
+
+class FileAdapter:
+    """Minimal transaction test double; not a product Target."""
+
+    def __init__(self, target: str, config_path: Path) -> None:
+        self.target = target
+        self.config_path = config_path
+
+    @property
+    def backup_name(self) -> str:
+        return self.target.replace("\\", "_").replace("/", "_") + ".json"
+
+    def detect(self) -> AdapterResult:
+        if not self.config_path.is_file():
+            return AdapterResult(self.target, "skipped", False, False, "config not found")
+        return AdapterResult(self.target, "ok", False, True, "config detected")
+
+    def snapshot(self, backup_dir: Path) -> AdapterResult:
+        try:
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(self.config_path, backup_dir / self.backup_name)
+            return AdapterResult(self.target, "ok", False, True, "snapshot saved")
+        except OSError as error:
+            return AdapterResult(self.target, "failed", False, False, f"snapshot failed: {error}")
+
+    def apply(self, plan) -> AdapterResult:
+        self.config_path.write_text(
+            json.dumps({"plan_id": plan.id, "palette": plan.palette_for(plan.mode)}, sort_keys=True),
+            encoding="utf-8",
+        )
+        return AdapterResult(self.target, "ok", True, False, "palette written")
+
+    def verify(self, plan) -> AdapterResult:
+        payload = json.loads(self.config_path.read_text(encoding="utf-8"))
+        expected = {"plan_id": plan.id, "palette": plan.palette_for(plan.mode)}
+        verified = payload == expected
+        return AdapterResult(self.target, "ok" if verified else "failed", False, verified, "configuration verified")
+
+    def rollback(self, backup_dir: Path, metadata: Mapping[str, Any] | None = None) -> AdapterResult:
+        del metadata
+        backup_path = backup_dir / self.backup_name
+        shutil.copy2(backup_path, self.config_path)
+        return AdapterResult(self.target, "ok", True, self.config_path.read_bytes() == backup_path.read_bytes(), "configuration restored")
 
 
 def test_apply_creates_isolated_transaction_and_rollback_restores_only_it(tmp_path):
