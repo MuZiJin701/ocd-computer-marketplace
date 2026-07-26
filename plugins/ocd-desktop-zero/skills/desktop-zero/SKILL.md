@@ -1,5 +1,5 @@
 ---
-name: desktop-zero
+name: zen-desktop-zero
 description: "预览、确认、执行、验证并按 Cleanup transaction ID 回滚当前用户桌面的 Desktop zero 整理。"
 ---
 

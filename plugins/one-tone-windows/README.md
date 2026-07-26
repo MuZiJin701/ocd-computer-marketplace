@@ -1,34 +1,34 @@
-# one-tone-windows
+# zen-one-tone-windows
 
-提供可独立分发的 `unify-windows-theme` Skill，用一个 Seed Color 统一 Windows 桌面、Windows Terminal、VS Code、TRAE、Codex 和 Chrome 本地主题。Cursor 暂不属于当前支持目标。
+提供可独立分发的 `zen-one-tone-windows` Skill，用一个 Seed Color 统一 Windows 桌面、Windows Terminal、VS Code、TRAE、Codex 和 Chrome 本地主题。Cursor 暂不属于当前支持目标。
 
 ## 安装
 
 ```powershell
 npm install -g skills
-skills add https://github.com/MuZiJin701/ocd-computer-marketplace.git -g
+skills add https://github.com/MuZiJin701/zen-computer-marketplace.git -g
 ```
 
 只安装到 Codex：
 
 ```powershell
-skills add https://github.com/MuZiJin701/ocd-computer-marketplace.git -g -a codex
+skills add https://github.com/MuZiJin701/zen-computer-marketplace.git -g -a codex
 ```
 
 可选的 Codex Plugin Marketplace：
 
 ```powershell
-codex plugin marketplace add https://github.com/MuZiJin701/ocd-computer-marketplace.git
-codex plugin add one-tone-windows@ocd-computer-marketplace
+codex plugin marketplace add https://github.com/MuZiJin701/zen-computer-marketplace.git
+codex plugin add zen-one-tone-windows@zen-computer-marketplace
 ```
 
 CC Switch：在 Skills 页面添加
 
 ```text
-https://github.com/MuZiJin701/ocd-computer-marketplace.git
+https://github.com/MuZiJin701/zen-computer-marketplace.git
 ```
 
-然后安装 `unify-windows-theme`。
+然后安装 `zen-one-tone-windows`。
 
 ## 命令
 

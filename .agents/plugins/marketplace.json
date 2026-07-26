@@ -1,11 +1,11 @@
 {
-  "name": "ocd-computer-marketplace",
+  "name": "zen-computer-marketplace",
   "interface": {
-    "displayName": "OCD Computer Marketplace"
+    "displayName": "Zen Computer Marketplace"
   },
   "plugins": [
     {
-      "name": "one-tone-windows",
+      "name": "zen-one-tone-windows",
       "source": {
         "source": "local",
         "path": "./plugins/one-tone-windows"
@@ -17,7 +17,7 @@
       "category": "Productivity"
     },
     {
-      "name": "ocd-desktop-zero",
+      "name": "zen-desktop-zero",
       "source": {
         "source": "local",
         "path": "./plugins/ocd-desktop-zero"
@@ -29,7 +29,7 @@
       "category": "Productivity"
     },
     {
-      "name": "ocd-scoop-toolchain",
+      "name": "zen-scoop-toolchain",
       "source": {
         "source": "local",
         "path": "./plugins/ocd-scoop-toolchain"

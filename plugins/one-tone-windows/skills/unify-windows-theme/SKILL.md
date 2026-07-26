@@ -1,5 +1,5 @@
 ---
-name: unify-windows-theme
+name: zen-one-tone-windows
 description: >-
   当用户希望使用一个主色统一受支持的 Windows 目标，或希望预览、验证、回滚主题时使用。
 ---

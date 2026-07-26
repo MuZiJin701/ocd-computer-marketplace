@@ -1,6 +1,6 @@
-# ocd-scoop-toolchain
+# zen-scoop-toolchain
 
-独立分发的 `scoop-toolchain` Skill：检查并补齐 Python、Git、uv 和 Node.js。
+独立分发的 `zen-scoop-toolchain` Skill：检查并补齐 Python、Git、uv 和 Node.js。
 
 ```powershell
 python .\skills\scoop-toolchain\scripts\run_scoop_toolchain.py preview

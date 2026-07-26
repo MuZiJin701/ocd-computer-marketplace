@@ -22,12 +22,12 @@
 Preview → Apply → Verify → Rollback
 ~~~
 
-支持范围以 plugins/one-tone-windows/skills/unify-windows-theme/references/targets.md 为准，不根据相似应用猜测兼容性。
+支持范围以 `zen-one-tone-windows` 的 Target 矩阵（`plugins/one-tone-windows/skills/unify-windows-theme/references/targets.md`）为准，不根据相似应用猜测兼容性。
 当前平台范围包括 Windows 10 22H2+（build >= 19045）和 Windows 11 22H2+（build >= 22621）。
 
 ## 仓库结构
 
-- plugins/：Marketplace 下的可安装 Plugin 包；当前 one-tone-windows 是第一个 Plugin。
+- plugins/：Marketplace 下的可安装 Plugin 包；当前 `zen-one-tone-windows` 是第一个 Plugin。
 - plugins/one-tone-windows/skills/unify-windows-theme/：第一个 Plugin 中可独立分发的 Skill 包和唯一运行时项目。
 - tests/：按 Marketplace → Plugin → Skill 组织的根仓库测试，不随 Skill 分发。
 - docs/：架构、测试、Agent 协作配置和 ADR。

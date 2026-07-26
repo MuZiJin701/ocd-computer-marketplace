@@ -1,6 +1,6 @@
 ---
-name: scoop-toolchain
-description: "预览、确认、安装并验证固定 D:\software\scoop 根目录下的 Python、Git、uv 和 Node.js 基础工具链。"
+name: zen-scoop-toolchain
+description: '预览、确认、安装并验证固定 D:\software\scoop 根目录下的 Python、Git、uv 和 Node.js 基础工具链。'
 ---
 
 # Scoop toolchain

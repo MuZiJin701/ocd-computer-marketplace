@@ -43,8 +43,8 @@ The Plugin is the installable envelope. The Skill is the independently distribut
 - Transaction persistence is the safety Seam; it records each Target operation and keeps compensation local to the failed Target.
 - Field inventory is the documentation and testing Seam; it defines expected coverage without coupling tests to private implementation helpers.
 - Marketplace metadata is the installation Seam; it points to Plugin envelopes but does not contain runtime logic.
-- Desktop workflow is the highest seam for `ocd-desktop-zero`: it resolves the current user's Resolved desktop, creates a Preview Plan, applies confirmed delete/move operations, verifies the result and keeps a transaction ledger for explicit file-move rollback.
-- Toolchain workflow is the highest seam for `ocd-scoop-toolchain`: it preflights the fixed Scoop root, detects the Core toolchain baseline, applies confirmed Scoop-first installation with winget fallback and verifies source/path conformity.
+- Desktop workflow is the highest seam for `zen-desktop-zero`: it resolves the current user's Resolved desktop, creates a Preview Plan, applies confirmed delete/move operations, verifies the result and keeps a transaction ledger for explicit file-move rollback.
+- Toolchain workflow is the highest seam for `zen-scoop-toolchain`: it preflights the fixed Scoop root, detects the Core toolchain baseline, applies confirmed Scoop-first installation with winget fallback and verifies source/path conformity.
 
 Do not add a shared runtime or cross-Plugin import layer until two Plugins genuinely need the same behavior. Reuse repository tooling and documentation conventions, not hidden runtime coupling.
 
@@ -78,8 +78,8 @@ Tests mirror the distribution hierarchy:
 
 - The Marketplace manifest is separate from Plugin metadata.
 - Each Plugin has its own envelope and Skills directory.
-- The `one-tone-windows` Plugin owns the complete One-Tone Skill runtime.
-- The `ocd-desktop-zero` and `ocd-scoop-toolchain` Plugins each own one independent workstation Skill and its runtime.
+- The `zen-one-tone-windows` Plugin owns the complete One-Tone Skill runtime.
+- The `zen-desktop-zero` and `zen-scoop-toolchain` Plugins each own one independent workstation Skill and its runtime.
 - The root harness is not packaged as a runtime distribution.
 - Tests can exercise the Skill source without being shipped with it.
 

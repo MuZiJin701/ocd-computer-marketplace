@@ -4,7 +4,7 @@ from pathlib import Path
 
 def test_repo_marketplace_points_to_plugin():
     payload = json.loads(Path(".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
-    assert payload["name"] == "ocd-computer-marketplace"
+    assert payload["name"] == "zen-computer-marketplace"
     entry = payload["plugins"][0]
     assert entry["source"]["source"] == "local"
     assert entry["source"]["path"] == "./plugins/one-tone-windows"

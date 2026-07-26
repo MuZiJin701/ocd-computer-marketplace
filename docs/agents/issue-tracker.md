@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues for this repository live in GitHub Issues at MuZiJin701/ocd-computer-marketplace. Use the gh CLI from the repository root.
+Issues for this repository live in GitHub Issues at MuZiJin701/zen-computer-marketplace. Use the gh CLI from the repository root.
 
 ## Common operations
 

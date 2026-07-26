@@ -1,6 +1,6 @@
-# ocd-desktop-zero
+# zen-desktop-zero
 
-独立分发的 `desktop-zero` Skill：只处理当前用户的 Resolved desktop，不处理 Public Desktop 或其他用户桌面。
+独立分发的 `zen-desktop-zero` Skill：只处理当前用户的 Resolved desktop，不处理 Public Desktop 或其他用户桌面。
 
 ```powershell
 python .\skills\desktop-zero\scripts\run_desktop_zero.py preview

@@ -1,5 +1,5 @@
 {
-  "name": "ocd-desktop-zero",
+  "name": "zen-desktop-zero",
   "version": "0.1.0",
   "description": "将当前用户桌面变成可验证、可回滚的 Desktop zero。",
   "author": {"name": "Local developer"},
@@ -11,6 +11,6 @@
     "developerName": "Local developer",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "使用 $desktop-zero 先预览当前用户桌面的删除和移动计划，确认后再执行。"
+    "defaultPrompt": "使用 $zen-desktop-zero 先预览当前用户桌面的删除和移动计划，确认后再执行。"
   }
 }

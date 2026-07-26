@@ -1,6 +1,6 @@
-# OCD Computer Marketplace Domain Context
+# Zen Computer Marketplace Domain Context
 
-OCD Computer Marketplace 是面向强迫症电脑使用场景的跨 Agent Skill 市场。One-Tone 是其中把同一 Seed Color 统一到受支持 Windows Target 的可回滚主题工具；工作站 Plugin 提供桌面和基础工具链规范。
+Zen Computer Marketplace 是面向极简、有序电脑使用场景的跨 Agent Skill 市场。One-Tone 是其中把同一 Seed Color 统一到受支持 Windows Target 的可回滚主题工具；工作站 Plugin 提供桌面和基础工具链规范。
 
 ## Language
 
@@ -233,11 +233,11 @@ _Avoid_: 后台监控、启动方式封锁
 _Avoid_: 羞辱用户、暗示 AI 能替代基础能力
 
 **Directory ownership**
-`ocd-desktop-zero` 创建并管理 `D:\data` 及分类目录，`ocd-scoop-toolchain` 创建并管理 `D:\software\scoop`；两个插件不重复管理对方的目录。
+`zen-desktop-zero` 创建并管理 `D:\data` 及分类目录，`zen-scoop-toolchain` 创建并管理 `D:\software\scoop`；两个插件不重复管理对方的目录。
 _Avoid_: 独立目录插件、重复初始化
 
 **Workstation plugin boundary**
-第一批只新增 `ocd-desktop-zero` 与 `ocd-scoop-toolchain` 两个 Plugin；前者负责桌面规范，后者负责基础工具链，均以用户主动调用的 Skill 运行。
+第一批只新增 `zen-desktop-zero` 与 `zen-scoop-toolchain` 两个 Plugin；前者负责桌面规范，后者负责基础工具链，均以用户主动调用的 Skill 运行。
 _Avoid_: 后台强制服务、为目录初始化单独建插件
 
 **Managed D roots**
@@ -257,5 +257,5 @@ _Avoid_: 自动换盘、备用安装盘
 - Plan 保存一次 Preview 的 Target 和 Mode 预期。
 - Preview 为需要配置实例发现的 Target 解析唯一 Active Target instance；Apply 与 Verify 不重新猜测路径。
 - Transaction 记录一次 Apply 及其后续 Verify 或 Rollback。
-- `ocd-desktop-zero` 将 Resolved desktop 规范化为 Desktop zero；Desktop classification 将非快捷方式内容移动到 `D:\data`，Cleanup transaction 关联 Move rollback ledger。
-- `ocd-scoop-toolchain` 检查 Core toolchain baseline；Scoop root 是首选安装位置，Toolchain source fallback 在 Scoop 失败时指向 winget。
+- `zen-desktop-zero` 将 Resolved desktop 规范化为 Desktop zero；Desktop classification 将非快捷方式内容移动到 `D:\data`，Cleanup transaction 关联 Move rollback ledger。
+- `zen-scoop-toolchain` 检查 Core toolchain baseline；Scoop root 是首选安装位置，Toolchain source fallback 在 Scoop 失败时指向 winget。

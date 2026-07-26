@@ -12,9 +12,9 @@ The desktop capability deletes shortcuts and moves other desktop content. The to
 
 ## Decision
 
-1. `ocd-desktop-zero` and `ocd-scoop-toolchain` are separate Plugin envelopes, each containing one self-contained Skill runtime.
-2. `ocd-desktop-zero` owns the current user’s Resolved desktop and `D:\data` category destinations. It does not process the Public Desktop or other users.
-3. `ocd-scoop-toolchain` owns `D:\software\scoop`. It preserves unrelated content in `D:\software` and does not uninstall or reset existing tools.
+1. `zen-desktop-zero` and `zen-scoop-toolchain` are separate Plugin envelopes, each containing one self-contained Skill runtime.
+2. `zen-desktop-zero` owns the current user’s Resolved desktop and `D:\data` category destinations. It does not process the Public Desktop or other users.
+3. `zen-scoop-toolchain` owns `D:\software\scoop`. It preserves unrelated content in `D:\software` and does not uninstall or reset existing tools.
 4. The two Plugins do not import a shared root runtime and do not install a background enforcement service. Shared behavior is represented through documentation and external result conventions until a second real implementation justifies a reviewed seam.
 5. Each Skill keeps its own Preview, explicit confirmation, Apply and Verify boundary. Desktop file moves have explicit transaction-ID rollback; deleted shortcuts are not restorable. Winget fallback is allowed but reports path non-conformity when Windows chooses the installation path.
 

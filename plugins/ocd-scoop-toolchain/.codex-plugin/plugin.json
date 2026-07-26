@@ -1,5 +1,5 @@
 {
-  "name": "ocd-scoop-toolchain",
+  "name": "zen-scoop-toolchain",
   "version": "0.1.0",
   "description": "在固定 D:\software\scoop 根目录下补齐基础开发工具链。",
   "author": {"name": "Local developer"},
@@ -11,6 +11,6 @@
     "developerName": "Local developer",
     "category": "Developer Tools",
     "capabilities": [],
-    "defaultPrompt": "使用 $scoop-toolchain 先预览 Python、Git、uv 和 Node.js 的现状及安装来源，确认后再执行。"
+    "defaultPrompt": "使用 $zen-scoop-toolchain 先预览 Python、Git、uv 和 Node.js 的现状及安装来源，确认后再执行。"
   }
 }
