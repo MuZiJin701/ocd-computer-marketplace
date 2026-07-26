@@ -158,6 +158,96 @@ _Avoid_: 撤销所有修改
 至少有一个 Target 或字段完成，同时存在 unsupported、用户操作、失败或未验证项的结果。  
 _Avoid_: 大致成功
 
+### Workstation language
+
+**Desktop zero**
+当前登录 Windows 用户的桌面最终不保留用户可见内容：快捷方式直接删除，其他文件和文件夹分类移动到 `D:\data`；公共桌面不属于该范围。
+_Avoid_: 清理桌面、桌面归档
+
+**Resolved desktop**
+Windows 当前用户实际呈现为桌面的目录；它可以是本地目录，也可以是被重定向到 OneDrive 或其他位置的目录。
+_Avoid_: 固定桌面路径、默认桌面
+
+**Desktop classification**
+桌面上的非快捷方式内容按预先确认的分类规则移动到 `D:\data`；移动前必须展示分类和目标路径。
+_Avoid_: 随意搬家、未知分类
+
+**Deterministic classification**
+文件分类依据扩展名和已有文件夹等可解释规则，不依据 AI 对文件内容的猜测；无法判断的内容进入未分类区域。
+_Avoid_: 智能猜测、静默重命名
+
+**Desktop categories**
+规范分类目录为文档、图片、视频、音频、压缩包、安装包、代码和未分类；已有文件夹整体归入相应类别。
+_Avoid_: 每次运行临时建类、按文件内容猜类
+
+**Deterministic name collision**
+分类目标已有同名内容时不覆盖原内容，使用稳定的数字后缀生成新名称，并在报告中说明。
+_Avoid_: 静默覆盖、随机重命名
+
+**Constrained repair**
+整理失败时可以申请当前任务所需的权限，并仅针对实际锁定目标的非系统进程尝试关闭；未知或系统进程不得被强行终止。
+_Avoid_: 全局提权、关闭所有占用者
+
+**Desktop cleanup workflow**
+桌面整理先生成待删除和待移动清单，用户确认后执行，最后验证桌面状态和移动结果。
+_Avoid_: 调用即执行、无清单整理
+
+**Move rollback ledger**
+文件移动保留内部来源与目标记录，正常整理结果不主动展示；用户明确要求回滚时才使用该记录，快捷方式删除不在回滚范围内。
+_Avoid_: 把删除伪装成可恢复、自动回滚
+
+**Cleanup transaction**
+一次桌面整理及其文件移动记录通过明确的事务 ID 标识；回滚必须指定该 ID。
+_Avoid_: 默认回滚最近一次、回滚所有整理
+
+**Existing tool preservation**
+工具链插件不卸载或重置已存在的软件；它只识别缺失项并帮助用户补齐。
+_Avoid_: 清理重装、环境归零
+
+**Toolchain source fallback**
+缺失软件优先通过 Scoop 安装，Scoop 无法提供或安装失败时再尝试 winget；winget 的安装路径通常由系统决定。
+_Avoid_: 强制统一所有安装路径、保证 Scoop 覆盖一切
+
+**Scoop root**
+该工具链的 Scoop 安装根目录固定为 `D:\software\scoop`；无法在该位置建立时，Scoop 配置失败。
+_Avoid_: 默认用户目录、隐式换盘
+
+**Core toolchain baseline**
+Python、Git、uv 和 Node.js 是该工作站规范的基础工具；缺失时优先由 Scoop 补齐，Scoop 无法提供时才转向 winget。
+_Avoid_: 可选开发工具、任意软件清单
+
+**Explicit install confirmation**
+工具链 Skill 必须先展示缺失项、安装来源和路径限制，用户明确确认后才执行安装。
+_Avoid_: 静默安装、模糊授权
+
+**Taskbar search**
+Windows 任务栏上的系统 Search 搜索框，是本项目规定的软件启动入口。
+_Avoid_: 导航窗口、桌面启动、任意启动器
+
+**Search-first desktop rule**
+桌面零规范要求用户通过任务栏搜索启动软件，不在桌面保留快捷方式；该规则由 Skill 提醒和验证，不由后台服务强制。
+_Avoid_: 后台监控、启动方式封锁
+
+**Fundamentals reminder**
+工具链 Skill 明确提醒用户：AI 不能替代计算机科学基础知识；基础工具优先通过 Scoop 安装，Scoop 无法提供时再使用 winget，并说明 winget 的路径限制。
+_Avoid_: 羞辱用户、暗示 AI 能替代基础能力
+
+**Directory ownership**
+`ocd-desktop-zero` 创建并管理 `D:\data` 及分类目录，`ocd-scoop-toolchain` 创建并管理 `D:\software\scoop`；两个插件不重复管理对方的目录。
+_Avoid_: 独立目录插件、重复初始化
+
+**Workstation plugin boundary**
+第一批只新增 `ocd-desktop-zero` 与 `ocd-scoop-toolchain` 两个 Plugin；前者负责桌面规范，后者负责基础工具链，均以用户主动调用的 Skill 运行。
+_Avoid_: 后台强制服务、为目录初始化单独建插件
+
+**Managed D roots**
+`D:\data` 与 `D:\software` 是规范化的工作区根目录；插件可以创建自己的子目录，但不拥有或清空根目录中的既有内容。
+_Avoid_: D 盘接管、根目录清空
+
+**D-drive requirement**
+依赖可用且可写的 D 盘；条件不满足时任务失败，不回退到其他盘符。
+_Avoid_: 自动换盘、备用安装盘
+
 ## Relationships
 
 - Seed Color 生成 Palette。
