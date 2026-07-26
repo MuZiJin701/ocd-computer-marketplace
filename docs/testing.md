@@ -7,12 +7,22 @@ Run from the repository root:
 ~~~powershell
 uv run pytest
 uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone --help
-uv run python plugins/ocd-desktop-zero/skills/desktop-zero/scripts/run_desktop_zero.py --help
-uv run python plugins/ocd-scoop-toolchain/skills/scoop-toolchain/scripts/run_scoop_toolchain.py --help
+uv run --project plugins/ocd-desktop-zero/skills/desktop-zero desktop-zero --help
+uv run --project plugins/ocd-scoop-toolchain/skills/scoop-toolchain scoop-toolchain --help
 git diff --check
 ~~~
 
-The root project is a test harness. Each Skill owns its launcher and runtime; tests remain outside distributable Skills and mirror the Marketplace → Plugin → Skill hierarchy. Default workstation tests use temporary directories and fakes; real desktop deletion, elevation, process termination, Scoop installation and winget installation remain risk-documented manual tests. Runtime tests for One-Tone live under the matching Plugin and Skill test directory.
+The root project is a test harness. Each Skill owns its launcher and runtime; tests remain outside distributable Skills and mirror the Marketplace → Plugin → Skill hierarchy. Default workstation tests use temporary directories and fakes; real desktop deletion, elevation, process termination, Scoop installation and winget installation remain risk-documented manual tests. Runtime tests for each Skill live under the matching Plugin and Skill test directory.
+
+## Required coverage for workstation Plugins
+
+- Marketplace and Plugin tests verify both workstation Plugin envelopes, their one-Skill package shape and Marketplace registration.
+- Desktop zero tests cover Resolved desktop discovery, redirected desktop paths, Public Desktop exclusion, D-drive/data preflight, deterministic categories, shortcut deletion, collision suffixes, locked-item partial results and Preview read-only behavior.
+- Desktop zero tests cover constrained repair: only confirmed non-system locking processes may be attempted, while unknown and system processes are never terminated.
+- Desktop zero tests cover Verify and explicit transaction-ID rollback for moved files; deleted shortcuts remain non-restorable.
+- Scoop toolchain tests cover existing-tool preservation, fixed `D:\software\scoop` preflight, Scoop bootstrap, Scoop-first installation, winget fallback, path-conformity reporting and no-uninstall behavior.
+- Both workflows test explicit confirmation, structured `ok`, `partial`, `failed` and `skipped` aggregation, safe path validation and atomic Plan persistence.
+- Default tests use fake desktop, process and installer backends. Real desktop deletion, process termination, elevation, Scoop and winget operations are separately marked and risk-documented.
 
 ## Required coverage for the theme-field work
 
@@ -37,6 +47,7 @@ Tests cross the highest available Seam and assert external behavior:
 - JSON, TOML and ZIP artifacts, not internal dictionary construction.
 - AdapterResult status and field capability payloads, not logging text.
 - Temporary files and fake registry/desktop backends for default tests.
+- Temporary files and fake process/package-manager backends for workstation workflows.
 - Real installed applications only in separately marked, risk-documented tests.
 
 A passing fixture test is not proof that a real desktop Target renders every public field. Manual screenshots remain required for visual acceptance.

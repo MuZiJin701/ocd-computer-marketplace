@@ -12,6 +12,6 @@ tests/
 │     └─ runtime/                       # 该 Skill runtime 的行为
 ~~~
 
-当前 One-Tone runtime 测试位于 tests/plugins/one-tone-windows/skills/unify-windows-theme/runtime/，与可分发 Skill 的目录边界对应。
+当前 runtime 测试按 Plugin 和 Skill 分开：One-Tone 位于 `tests/plugins/one-tone-windows/skills/unify-windows-theme/runtime/`，Desktop zero 和 Scoop toolchain 的行为测试分别位于对应 Plugin 的 Skill 测试目录，与可分发 Skill 的目录边界对应。
 
-默认测试使用 fixture，不触碰真实桌面。真实 Target 测试必须单独标记并说明风险。
+默认测试使用临时目录和 fake backend，不触碰真实桌面、不提权、不终止进程，也不安装真实软件。真实桌面删除、进程处理、Scoop 和 winget 测试必须单独标记并说明风险。

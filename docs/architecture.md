@@ -43,6 +43,8 @@ The Plugin is the installable envelope. The Skill is the independently distribut
 - Transaction persistence is the safety Seam; it records each Target operation and keeps compensation local to the failed Target.
 - Field inventory is the documentation and testing Seam; it defines expected coverage without coupling tests to private implementation helpers.
 - Marketplace metadata is the installation Seam; it points to Plugin envelopes but does not contain runtime logic.
+- Desktop workflow is the highest seam for `ocd-desktop-zero`: it resolves the current user's Resolved desktop, creates a Preview Plan, applies confirmed delete/move operations, verifies the result and keeps a transaction ledger for explicit file-move rollback.
+- Toolchain workflow is the highest seam for `ocd-scoop-toolchain`: it preflights the fixed Scoop root, detects the Core toolchain baseline, applies confirmed Scoop-first installation with winget fallback and verifies source/path conformity.
 
 Do not add a shared runtime or cross-Plugin import layer until two Plugins genuinely need the same behavior. Reuse repository tooling and documentation conventions, not hidden runtime coupling.
 
@@ -59,6 +61,7 @@ Do not add a shared runtime or cross-Plugin import layer until two Plugins genui
 - Target Adapters: map public field inventories to Palette roles, resolve one Active Target instance during Preview, and report field-level capability.
 - Editor instance resolution: discover candidate settings and extension paths read-only, persist the selected paths in the Plan, and make Apply/Verify use that same path set.
 - CLI: expose Preview, Apply, Verify and Rollback without bypassing the workflow, and emit recursively JSON-safe machine-readable reports.
+- Workstation Plugin runtime: remain self-contained per Skill; use structured `ok`, `partial`, `failed` and `skipped` results, safe path validation and atomic Plan/Transaction persistence without importing another Plugin's runtime.
 
 ## Test layout
 
@@ -75,7 +78,8 @@ Tests mirror the distribution hierarchy:
 
 - The Marketplace manifest is separate from Plugin metadata.
 - Each Plugin has its own envelope and Skills directory.
-- The first Plugin owns the complete One-Tone Skill runtime.
+- The `one-tone-windows` Plugin owns the complete One-Tone Skill runtime.
+- The `ocd-desktop-zero` and `ocd-scoop-toolchain` Plugins each own one independent workstation Skill and its runtime.
 - The root harness is not packaged as a runtime distribution.
 - Tests can exercise the Skill source without being shipped with it.
 
@@ -84,6 +88,7 @@ Tests mirror the distribution hierarchy:
 - The Skill path is deep because the distribution boundary is real.
 - The root harness and Skill runtime have separate uv projects; commands must name which project they target.
 - Plugin-specific runtime tests are more verbose in exchange for locality and future multi-Plugin isolation.
+- Workstation tests use temporary directories and fake desktop, process and installer backends; real deletion, elevation, process termination and package installation remain separate risk boundaries.
 
 ### Rules for future Plugins
 

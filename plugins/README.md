@@ -21,3 +21,13 @@ Plugin 元数据只描述安装边界；具体 Skill 必须能脱离仓库根目
 
 新增 Plugin 时同步更新根目录 .agents/plugins/marketplace.json、对应 Plugin README、Plugin envelope 测试和 Skill/runtime 测试。当前 Plugin：`one-tone-windows`、`ocd-desktop-zero`、`ocd-scoop-toolchain`。
 
+## 当前 Plugin
+
+| Plugin | Skill | 能力 |
+| --- | --- | --- |
+| `one-tone-windows` | `unify-windows-theme` | 预览、应用、验证并回滚统一 Windows 主题 |
+| `ocd-desktop-zero` | `desktop-zero` | 删除当前用户桌面快捷方式，分类移动其他内容到 `D:\data` |
+| `ocd-scoop-toolchain` | `scoop-toolchain` | 在 `D:\software\scoop` 优先通过 Scoop 补齐 Python、Git、uv 和 Node.js |
+
+两个工作站 Skill 都先 Preview，Apply 需要明确确认；`desktop-zero` 的快捷方式删除不可恢复，`scoop-toolchain` 不卸载或重置已有软件。
+

@@ -1,7 +1,7 @@
 {
   "name": "ocd-computer-marketplace",
   "interface": {
-    "displayName": "OCD Windows Themes"
+    "displayName": "OCD Computer Marketplace"
   },
   "plugins": [
     {

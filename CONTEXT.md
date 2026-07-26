@@ -1,6 +1,6 @@
-# One-Tone Domain Context
+# OCD Computer Marketplace Domain Context
 
-One-Tone 是一个把同一 Seed Color 统一到受支持 Windows Target 的可回滚主题工具。
+OCD Computer Marketplace 是面向强迫症电脑使用场景的跨 Agent Skill 市场。One-Tone 是其中把同一 Seed Color 统一到受支持 Windows Target 的可回滚主题工具；工作站 Plugin 提供桌面和基础工具链规范。
 
 ## Language
 
@@ -257,3 +257,5 @@ _Avoid_: 自动换盘、备用安装盘
 - Plan 保存一次 Preview 的 Target 和 Mode 预期。
 - Preview 为需要配置实例发现的 Target 解析唯一 Active Target instance；Apply 与 Verify 不重新猜测路径。
 - Transaction 记录一次 Apply 及其后续 Verify 或 Rollback。
+- `ocd-desktop-zero` 将 Resolved desktop 规范化为 Desktop zero；Desktop classification 将非快捷方式内容移动到 `D:\data`，Cleanup transaction 关联 Move rollback ledger。
+- `ocd-scoop-toolchain` 检查 Core toolchain baseline；Scoop root 是首选安装位置，Toolchain source fallback 在 Scoop 失败时指向 winget。
