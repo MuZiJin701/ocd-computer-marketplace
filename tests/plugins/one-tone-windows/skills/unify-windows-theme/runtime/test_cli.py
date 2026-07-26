@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
 
-from one_tone.adapters import UnsupportedAdapter
+from one_tone.adapters import AdapterResult, UnsupportedAdapter
 from one_tone.cli import build_target_adapters, main
+from one_tone.plan import create_plan, save_plan
+from one_tone.transaction import TransactionRecord, TransactionStatus
 
 
 def test_preview_json_output_contains_plan_id_and_targets(tmp_path, capsys, monkeypatch):
@@ -26,6 +28,60 @@ def test_apply_json_error_is_machine_readable(capsys):
     error = json.loads(capsys.readouterr().err)
     assert error["command"] == "apply"
     assert error["error"] == "Plan not found: missing-plan"
+
+
+def test_apply_json_output_encodes_nested_binary_report_value(tmp_path, capsys, monkeypatch):
+    plan = create_plan("#7C3AED", ["windows"], plan_id="plan-cli-binary-apply-001")
+    save_plan(plan, tmp_path / "plans")
+    record = TransactionRecord(
+        id="tx-cli-binary-apply-001",
+        plan_id=plan.id,
+        status=TransactionStatus.APPLIED,
+        created_at="2026-07-26T00:00:00+00:00",
+        targets=("windows",),
+        results={"windows": [{
+            "target": "windows",
+            "status": "ok",
+            "changed": True,
+            "verified": True,
+            "message": "applied",
+            "requires_user_action": False,
+            "metadata": {"field_inventory": [{"generated_value": b"\x00\xff"}]},
+        }]},
+    )
+    monkeypatch.setattr("one_tone.cli.apply_plan", lambda *args, **kwargs: record)
+
+    assert main([
+        "apply", plan.id, "--confirm", "--output", "json",
+        "--plans-dir", str(tmp_path / "plans"),
+        "--transactions-dir", str(tmp_path / "transactions"),
+        "--state-dir", str(tmp_path / "state"),
+    ]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    value = payload["targets"][0]["metadata"]["field_inventory"][0]["generated_value"]
+    assert value == {"__one_tone_bytes__": "AP8="}
+
+
+def test_verify_json_output_encodes_nested_binary_report_value(tmp_path, capsys, monkeypatch):
+    plan = create_plan("#7C3AED", ["windows"], plan_id="plan-cli-binary-verify-001")
+    save_plan(plan, tmp_path / "plans")
+    result = AdapterResult(
+        "windows", "ok", False, True, "verified",
+        metadata={"field_inventory": [{"generated_value": b"\x00\xff"}]},
+    )
+    monkeypatch.setattr("one_tone.cli.build_target_adapters", lambda *args: {})
+    monkeypatch.setattr("one_tone.cli.verify_plan", lambda *args: {"windows": result})
+
+    assert main([
+        "verify", plan.id, "--output", "json",
+        "--plans-dir", str(tmp_path / "plans"),
+        "--state-dir", str(tmp_path / "state"),
+    ]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    value = payload["targets"][0]["metadata"]["field_inventory"][0]["generated_value"]
+    assert value == {"__one_tone_bytes__": "AP8="}
 
 
 def test_preview_writes_plan_without_creating_transaction(tmp_path, capsys):

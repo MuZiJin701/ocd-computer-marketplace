@@ -23,6 +23,7 @@ from .adapters.vscode_family import EditorSpec
 from .adapters.windows import WindowsDesktopBackend, WindowsRegistryBackend
 from .inventory import inventory_groups
 from .plan import PlanIntegrityError, create_plan, load_plan, save_plan
+from .storage import json_safe
 from .transaction import TransactionStatus, TransactionStore, apply_plan, verify_plan
 
 DEFAULT_TARGETS = ("windows", "terminal", "vscode", "trae", "codex", "chrome")
@@ -121,7 +122,7 @@ def _record_payload(command: str, record, extra: dict[str, object] | None = None
 
 def _emit(payload: dict[str, object], output: str, *, error: bool = False) -> None:
     if output == "json":
-        print(json.dumps(payload, ensure_ascii=False, sort_keys=True), file=sys.stderr if error else sys.stdout)
+        print(json.dumps(json_safe(payload), ensure_ascii=False, sort_keys=True), file=sys.stderr if error else sys.stdout)
 
 
 def _optional_path(name: str) -> Path | None:

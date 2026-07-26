@@ -24,6 +24,7 @@ The root project is a test harness. The Skill project owns the one-tone console 
 - Codex tests cover every verified v1 color field in both theme tables and preserve unknown configuration keys.
 - Chrome tests cover exactly two canonical Light/Dark unpacked directories, internal ZIP manifests, all public colors, tints and display properties, plus manual activation status.
 - Transaction tests retain per-Target Snapshot, operation persistence, compensation and rollback behavior and cover JSON-safe binary report values.
+- CLI tests cover parseable JSON-mode Apply and Verify responses when nested report metadata contains binary values.
 
 ## Test style
 

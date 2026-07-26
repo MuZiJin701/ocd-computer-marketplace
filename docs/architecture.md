@@ -57,7 +57,7 @@ Do not add a shared runtime or cross-Plugin import layer until two Plugins genui
 - Storage: validate safe path components and perform atomic persistence.
 - Transaction: journal Apply operations with JSON-safe report values, preserve Snapshots and coordinate compensation.
 - Target Adapters: map public field inventories to Palette roles and report field-level capability.
-- CLI: expose Preview, Apply, Verify and Rollback without bypassing the workflow.
+- CLI: expose Preview, Apply, Verify and Rollback without bypassing the workflow, and emit recursively JSON-safe machine-readable reports.
 
 ## Test layout
 

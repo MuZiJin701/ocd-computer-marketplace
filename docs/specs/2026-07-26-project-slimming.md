@@ -6,7 +6,7 @@
 
 - `FileAdapter` 和 `file-demo` 只服务于测试与隐藏 CLI 分支，不是用户可见 Target；
 - `atomic_write_json` 与 `SupportLevel` 没有调用方；
-- Cursor 已明确不属于支持范围，但 VS Code-family Adapter 仍保留 Cursor 专属回退、重启兼容和验证逻辑；
+- Cursor 已明确不属于支持范围，但仍需核对 VS Code-family Adapter 中的遗留逻辑；VS Code/TRAE 的通用重启回退属于受支持目标的行为，不应误删；
 - 5 份开发 spec 与 ADR、Skill 说明、目标矩阵和测试契约重复描述相同决策；
 - Skill 测试中有重复的 README 工作流检查；
 - 根项目与 Skill 项目的独立分发边界容易被误判为冗余，但它是 Skill 可独立安装和测试隔离的必要边界。
@@ -49,7 +49,9 @@
 - 保留 6 个已支持 Target、完整安全工作流、`AdapterResult`、`ThemeAdapter`、`UnsupportedAdapter`、Field inventory、Plan 和 Transaction 契约。
 - 从生产运行时移除仅用于测试和隐藏 CLI 分支的 `FileAdapter`，同时移除 `file-demo` 的 Target 构建分支和公共导出。事务测试改用测试目录中的最小本地替身，继续覆盖真实 Transaction seam。
 - 删除只被 `FileAdapter` 使用的 JSON 写入包装，以及没有调用方的原子 JSON 写入辅助函数和 `SupportLevel` 类型别名；保留实际共享的原子文本写入函数。
-- 从 VS Code-family Adapter 移除 Cursor 专属的设置回退、注册失败补偿、重启兼容和验证分支，并删除对应的 Cursor 行为测试。显式 `cursor` 仍由统一 Target 构建入口安全映射为 `UnsupportedAdapter`；Terminal、VS Code 和 TRAE 的普通光标字段继续保留。
+- 从 VS Code-family Adapter 移除真正属于 Cursor 的设置回退、注册失败补偿、重启兼容和验证分支，并删除对应的 Cursor 行为测试；保留 VS Code/TRAE 的通用重启回退。显式 `cursor` 仍由统一 Target 构建入口安全映射为 `UnsupportedAdapter`；Terminal、VS Code 和 TRAE 的普通光标字段继续保留。
+- VS Code/TRAE 的 Theme registration 只有在 Target 的主题登记存在、登记指向的主题产物可用且贡献的主题标签可被读取时才算成功；仅发现本地扩展目录不算注册成功。主题注册与主题激活继续分开报告。
+- Apply、Verify 的机器可读 JSON 输出必须安全表示二进制 Serialized report value；该表示只用于报告，不改变 Snapshot 的精确恢复职责。
 - 保留 VS Code 与 TRAE 的共享 Adapter 和 `EditorSpec`，因为两者仍共同覆盖已支持的标准 Workbench 主题字段，拆分会增加重复实现。
 - 将当前 5 份开发 spec 收敛为一份 canonical 主题字段/视觉验收 spec；删除已被该 canonical spec、ADR、架构文档、测试文档或 Skill 说明覆盖的重复 spec，并更新仍指向已删除 spec 的入口说明。
 - 保留 ADR 作为长期架构决策记录，保留 `architecture` 作为分发/模块边界说明，保留 `testing` 作为验证契约，保留 Skill 与 `targets` 作为用户流程和 Target 支持矩阵。
@@ -63,7 +65,8 @@
 - 最高测试 Seam 是现有仓库级验收：通过完整测试套件同时验证运行时行为、分发边界、CLI 契约和主动文档契约；不新增测试框架或测试基础设施。
 - 测试只断言外部行为和公开契约：默认 6 个 Target、显式 Cursor 的 `skipped`、AdapterResult 字段、Plan/Transaction 安全行为、真实 Adapter 产物和文档入口；不为被删除的私有 helper 保留测试。
 - Transaction 测试使用测试侧最小替身，继续覆盖 Snapshot、逐操作持久化、成功、部分成功、失败补偿、全 skipped、显式 Rollback 和 retention 行为。
-- VS Code-family 测试继续覆盖 VS Code/TRAE 的共享主题产物、注册/激活、重启恢复、跨实例 Verify 和 Rollback；删除仅针对 Cursor fallback 的场景，不删除共同 Adapter 行为测试。
+- VS Code-family 测试继续覆盖 VS Code/TRAE 的共享主题产物、严格注册/激活、通用重启恢复、跨实例 Verify 和 Rollback；删除仅针对 Cursor fallback 的场景，不删除共同 Adapter 行为测试。
+- CLI 测试补充 Apply、Verify 的二进制 Serialized report value JSON 输出检查，并确认未登记但存在本地目录的编辑器主题不会被视为注册成功。
 - CLI 测试继续覆盖默认 Target、显式目标、Preview/Apply/Verify/Rollback 参数、路径探测和 Skill-local runtime root；移除 `file-demo` 专属入口测试。
 - 文档测试将 README 工作流的重复检查合并为一项，并继续验证安装命令、Preview/Verify/Transaction 信息、支持平台、分发路径和不支持 Cursor 的边界。
 - 文档清理后必须确认没有入口继续引用被删除的 spec，也没有把 ADR、architecture、testing、Skill 和 Target 矩阵的职责重新混淆。
