@@ -60,6 +60,29 @@ def test_plan_persists_both_mode_palettes_and_capabilities(tmp_path):
     assert loaded.field_capabilities["chrome"]["frame"] == "supported"
 
 
+def test_plan_persists_target_instance_paths_and_hashes_them(tmp_path):
+    instances = {
+        "vscode": {
+            "status": "ok",
+            "executable": str(tmp_path / "bin" / "code.cmd"),
+            "settings_path": str(tmp_path / "data" / "user-data" / "User" / "settings.json"),
+            "extensions_dir": str(tmp_path / "data" / "extensions"),
+            "source": "portable",
+        }
+    }
+    plan = create_plan("#7C3AED", ["vscode"], plan_id="plan-instance-001", target_instances=instances)
+    save_plan(plan, tmp_path / "plans")
+
+    loaded = load_plan("plan-instance-001", tmp_path / "plans")
+
+    assert loaded.target_instances == instances
+    payload = json.loads((tmp_path / "plans" / "plan-instance-001.json").read_text(encoding="utf-8"))
+    payload["target_instances"]["vscode"]["extensions_dir"] = str(tmp_path / "other")
+    (tmp_path / "plans" / "plan-instance-001.json").write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(PlanIntegrityError, match="Hash"):
+        load_plan("plan-instance-001", tmp_path / "plans")
+
+
 def test_plan_persists_only_canonical_palettes_and_reads_a_copy(tmp_path):
     plan = create_plan("#7C3AED", ["chrome"], plan_id="plan-canonical-001")
     payload = plan.to_dict()

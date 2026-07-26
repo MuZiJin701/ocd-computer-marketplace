@@ -27,6 +27,7 @@ class Plan:
     hash: str
     palettes: dict[str, dict[str, str]]
     field_capabilities: dict[str, dict[str, str]] = field(default_factory=dict)
+    target_instances: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def palette_for(self, mode: str) -> dict[str, str]:
         if mode not in {"light", "dark"}:
@@ -44,6 +45,7 @@ class Plan:
             "targets": list(self.targets),
             "palettes": {mode: dict(palette) for mode, palette in self.palettes.items()},
             "field_capabilities": {target: dict(fields) for target, fields in self.field_capabilities.items()},
+            "target_instances": {target: dict(instance) for target, instance in self.target_instances.items()},
             "created_at": self.created_at,
         }
         if include_hash:
@@ -72,6 +74,7 @@ def create_plan(
     plan_id: str | None = None,
     created_at: datetime | None = None,
     mode: str = "dark",
+    target_instances: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Plan:
     normalized_seed = "#" + "".join(f"{channel:02X}" for channel in parse_hex_color(seed_color))
     normalized_targets = tuple(sorted({
@@ -96,6 +99,10 @@ def create_plan(
         "targets": list(normalized_targets),
         "palettes": palettes,
         "field_capabilities": expected_capabilities(normalized_targets),
+        "target_instances": {
+            target: dict(instance)
+            for target, instance in (target_instances or {}).items()
+        },
         "created_at": timestamp,
     }
     return Plan(
@@ -107,6 +114,7 @@ def create_plan(
         hash=compute_plan_hash(payload),
         palettes=palettes,
         field_capabilities=payload["field_capabilities"],
+        target_instances=payload["target_instances"],
     )
 
 
@@ -134,7 +142,7 @@ def load_plan(plan_id: str, plans_dir: Path) -> Plan:
         raise PlanIntegrityError(f"Plan payload must be an object for {plan_id}")
     if "palette" in payload:
         raise PlanIntegrityError(f"legacy single-palette Plan {plan_id} must be recreated through Preview")
-    required = {"id", "seed_color", "mode", "targets", "palettes", "created_at", "hash"}
+    required = {"id", "seed_color", "mode", "targets", "palettes", "created_at", "hash", "target_instances"}
     missing = required - payload.keys()
     if missing:
         raise PlanIntegrityError(f"Plan is missing fields: {', '.join(sorted(missing))}")
@@ -172,6 +180,18 @@ def load_plan(plan_id: str, plans_dir: Path) -> Plan:
     field_capabilities = payload.get("field_capabilities", expected_capabilities(payload["targets"]))
     if not isinstance(field_capabilities, dict):
         raise PlanIntegrityError(f"Plan field capabilities are invalid for {plan_id}")
+    target_instances = payload.get("target_instances")
+    if not isinstance(target_instances, dict):
+        raise PlanIntegrityError(f"Plan target instances are invalid for {plan_id}")
+    for target, instance in target_instances.items():
+        validate_safe_component(target, "target")
+        if target not in payload["targets"] or not isinstance(instance, dict):
+            raise PlanIntegrityError(f"Plan target instance is invalid for {plan_id}")
+        status = instance.get("status")
+        if status not in {"ok", "skipped"}:
+            raise PlanIntegrityError(f"Plan target instance status is invalid for {plan_id}")
+        if status == "ok" and any(not isinstance(instance.get(key), str) for key in ("executable", "settings_path", "extensions_dir")):
+            raise PlanIntegrityError(f"Plan target instance paths are invalid for {plan_id}")
     return Plan(
         id=payload["id"],
         seed_color=payload["seed_color"],
@@ -181,4 +201,5 @@ def load_plan(plan_id: str, plans_dir: Path) -> Plan:
         hash=payload["hash"],
         palettes=payload["palettes"],
         field_capabilities=field_capabilities,
+        target_instances=target_instances,
     )

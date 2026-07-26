@@ -160,25 +160,130 @@ def _launcher_argument(executable: Path, argument: str) -> Path | None:
     except OSError:
         return None
     pattern = re.compile(
-        rf"--{re.escape(argument)}=(?:\"([^\"]+)\"|'([^']+)'|([^\s%]+))",
+        rf"--{re.escape(argument)}(?:=|\s+)(?:\"([^\"]+)\"|'([^']+)'|([^\s%]+))",
         re.IGNORECASE,
     )
     match = pattern.search(contents)
     if not match:
         return None
     value = next((group for group in match.groups() if group), None)
-    return Path(value) if value else None
+    if not value:
+        return None
+    value = os.path.expandvars(value)
+    if value.startswith("%~dp0"):
+        value = str(executable.parent) + value[5:]
+    path = Path(value)
+    return path if path.is_absolute() else executable.parent / path
 
 
-def _editor_paths(
+def _portable_editor_candidates(executable: Path) -> list[tuple[Path, Path, str]]:
+    if not executable.is_file():
+        return []
+    roots: list[Path] = []
+    if executable.parent.name.casefold() == "bin":
+        roots.append(executable.parent.parent)
+    roots.extend(executable.parents)
+    candidates: list[tuple[Path, Path, str]] = []
+    seen: set[tuple[Path, Path]] = set()
+    for root in roots:
+        data = root / "data"
+        pair = (data / "user-data" / "User" / "settings.json", data / "extensions")
+        if pair in seen:
+            continue
+        seen.add(pair)
+        if pair[0].is_file() or pair[1].is_dir():
+            candidates.append((*pair, "portable"))
+    return candidates
+
+
+def _resolve_editor_spec(
+    target: str,
     executable: Path,
-    default_settings: Path,
-    default_extensions: Path,
-) -> tuple[Path, Path]:
-    user_data_dir = _launcher_argument(executable, "user-data-dir")
-    extensions_dir = _launcher_argument(executable, "extensions-dir") or default_extensions
-    settings = user_data_dir / "User" / "settings.json" if user_data_dir else default_settings
-    return settings, extensions_dir
+    default_candidates: list[tuple[Path, Path, str]],
+    settings_override: Path | None,
+    extensions_override: Path | None,
+    artifacts_dir: Path,
+) -> EditorSpec:
+    launcher_settings = _launcher_argument(executable, "user-data-dir")
+    launcher_extensions = _launcher_argument(executable, "extensions-dir")
+    if settings_override is not None or extensions_override is not None:
+        settings = settings_override or (launcher_settings / "User" / "settings.json" if launcher_settings else default_candidates[0][0])
+        extensions = extensions_override or launcher_extensions or default_candidates[0][1]
+        return EditorSpec(target, executable, settings, extensions, artifacts_dir=artifacts_dir, resolution_source="environment")
+    if launcher_settings is not None or launcher_extensions is not None:
+        settings = launcher_settings / "User" / "settings.json" if launcher_settings else default_candidates[0][0]
+        extensions = launcher_extensions or default_candidates[0][1]
+        return EditorSpec(target, executable, settings, extensions, artifacts_dir=artifacts_dir, resolution_source="launcher")
+
+    portable = _portable_editor_candidates(executable)
+    candidates = portable + default_candidates
+    existing = [candidate for candidate in candidates if candidate[0].is_file() or candidate[1].is_dir()]
+    if existing:
+        priority_order = {"portable": 0, "standard": 1}
+        priority = min(priority_order.get(candidate[2], 99) for candidate in existing)
+        priority_candidates = [candidate for candidate in existing if priority_order.get(candidate[2], 99) == priority]
+        evidence_score = lambda candidate: (int(candidate[0].is_file()), int(candidate[1].is_dir()))
+        best_score = max(evidence_score(candidate) for candidate in priority_candidates)
+        winners = [candidate for candidate in priority_candidates if evidence_score(candidate) == best_score]
+        unique = {(candidate[0], candidate[1]) for candidate in winners}
+        if len(unique) > 1:
+            description = "; ".join(f"{settings} + {extensions}" for settings, extensions, _ in winners)
+            settings, extensions, source = winners[0]
+            return EditorSpec(
+                target,
+                executable,
+                settings,
+                extensions,
+                artifacts_dir=artifacts_dir,
+                resolution_status="skipped",
+                resolution_message=f"{target} configuration paths are ambiguous: {description}",
+            )
+        settings, extensions, source = winners[0]
+        return EditorSpec(target, executable, settings, extensions, artifacts_dir=artifacts_dir, resolution_source=source)
+    settings, extensions, source = default_candidates[0]
+    return EditorSpec(
+        target,
+        executable,
+        settings,
+        extensions,
+        artifacts_dir=artifacts_dir,
+        resolution_status="skipped",
+        resolution_message=f"{target} configuration instance was not found",
+        resolution_source=source,
+    )
+
+
+def _editor_spec_from_plan(target: str, context: dict[str, object], fallback: EditorSpec) -> EditorSpec:
+    status = context.get("status")
+    if status != "ok":
+        return EditorSpec(
+            target,
+            fallback.executable,
+            fallback.settings_path,
+            fallback.extensions_dir,
+            artifacts_dir=fallback.artifacts_dir,
+            resolution_status="skipped",
+            resolution_message=str(context.get("reason") or f"{target} has no resolved configuration instance in Plan"),
+        )
+    try:
+        return EditorSpec(
+            target,
+            Path(str(context["executable"])),
+            Path(str(context["settings_path"])),
+            Path(str(context["extensions_dir"])),
+            artifacts_dir=fallback.artifacts_dir,
+            resolution_source=str(context.get("source") or "plan"),
+        )
+    except (KeyError, TypeError):
+        return EditorSpec(
+            target,
+            fallback.executable,
+            fallback.settings_path,
+            fallback.extensions_dir,
+            artifacts_dir=fallback.artifacts_dir,
+            resolution_status="skipped",
+            resolution_message=f"{target} Plan instance paths are incomplete",
+        )
 
 
 def _scoop_root_from_shim(executable: Path) -> Path | None:
@@ -200,7 +305,7 @@ def _terminal_settings_candidates(executable: Path, localappdata: Path, userprof
     return candidates
 
 
-def build_target_adapters(targets, state_dir: Path):
+def build_target_adapters(targets, state_dir: Path, target_instances: dict[str, dict[str, object]] | None = None):
     appdata = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
     localappdata = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
     userprofile = Path(os.environ.get("USERPROFILE", Path.home()))
@@ -209,20 +314,39 @@ def build_target_adapters(targets, state_dir: Path):
         "ONE_TONE_TERMINAL_SETTINGS",
         _terminal_settings_candidates(terminal_executable, localappdata, userprofile),
     )
-    vscode_spec = EditorSpec(
-        "vscode",
-        _first_executable("ONE_TONE_VSCODE_EXECUTABLE", "code", []),
-        _configured_or_first("ONE_TONE_VSCODE_SETTINGS", [appdata / "Code/User/settings.json"]),
-        _configured_or_first("ONE_TONE_VSCODE_EXTENSIONS", [userprofile / ".vscode/extensions"]),
-        artifacts_dir=state_dir / "vscode-artifacts",
-    )
-    trae_spec = EditorSpec(
-        "trae",
-        _first_executable("ONE_TONE_TRAE_EXECUTABLE", "trae", []),
-        _configured_or_first("ONE_TONE_TRAE_SETTINGS", [appdata / "TRAE/User/settings.json", appdata / "Trae/User/settings.json"]),
-        _configured_or_first("ONE_TONE_TRAE_EXTENSIONS", [userprofile / ".trae/extensions"]),
-        artifacts_dir=state_dir / "trae-artifacts",
-    )
+    if target_instances is None:
+        vscode_defaults = [(appdata / "Code/User/settings.json", userprofile / ".vscode/extensions", "standard")]
+        vscode_spec = _resolve_editor_spec(
+            "vscode",
+            _first_executable("ONE_TONE_VSCODE_EXECUTABLE", "code", []),
+            vscode_defaults,
+            _optional_path("ONE_TONE_VSCODE_SETTINGS"),
+            _optional_path("ONE_TONE_VSCODE_EXTENSIONS"),
+            state_dir / "vscode-artifacts",
+        )
+        trae_defaults = [
+            (appdata / "TRAE/User/settings.json", userprofile / ".trae/extensions", "standard"),
+            (appdata / "Trae/User/settings.json", userprofile / ".trae/extensions", "standard"),
+        ]
+        trae_spec = _resolve_editor_spec(
+            "trae",
+            _first_executable("ONE_TONE_TRAE_EXECUTABLE", "trae", []),
+            trae_defaults,
+            _optional_path("ONE_TONE_TRAE_SETTINGS"),
+            _optional_path("ONE_TONE_TRAE_EXTENSIONS"),
+            state_dir / "trae-artifacts",
+        )
+    else:
+        vscode_spec = _editor_spec_from_plan(
+            "vscode",
+            target_instances.get("vscode", {}),
+            EditorSpec("vscode", "", Path(), Path(), artifacts_dir=state_dir / "vscode-artifacts"),
+        )
+        trae_spec = _editor_spec_from_plan(
+            "trae",
+            target_instances.get("trae", {}),
+            EditorSpec("trae", "", Path(), Path(), artifacts_dir=state_dir / "trae-artifacts"),
+        )
     codex_path = os.environ.get("ONE_TONE_CODEX_THEME_CONFIG")
     chrome_preferences = _configured_or_first(
         "ONE_TONE_CHROME_PREFERENCES",
@@ -251,10 +375,15 @@ def build_target_adapters(targets, state_dir: Path):
 
 def _preview(args: argparse.Namespace) -> int:
     targets = _target_names(args.targets)
-    plan = create_plan(args.seed_color, targets)
-    path = save_plan(plan, args.plans_dir)
     adapters = build_target_adapters(targets, args.state_dir)
     detected = {target: adapter.detect() for target, adapter in adapters.items()}
+    target_instances = {
+        target: adapter.target_instance()
+        for target, adapter in adapters.items()
+        if hasattr(adapter, "target_instance")
+    }
+    plan = create_plan(args.seed_color, targets, target_instances=target_instances)
+    path = save_plan(plan, args.plans_dir)
     unsupported_count = sum(result.status != "ok" for result in detected.values())
     if args.output == "json":
         _emit({
@@ -263,6 +392,7 @@ def _preview(args: argparse.Namespace) -> int:
             "plan_id": plan.id,
             "mode_palettes": plan.palettes,
             "field_capabilities": plan.field_capabilities,
+            "target_instances": plan.target_instances,
             "targets": [
                 {
                     "target": target,
@@ -305,7 +435,7 @@ def _preview(args: argparse.Namespace) -> int:
 
 def _apply(args: argparse.Namespace) -> int:
     plan = load_plan(args.plan_id, args.plans_dir)
-    adapters = build_target_adapters(plan.targets, args.state_dir)
+    adapters = build_target_adapters(plan.targets, args.state_dir, plan.target_instances)
     store = TransactionStore(args.transactions_dir)
     record = apply_plan(plan, adapters, store, confirm=args.confirm)
     removed = store.prune(keep=args.keep_transactions, preserve={record.id})
@@ -322,7 +452,12 @@ def _apply(args: argparse.Namespace) -> int:
 def _rollback(args: argparse.Namespace) -> int:
     store = TransactionStore(args.transactions_dir)
     record = store.load(args.transaction_id)
-    adapters = build_target_adapters(record.targets, args.state_dir)
+    target_instances = {
+        target: metadata["target_instance"]
+        for target, metadata in record.target_metadata.items()
+        if isinstance(metadata, dict) and isinstance(metadata.get("target_instance"), dict)
+    }
+    adapters = build_target_adapters(record.targets, args.state_dir, target_instances)
     restored = store.rollback(record.id, adapters)
     if args.output == "json":
         _emit(_record_payload("rollback", restored), args.output)
@@ -343,7 +478,7 @@ def _aggregate_status(results) -> str:
 
 def _verify(args: argparse.Namespace) -> int:
     plan = load_plan(args.plan_id, args.plans_dir)
-    adapters = build_target_adapters(plan.targets, args.state_dir)
+    adapters = build_target_adapters(plan.targets, args.state_dir, plan.target_instances)
     results = verify_plan(plan, adapters)
     status = _aggregate_status(results)
     if args.output == "json":

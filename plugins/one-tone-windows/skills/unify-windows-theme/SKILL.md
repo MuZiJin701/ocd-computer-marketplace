@@ -36,7 +36,7 @@ python .\scripts\run_one_tone.py rollback tx-...
 
 `verify` 只读取当前目标并与 Plan 对比，不创建事务、不 Snapshot、不 Apply、不 Restart、不 Rollback。
 
-Plan ID、Transaction ID 和 target 必须是安全路径组件。默认 `.one-tone` 运行时根目录固定在 Skill-local runtime root，由运行时模块位置解析，不随 Agent 当前工作目录变化；编辑器和 Terminal 的实际路径会优先使用用户目录与 PATH 探测，也可通过 `ONE_TONE_<TARGET>_...` 环境变量覆盖。运行时不依赖 Everything、固定盘符或开发机临时路径。fixture 测试不代表真实 Windows 桌面目标已验证。
+Plan ID、Transaction ID 和 target 必须是安全路径组件。默认 `.one-tone` 运行时根目录固定在 Skill-local runtime root，由运行时模块位置解析，不随 Agent 当前工作目录变化；编辑器和 Terminal 的实际路径会优先使用用户目录与 PATH 探测，也可通过 `ONE_TONE_<TARGET>_...` 环境变量覆盖。运行时不依赖 Everything、固定盘符、特定用户或安装管理器目录；需要配置实例发现的 Target 在 Preview 中解析唯一 Active Target instance，并将路径纳入 Plan，Apply/Verify 不静默切换实例。fixture 测试不代表真实 Windows 桌面目标已验证。
 
 ## 已确认的主题字段开发范围
 

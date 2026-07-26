@@ -56,7 +56,8 @@ Do not add a shared runtime or cross-Plugin import layer until two Plugins genui
 - Plan: serialize Seed Color, light/dark Mode Palettes, Target selection and field capability expectations with an integrity hash. `palettes` is the only persisted Palette representation; the selected `mode` is the default lookup mode, not a system-mode switch.
 - Storage: validate safe path components and perform atomic persistence.
 - Transaction: journal Apply operations with JSON-safe report values, preserve Snapshots and coordinate compensation.
-- Target Adapters: map public field inventories to Palette roles and report field-level capability.
+- Target Adapters: map public field inventories to Palette roles, resolve one Active Target instance during Preview, and report field-level capability.
+- Editor instance resolution: discover candidate settings and extension paths read-only, persist the selected paths in the Plan, and make Apply/Verify use that same path set.
 - CLI: expose Preview, Apply, Verify and Rollback without bypassing the workflow, and emit recursively JSON-safe machine-readable reports.
 
 ## Test layout

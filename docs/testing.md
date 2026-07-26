@@ -21,6 +21,7 @@ The root project is a test harness. The Skill project owns the one-tone console 
 - Windows tests cover safe registry and wallpaper outputs, preserved mode/automatic-color/high-contrast settings, and field-level partial results.
 - Windows Terminal tests cover paired Schemes, Profile `colorScheme` mappings, all profile entries, all documented color fields, Tab/Tab Row/window fields and system mode selection.
 - VS Code and TRAE tests cover the standard public Workbench field inventory, exact contributed Light/Dark labels, enabled auto-detect settings and discoverable TRAE-specific fields.
+- VS Code/TRAE instance tests cover standard and portable layouts, multiple-instance ambiguity, read-only path discovery, Plan-persisted paths, registration evidence, and non-zero CLI results with successful installation evidence.
 - Codex tests cover every verified v1 color field in both theme tables and preserve unknown configuration keys.
 - Chrome tests cover exactly two canonical Light/Dark unpacked directories, internal ZIP manifests, all public colors, tints and display properties, plus manual activation status.
 - Transaction tests retain per-Target Snapshot, operation persistence, compensation and rollback behavior and cover JSON-safe binary report values.

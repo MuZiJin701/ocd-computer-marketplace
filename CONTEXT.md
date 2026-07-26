@@ -73,9 +73,14 @@ _Avoid_: 应用（当 Windows 系统也在讨论范围内时）
 
 **Theme registration**
 
-Target 记录主题扩展或主题包，使其出现在可选择的主题清单中；仅有本地主题产物并不算注册成功。注册成功不代表该主题已经成为当前活动主题。
+Target 记录主题扩展或主题包，使其出现在可选择的主题清单中；仅有本地主题产物并不算注册成功。注册成功需要登记、登记指向的主题产物、贡献的主题标签和目标设置形成一致证据。注册成功不代表该主题已经成为当前活动主题。
 
 _Avoid_: 已自动生效
+
+**Active Target instance**
+由同一个启动器/可执行文件、用户数据目录和扩展目录组成的 Target 配置实例。同一台机器可以有多个实例；不能仅凭用户名、固定盘符、安装管理器或默认目录猜测活动实例。
+
+_Avoid_: 当前用户目录、唯一安装
 
 **Theme activation**
 
@@ -115,7 +120,7 @@ _Avoid_: 每个 Mode 独立追求最大对比度
 ### Workflow language
 
 **Plan**  
-用户在 Preview 阶段确认的 Seed Color、Mode、Target 和字段能力预期。  
+用户在 Preview 阶段确认的 Seed Color、Mode、Target 和字段能力预期。对于需要发现配置实例的 Target，Plan 还保存已解析且纳入 Hash 的可执行文件、设置文件和扩展目录；Apply 与 Verify 必须使用同一组路径。
 _Avoid_: 临时配置、Apply 参数
 
 **Transaction**  
@@ -160,4 +165,5 @@ _Avoid_: 大致成功
 - Target Adapter 把 Color field 映射到 Visual role。
 - Field inventory 定义应覆盖的 Color field。
 - Plan 保存一次 Preview 的 Target 和 Mode 预期。
+- Preview 为需要配置实例发现的 Target 解析唯一 Active Target instance；Apply 与 Verify 不重新猜测路径。
 - Transaction 记录一次 Apply 及其后续 Verify 或 Rollback。

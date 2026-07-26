@@ -22,6 +22,9 @@ class EditorSpec:
     extensions_dir: Path
     ai_panel_supported: bool = False
     artifacts_dir: Path | None = None
+    resolution_status: str = "ok"
+    resolution_message: str = ""
+    resolution_source: str = ""
 
 
 def build_theme_json(plan: Plan, theme_name: str, mode: str | None = None) -> dict[str, Any]:
@@ -213,6 +216,22 @@ class VSCodeFamilyAdapter:
         self._extension_dir: Path | None = None
         self._theme_name = f"One Tone {spec.target}"
 
+    def target_instance(self) -> dict[str, Any]:
+        instance: dict[str, Any] = {
+            "status": self.spec.resolution_status,
+        }
+        if self.spec.resolution_status == "ok":
+            instance.update({
+                "executable": str(self.spec.executable),
+                "settings_path": str(self.spec.settings_path),
+                "extensions_dir": str(self.spec.extensions_dir),
+            })
+            if self.spec.resolution_source:
+                instance["source"] = self.spec.resolution_source
+        elif self.spec.resolution_message:
+            instance["reason"] = self.spec.resolution_message
+        return instance
+
     def _executable_available(self) -> bool:
         if isinstance(self.spec.executable, Path):
             if self.spec.executable.exists():
@@ -277,6 +296,26 @@ class VSCodeFamilyAdapter:
                         candidates.append(candidate)
         return list(dict.fromkeys(candidates))
 
+    def _registered_extension_dirs(self) -> list[Path]:
+        index = self.spec.extensions_dir / "extensions.json"
+        if not index.is_file():
+            return []
+        try:
+            entries = json.loads(index.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        normalized_entries = entries if isinstance(entries, list) else [entries] if isinstance(entries, dict) else []
+        registered: list[Path] = []
+        for entry in normalized_entries:
+            if not isinstance(entry, dict) or entry.get("identifier", {}).get("id") != self._extension_id():
+                continue
+            relative = entry.get("relativeLocation")
+            if isinstance(relative, str):
+                candidate = self.spec.extensions_dir / relative
+                if candidate.is_dir():
+                    registered.append(candidate)
+        return list(dict.fromkeys(registered))
+
     def _theme_file(self, extension_dir: Path) -> Path | None:
         for candidate in (
             extension_dir / "themes" / "one-tone-color-theme.json",
@@ -285,6 +324,22 @@ class VSCodeFamilyAdapter:
             if candidate.is_file():
                 return candidate
         return None
+
+    def _theme_files(self, extension_dir: Path) -> tuple[Path, Path] | None:
+        dark = extension_dir / "themes" / "one-tone-color-theme.json"
+        light = extension_dir / "themes" / "one-tone-light-color-theme.json"
+        if dark.is_file() and light.is_file():
+            return dark, light
+        return None
+
+    def _registration_candidate(self) -> tuple[Path | None, str | None]:
+        for extension_dir in self._registered_extension_dirs():
+            if self._theme_files(extension_dir) is None:
+                continue
+            labels = self._contributed_labels(extension_dir)
+            if labels is not None and set(self._theme_labels()) <= labels:
+                return extension_dir, None
+        return None, "registered extension, theme files or contributed labels are incomplete"
 
     def _snapshot_extension_state(self, backup_dir: Path) -> None:
         index = self.spec.extensions_dir / "extensions.json"
@@ -373,6 +428,15 @@ class VSCodeFamilyAdapter:
         )
         return any(marker in output for marker in restart_markers)
 
+    def _cli_diagnostic(self, completed: Any) -> str:
+        values = []
+        for value in (getattr(completed, "stdout", b""), getattr(completed, "stderr", b"")):
+            if isinstance(value, bytes):
+                value = value.decode("utf-8", errors="replace")
+            if value:
+                values.append(str(value).strip())
+        return " ".join(values)[:1000]
+
     def _manual_install_vsix(self, vsix_path: Path) -> bool:
         staging = self.spec.extensions_dir / f".one-tone-{self.target}-staging"
         try:
@@ -399,13 +463,12 @@ class VSCodeFamilyAdapter:
 
             index = self.spec.extensions_dir / "extensions.json"
             entries = []
-            index_was_single_object = False
             if index.is_file():
                 loaded = json.loads(index.read_text(encoding="utf-8"))
                 if isinstance(loaded, list):
                     entries = loaded
                 elif isinstance(loaded, dict):
-                    index_was_single_object = True
+                    entries = [loaded]
             relative_location = installed_dir.name
             location = {
                 "$mid": 1,
@@ -428,8 +491,7 @@ class VSCodeFamilyAdapter:
             ]
             if not any(entry.get("identifier", {}).get("id") == extension_id for entry in entries):
                 entries.append(replacement)
-            if not index_was_single_object:
-                atomic_write_text(index, json.dumps(entries, ensure_ascii=False, separators=(",", ":")))
+            atomic_write_text(index, json.dumps(entries, ensure_ascii=False, separators=(",", ":")))
             return True
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, zipfile.BadZipFile):
             return False
@@ -438,11 +500,20 @@ class VSCodeFamilyAdapter:
                 shutil.rmtree(staging, ignore_errors=True)
 
     def detect(self) -> AdapterResult:
+        if self.spec.resolution_status != "ok":
+            return AdapterResult(self.target, "skipped", False, False, self.spec.resolution_message or f"{self.target} configuration path is ambiguous")
         if not self.spec.settings_path.is_file():
             return AdapterResult(self.target, "skipped", False, False, f"{self.target} settings not found: {self.spec.settings_path}")
         if not self._executable_available():
             return AdapterResult(self.target, "skipped", False, False, f"{self.target} executable not found: {self.spec.executable}")
-        return AdapterResult(self.target, "ok", False, True, f"{self.target} detected at {self.spec.settings_path}")
+        return AdapterResult(
+            self.target,
+            "ok",
+            False,
+            True,
+            f"{self.target} detected at {self.spec.settings_path}",
+            metadata={"target_instance": self.target_instance()},
+        )
 
     def snapshot(self, backup_dir: Path) -> AdapterResult:
         if not self.spec.settings_path.is_file():
@@ -451,7 +522,14 @@ class VSCodeFamilyAdapter:
             backup_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(self.spec.settings_path, backup_dir / f"{self.target}-settings.json")
             self._snapshot_extension_state(backup_dir)
-            return AdapterResult(self.target, "ok", False, True, f"{self.target} settings snapshot saved")
+            return AdapterResult(
+                self.target,
+                "ok",
+                False,
+                True,
+                f"{self.target} settings snapshot saved",
+                metadata={"target_instance": self.target_instance()},
+            )
         except OSError as error:
             return AdapterResult(self.target, "failed", False, False, f"{self.target} snapshot failed: {error}")
 
@@ -475,17 +553,25 @@ class VSCodeFamilyAdapter:
                 completed = subprocess.run(command, check=False, capture_output=True, timeout=30)
             else:
                 completed = self.command_runner(command, check=False, capture_output=True)
-            if completed is not None and getattr(completed, "returncode", 0) not in (0, None):
+            cli_returncode = getattr(completed, "returncode", 0) if completed is not None else 0
+            cli_warning = ""
+            cli_diagnostic = ""
+            if completed is not None and cli_returncode not in (0, None):
+                cli_diagnostic = self._cli_diagnostic(completed)
                 if self._cli_requires_restart(completed):
-                    self._manual_install_vsix(vsix_path)
+                    if not self._manual_install_vsix(vsix_path):
+                        cli_warning = f" CLI returned {cli_returncode}; manual installation fallback failed."
+                    else:
+                        cli_warning = f" CLI returned {cli_returncode}; manual installation fallback completed."
                 else:
-                    return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install failed")
-            installed_dirs = self._installed_extension_dirs()
-            if not installed_dirs:
-                return AdapterResult(self.target, "failed", True, False, f"{self.target} extension install produced no registered extension")
-            self._extension_dir = max(installed_dirs, key=lambda path: path.stat().st_mtime)
+                    cli_warning = f" CLI returned {cli_returncode}; final installation evidence was used."
+            extension_dir, evidence_error = self._registration_candidate()
+            if extension_dir is None:
+                return AdapterResult(self.target, "failed", True, False, f"{self.target} extension installation evidence failed: {evidence_error}{cli_warning}")
+            self._extension_dir = extension_dir
+            status = "partial" if cli_returncode not in (0, None) else "ok"
             return AdapterResult(
-                self.target, "ok", True, False, f"{self.target} VSIX installed and theme selected",
+                self.target, status, True, False, f"{self.target} VSIX installed and theme selected.{cli_warning}",
                 metadata={
                     "field_capabilities": field_capabilities(self.target),
                     "field_inventory": inventory_report(self.target),
@@ -494,6 +580,9 @@ class VSCodeFamilyAdapter:
                     "theme_activation": "applied",
                     "theme_labels": list(self._theme_labels()),
                     "auto_detect_enabled": settings.get("window.autoDetectColorScheme") is True,
+                    "target_instance": self.target_instance(),
+                    "cli_returncode": cli_returncode,
+                    "cli_diagnostic": cli_diagnostic,
                 },
             )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile, subprocess.TimeoutExpired) as error:
@@ -502,21 +591,19 @@ class VSCodeFamilyAdapter:
     def verify(self, plan: Plan) -> AdapterResult:
         try:
             settings = self._read_settings()
-            candidates = [
-                path for path in self._installed_extension_dirs()
-                if self._theme_file(path) is not None
-            ]
-            extension_dir = self._extension_dir if self._extension_dir and self._theme_file(self._extension_dir) else (
+            candidates = self._registered_extension_dirs()
+            extension_dir = self._extension_dir if self._extension_dir in candidates else (
                 max(candidates, key=lambda path: path.stat().st_mtime) if candidates else None
             )
             contributed_labels = self._contributed_labels(extension_dir) if extension_dir else None
-            labels_ok = contributed_labels is None or set(self._theme_labels()) <= contributed_labels
+            labels_ok = contributed_labels is not None and set(self._theme_labels()) <= contributed_labels
             verified = (
                 settings.get("workbench.colorTheme") in self._theme_labels()
                 and settings.get("workbench.preferredDarkColorTheme") == self._theme_label("dark")
                 and settings.get("workbench.preferredLightColorTheme") == self._theme_label("light")
                 and settings.get("window.autoDetectColorScheme") is True
                 and extension_dir is not None
+                and self._theme_files(extension_dir) is not None
                 and labels_ok
             )
             if not verified:

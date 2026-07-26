@@ -154,6 +154,79 @@ def test_vscode_adapter_accepts_environment_path_overrides(tmp_path, monkeypatch
     assert adapter.spec.extensions_dir == extensions
 
 
+def test_vscode_adapter_prefers_generic_portable_layout_over_default_user_paths(tmp_path, monkeypatch):
+    executable = tmp_path / "portable" / "bin" / "code.cmd"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("@echo off", encoding="utf-8")
+    portable_settings = tmp_path / "portable" / "data" / "user-data" / "User" / "settings.json"
+    portable_extensions = tmp_path / "portable" / "data" / "extensions"
+    portable_settings.parent.mkdir(parents=True)
+    portable_settings.write_text("{}", encoding="utf-8")
+    portable_extensions.mkdir(parents=True)
+
+    userprofile = tmp_path / "user"
+    appdata = userprofile / "AppData" / "Roaming"
+    (appdata / "Code/User").mkdir(parents=True)
+    (appdata / "Code/User/settings.json").write_text("{}", encoding="utf-8")
+    (userprofile / ".vscode/extensions").mkdir(parents=True)
+    monkeypatch.setenv("ONE_TONE_VSCODE_EXECUTABLE", str(executable))
+    monkeypatch.delenv("ONE_TONE_VSCODE_SETTINGS", raising=False)
+    monkeypatch.delenv("ONE_TONE_VSCODE_EXTENSIONS", raising=False)
+    monkeypatch.setenv("APPDATA", str(appdata))
+    monkeypatch.setenv("USERPROFILE", str(userprofile))
+
+    adapter = build_target_adapters(("vscode",), tmp_path / "state")["vscode"]
+
+    assert adapter.detect().status == "ok"
+    assert adapter.spec.settings_path == portable_settings
+    assert adapter.spec.extensions_dir == portable_extensions
+    assert adapter.target_instance()["source"] == "portable"
+
+
+def test_vscode_adapter_skips_ambiguous_portable_instances_without_creating_paths(tmp_path, monkeypatch):
+    executable = tmp_path / "install" / "bin" / "code.cmd"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("@echo off", encoding="utf-8")
+    for root in (tmp_path / "install", tmp_path):
+        settings = root / "data" / "user-data" / "User" / "settings.json"
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        settings.write_text("{}", encoding="utf-8")
+        (root / "data" / "extensions").mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("ONE_TONE_VSCODE_EXECUTABLE", str(executable))
+    monkeypatch.delenv("ONE_TONE_VSCODE_SETTINGS", raising=False)
+    monkeypatch.delenv("ONE_TONE_VSCODE_EXTENSIONS", raising=False)
+
+    adapter = build_target_adapters(("vscode",), tmp_path / "state")["vscode"]
+
+    assert adapter.detect().status == "skipped"
+    assert adapter.target_instance()["status"] == "skipped"
+    assert not (tmp_path / "state").exists()
+
+
+def test_editor_adapter_uses_plan_instance_paths_over_current_discovery(tmp_path, monkeypatch):
+    current_settings = tmp_path / "current-settings.json"
+    current_extensions = tmp_path / "current-extensions"
+    planned_settings = tmp_path / "planned-settings.json"
+    planned_extensions = tmp_path / "planned-extensions"
+    current_settings.write_text("{}", encoding="utf-8")
+    planned_settings.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("ONE_TONE_VSCODE_SETTINGS", str(current_settings))
+    monkeypatch.setenv("ONE_TONE_VSCODE_EXTENSIONS", str(current_extensions))
+
+    adapter = build_target_adapters(("vscode",), tmp_path / "state", {
+        "vscode": {
+            "status": "ok",
+            "executable": str(tmp_path / "planned-code.cmd"),
+            "settings_path": str(planned_settings),
+            "extensions_dir": str(planned_extensions),
+            "source": "portable",
+        }
+    })["vscode"]
+
+    assert adapter.spec.settings_path == planned_settings
+    assert adapter.spec.extensions_dir == planned_extensions
+
+
 def test_cli_defaults_runtime_data_to_single_project_directory():
     from one_tone.cli import _build_parser
 

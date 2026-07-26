@@ -6,6 +6,26 @@ from one_tone.adapters.vscode_family import EditorSpec, VSCodeFamilyAdapter, bui
 from one_tone.plan import create_plan
 
 
+def _write_valid_extension(spec, registered=True):
+    actual = spec.extensions_dir / f"one-tone.one-tone-{spec.target}-0.1.0"
+    (actual / "themes").mkdir(parents=True, exist_ok=True)
+    (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
+    (actual / "themes" / "one-tone-light-color-theme.json").write_text("{}", encoding="utf-8")
+    (actual / "package.json").write_text(json.dumps({
+        "contributes": {"themes": [
+            {"label": f"One Tone {spec.target} Dark"},
+            {"label": f"One Tone {spec.target} Light"},
+        ]}
+    }), encoding="utf-8")
+    if registered:
+        (spec.extensions_dir / "extensions.json").write_text(json.dumps([{
+            "identifier": {"id": f"one-tone.one-tone-{spec.target}"},
+            "version": "0.1.0",
+            "relativeLocation": actual.name,
+        }]), encoding="utf-8")
+    return actual
+
+
 def test_vsix_contains_manifest_and_theme(tmp_path):
     plan = create_plan("#7C3AED", ["trae"], plan_id="plan-editor-001")
     path = build_vsix(plan, tmp_path / "theme.vsix", EditorSpec("trae", "trae", tmp_path / "settings.json", tmp_path / "extensions"))
@@ -85,9 +105,7 @@ def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+", "window.autoDetectColorScheme": False}), encoding="utf-8")
     spec = EditorSpec("trae", "trae", settings, tmp_path / "extensions", ai_panel_supported=False)
     def command_runner(command, **kwargs):
-        actual = spec.extensions_dir / "one-tone.one-tone-trae-0.1.0"
-        (actual / "themes").mkdir(parents=True)
-        (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
+        _write_valid_extension(spec)
         return subprocess.CompletedProcess(command, 0)
 
     adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
@@ -113,9 +131,7 @@ def test_editor_apply_enables_auto_detect_when_setting_is_missing(tmp_path):
     spec = EditorSpec("trae", "trae", settings, tmp_path / "extensions", ai_panel_supported=True)
 
     def command_runner(command, **kwargs):
-        actual = spec.extensions_dir / "one-tone.one-tone-trae-0.1.0"
-        (actual / "themes").mkdir(parents=True)
-        (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
+        _write_valid_extension(spec)
         return subprocess.CompletedProcess(command, 0)
 
     adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
@@ -131,9 +147,8 @@ def test_editor_apply_leaves_valid_installed_extension_for_cli_force(tmp_path):
     extensions = tmp_path / "extensions"
     actual = extensions / "one-tone.one-tone-trae-0.1.0"
     settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
-    (actual / "themes").mkdir(parents=True)
-    (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
     spec = EditorSpec("trae", "trae", settings, extensions, ai_panel_supported=False)
+    _write_valid_extension(spec)
 
     def command_runner(command, **kwargs):
         assert actual.exists()
@@ -143,6 +158,21 @@ def test_editor_apply_leaves_valid_installed_extension_for_cli_force(tmp_path):
     plan = create_plan("#00A86B", ["trae"], plan_id="plan-editor-existing-001")
 
     assert adapter.apply(plan).status == "ok"
+
+
+def test_editor_apply_rejects_unregistered_extension_directory(tmp_path):
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
+    spec = EditorSpec("trae", "trae", settings, tmp_path / "extensions")
+    _write_valid_extension(spec, registered=False)
+
+    adapter = VSCodeFamilyAdapter(spec, command_runner=lambda command, **kwargs: subprocess.CompletedProcess(command, 0))
+    plan = create_plan("#00A86B", ["trae"], plan_id="plan-editor-unregistered-001")
+
+    result = adapter.apply(plan)
+
+    assert result.status == "failed"
+    assert "evidence" in result.message
 
 
 def test_editor_apply_recovers_from_cli_restart_required_state(tmp_path):
@@ -169,7 +199,10 @@ def test_editor_apply_recovers_from_cli_restart_required_state(tmp_path):
     adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
     plan = create_plan("#00A86B", ["trae"], plan_id="plan-editor-restart-required-001")
 
-    assert adapter.apply(plan).status == "ok"
+    result = adapter.apply(plan)
+    assert result.status == "partial"
+    assert result.metadata["cli_returncode"] == 1
+    assert "Please restart VS Code" in result.metadata["cli_diagnostic"]
     installed = extensions / "one-tone.one-tone-trae-0.1.0"
     assert (installed / "package.json").is_file()
     assert (installed / "themes" / "one-tone-color-theme.json").is_file()
@@ -190,10 +223,7 @@ def test_editor_adapter_tracks_and_uninstalls_actual_extension_directory(tmp_pat
     def command_runner(command, **kwargs):
         commands.append(command)
         if "--install-extension" in command:
-            actual.mkdir(parents=True)
-            (actual / "themes").mkdir()
-            (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
-            index.write_text(json.dumps([{"identifier": {"id": "one-tone.one-tone-trae"}}]), encoding="utf-8")
+            _write_valid_extension(spec)
         return subprocess.CompletedProcess(command, 0)
 
     adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
@@ -215,13 +245,7 @@ def test_editor_verify_discovers_extension_after_new_adapter_instance(tmp_path):
     actual = extensions / "one-tone.one-tone-trae-0.1.0"
 
     def command_runner(command, **kwargs):
-        actual.mkdir(parents=True)
-        (actual / "themes").mkdir()
-        (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
-        (extensions / "extensions.json").write_text(json.dumps([{
-            "identifier": {"id": "one-tone.one-tone-trae"},
-            "relativeLocation": actual.name,
-        }]), encoding="utf-8")
+        _write_valid_extension(spec)
         return subprocess.CompletedProcess(command, 0)
 
     plan = create_plan("#7C3AED", ["trae"], plan_id="plan-editor-cross-process-001")
