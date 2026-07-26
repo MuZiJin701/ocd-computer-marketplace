@@ -1,0 +1,16 @@
+{
+  "name": "ocd-desktop-zero",
+  "version": "0.1.0",
+  "description": "将当前用户桌面变成可验证、可回滚的 Desktop zero。",
+  "author": {"name": "Local developer"},
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Desktop zero",
+    "shortDescription": "预览并整理当前用户桌面",
+    "longDescription": "只处理当前用户 Resolved desktop，快捷方式明确删除，其他内容按确定性规则移动到 D:\data。",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "使用 $desktop-zero 先预览当前用户桌面的删除和移动计划，确认后再执行。"
+  }
+}

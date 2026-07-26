@@ -6,3 +6,5 @@ plugins/one-tone-windows/plans/
 dist/
 build/
 *.egg-info/
+.desktop-zero/
+.scoop-toolchain/

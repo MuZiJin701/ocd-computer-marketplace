@@ -15,6 +15,30 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "ocd-desktop-zero",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ocd-desktop-zero"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "ocd-scoop-toolchain",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ocd-scoop-toolchain"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
     }
   ]
 }

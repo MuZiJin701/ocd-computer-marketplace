@@ -1,0 +1,6 @@
+interface:
+  display_name: "Desktop zero"
+  short_description: "预览并整理当前用户桌面"
+  default_prompt: "使用 $desktop-zero 预览当前用户桌面的删除和移动计划，确认后再执行。"
+policy:
+  allow_implicit_invocation: true

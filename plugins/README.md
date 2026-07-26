@@ -19,5 +19,5 @@ plugins/<plugin-name>/
 
 Plugin 元数据只描述安装边界；具体 Skill 必须能脱离仓库根目录独立运行。运行时依赖放在 Skill 内，不放在 plugins 根目录，也不共享隐式的根级 runtime。
 
-新增 Plugin 时同步更新根目录 .agents/plugins/marketplace.json、对应 Plugin README、Plugin envelope 测试和 Skill/runtime 测试。
+新增 Plugin 时同步更新根目录 .agents/plugins/marketplace.json、对应 Plugin README、Plugin envelope 测试和 Skill/runtime 测试。当前 Plugin：`one-tone-windows`、`ocd-desktop-zero`、`ocd-scoop-toolchain`。
 

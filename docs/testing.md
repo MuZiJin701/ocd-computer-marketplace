@@ -7,10 +7,12 @@ Run from the repository root:
 ~~~powershell
 uv run pytest
 uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone --help
+uv run python plugins/ocd-desktop-zero/skills/desktop-zero/scripts/run_desktop_zero.py --help
+uv run python plugins/ocd-scoop-toolchain/skills/scoop-toolchain/scripts/run_scoop_toolchain.py --help
 git diff --check
 ~~~
 
-The root project is a test harness. The Skill project owns the one-tone console script. Tests remain outside the distributable Skill and mirror the Marketplace → Plugin → Skill hierarchy. Runtime tests for One-Tone live under the matching Plugin and Skill test directory.
+The root project is a test harness. Each Skill owns its launcher and runtime; tests remain outside distributable Skills and mirror the Marketplace → Plugin → Skill hierarchy. Default workstation tests use temporary directories and fakes; real desktop deletion, elevation, process termination, Scoop installation and winget installation remain risk-documented manual tests. Runtime tests for One-Tone live under the matching Plugin and Skill test directory.
 
 ## Required coverage for the theme-field work
 

@@ -2,7 +2,7 @@
 
 面向“强迫症电脑使用场景”的跨 Agent Skill 市场。
 
-当前提供 `unify-windows-theme`：输入一个 Seed Color，统一 Windows 桌面、Windows Terminal、VS Code、TRAE、Codex 和 Chrome 本地主题。
+当前提供三个独立 Plugin：`one-tone-windows` 统一 Windows 主题，`ocd-desktop-zero` 整理当前用户桌面，`ocd-scoop-toolchain` 检查并补齐基础开发工具链。
 
 支持 Windows 10 22H2+（build `>= 19045`）和 Windows 11 22H2+（build `>= 22621`）。Cursor 暂不在支持列表中。
 
@@ -70,6 +70,22 @@ python .\scripts\run_one_tone.py rollback tx-...
 流程是：`Preview → Apply → Verify → Rollback`。Apply 必须使用已有 Plan ID 并带 `--confirm`；Rollback 必须使用 Apply 返回的 Transaction ID。
 
 结果状态包括 `ok`、`partial`、`failed` 和 `skipped`。
+
+Desktop zero：
+
+```powershell
+python .\plugins\ocd-desktop-zero\skills\desktop-zero\scripts\run_desktop_zero.py preview
+python .\plugins\ocd-desktop-zero\skills\desktop-zero\scripts\run_desktop_zero.py apply <plan_id> --confirm
+```
+
+Scoop toolchain：
+
+```powershell
+python .\plugins\ocd-scoop-toolchain\skills\scoop-toolchain\scripts\run_scoop_toolchain.py preview
+python .\plugins\ocd-scoop-toolchain\skills\scoop-toolchain\scripts\run_scoop_toolchain.py apply <plan_id> --confirm
+```
+
+两者都必须先 Preview；Desktop zero 的快捷方式删除不可恢复，工具链不卸载或重置已有软件。
 
 只处理指定目标时：
 

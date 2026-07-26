@@ -1,0 +1,16 @@
+{
+  "name": "ocd-scoop-toolchain",
+  "version": "0.1.0",
+  "description": "在固定 D:\software\scoop 根目录下补齐基础开发工具链。",
+  "author": {"name": "Local developer"},
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Scoop toolchain",
+    "shortDescription": "检查并补齐 Python、Git、uv 和 Node.js",
+    "longDescription": "保留已有安装，优先使用 D:\software\scoop 下的 Scoop，必要时报告 winget 路径限制。",
+    "developerName": "Local developer",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "使用 $scoop-toolchain 先预览 Python、Git、uv 和 Node.js 的现状及安装来源，确认后再执行。"
+  }
+}
