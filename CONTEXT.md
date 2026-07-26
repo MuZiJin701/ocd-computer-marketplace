@@ -109,7 +109,7 @@ _Avoid_: 强制模式、运行模式
 
 **Mode coherence**
 
-同一 Seed Color 的 Light 与 Dark 变体共享色相和主题身份，只改变明度与对比关系；两者不要求使用相同颜色，但不应分别坍缩为近白或近黑的独立主题。
+同一 Seed Color 的 Light 与 Dark 变体共享色相、区域层级和主题身份，只改变必要的明度与对比关系；两者不要求使用相同颜色，但不应因过大的明暗跨度而呈现为两套独立主题。
 _Avoid_: 每个 Mode 独立追求最大对比度
 
 ### Workflow language
@@ -126,6 +126,8 @@ _Avoid_: 全局状态
 
 Transaction 中用于说明 Target 字段状态、供用户和工具读取的值；它不等同于 Snapshot，也不承担精确恢复原始 Target 状态的职责。
 _Avoid_: 把事务报告值当作 Snapshot
+
+Serialized report value 必须能安全写入事务 JSON；二进制值使用不丢失信息的报告表示，但仍不承担 Snapshot 的恢复职责。
 
 **Snapshot**  
 修改某个 Target 前保存的原始状态，只能用于该 Transaction 的 Rollback。  

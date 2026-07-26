@@ -1,12 +1,25 @@
 from __future__ import annotations
 
+import base64
 import os
 import re
 import uuid
 from pathlib import Path
+from typing import Any
 
 
 _SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+BYTES_MARKER = "__one_tone_bytes__"
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, (bytes, bytearray)):
+        return {BYTES_MARKER: base64.b64encode(bytes(value)).decode("ascii")}
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    return value
 
 
 def validate_safe_component(value: str, label: str) -> str:

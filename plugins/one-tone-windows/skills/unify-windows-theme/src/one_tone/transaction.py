@@ -12,7 +12,7 @@ from typing import Any, Mapping
 from .adapters import AdapterResult, ThemeAdapter, UnsupportedAdapter
 from .inventory import inventory_groups, inventory_report
 from .plan import Plan
-from .storage import atomic_write_text, validate_safe_component
+from .storage import atomic_write_text, json_safe, validate_safe_component
 
 class TransactionStatus(str, Enum):
     PENDING = "PENDING"
@@ -98,7 +98,7 @@ class TransactionStore:
         path.mkdir(parents=True, exist_ok=True)
         atomic_write_text(
             path / "transaction.json",
-            json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+            json.dumps(json_safe(record.to_dict()), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
         )
 
     def append_operation(self, record: TransactionRecord, target: str, operation: str, result: AdapterResult) -> None:

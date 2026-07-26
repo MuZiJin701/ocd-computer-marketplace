@@ -3,6 +3,7 @@ import colorsys
 import pytest
 
 from one_tone.palette import (
+    _oklch_components,
     contrast_ratio,
     generate_palette,
     parse_hex_color,
@@ -102,6 +103,25 @@ def test_explicit_modes_preserve_coherent_tones_and_accent_identity():
     assert relative_luminance(dark["surface_subtle"]) > 0.005
     assert _circular_hue_distance(light["accent"], dark["accent"]) <= 0.04
     assert validate_mode_coherence("#7C3AED", {"light": light, "dark": dark}) == []
+
+
+def test_explicit_modes_keep_large_area_roles_within_coherence_lightness_limit():
+    for seed in ("#7C3AED", "#00A86B", "#FF0000", "#FAFAFA"):
+        light = generate_palette(seed, "light")
+        dark = generate_palette(seed, "dark")
+        for role in ("background", "surface_subtle", "surface", "surface_raised"):
+            lightness_delta = abs(_oklch_components(light[role])[0] - _oklch_components(dark[role])[0])
+            assert lightness_delta <= 0.35
+
+
+def test_validate_mode_coherence_rejects_large_cross_mode_tone_delta():
+    light = generate_palette("#7C3AED", "light")
+    dark = generate_palette("#7C3AED", "dark")
+    light["background"] = light["surface_raised"]
+
+    errors = validate_mode_coherence("#7C3AED", {"light": light, "dark": dark})
+
+    assert any("lightness" in error for error in errors)
 
 
 def test_explicit_modes_validate_coherence_for_representative_seed_colors():

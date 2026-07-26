@@ -4,7 +4,7 @@
 
 用户使用统一主题后，部分界面区域与周围颜色过于接近，难以判断工具栏、标签、面板、输入区、非活动区、选区和焦点边界的范围。现有实现还没有把六个 Target 的完整公开主题字段固化为可验收的 Field inventory，因此“字段已覆盖”和“字段可见且可区分”都难以证明。
 
-现有 Palette 主要验证文字对比度，不能防止相邻背景复用同一颜色；多个 Target 也把同一个 surface 或 foreground 映射到过多视觉区域。
+现有 Palette 主要验证文字对比度，不能防止相邻背景复用同一颜色；多个 Target 也把同一个 surface 或 foreground 映射到过多视觉区域。另有两个用户可见缺口：Windows 生成的二进制 `AccentPalette` 进入 Transaction 报告时会让 JSON 持久化失败；支持双模式的应用已经生成 Light/Dark 产物，却没有统一配置为跟随当前 Windows 系统模式。
 
 ## Solution
 
@@ -21,7 +21,9 @@
 - Seed Color 保持原样，不为满足对比度而暗化；
 - 字段或版本不支持时按字段记录 unsupported，并将 Target 聚合为 partial；
 - Chrome 生成独立的 light 和 dark 主题产物；
-- Windows Terminal 生成 light/dark 双 Scheme，但保持系统模式选择，不替用户切换模式。
+- Windows Terminal 生成 light/dark 双 Scheme，并让支持的配置跟随系统模式，不替用户切换系统模式。
+- 同一 Visual role 在 Light/Dark 中的 OKLCH 明度差不超过 `0.35`，同时保留两种模式的可读性方向。
+- Apply 必须在包含二进制生成值的 Windows 结果时仍然完成 Transaction JSON 持久化；报告值可读且无损，Snapshot 恢复语义不变。
 
 ## User Stories
 
@@ -47,6 +49,9 @@
 20. As a maintainer, I want generated field mappings tested through the existing Adapter seams, so that tests verify behavior rather than private helper structure.
 21. As a maintainer, I want Preview, Apply, Verify and Rollback to retain their current safety contracts, so that improving coverage does not weaken reversibility.
 22. As a maintainer, I want real desktop screenshots kept separate from fixture tests, so that visual evidence is useful without making the default suite depend on installed applications.
+23. As a Windows 用户, I want Apply to persist a complete Transaction even when a generated registry value is binary, so that a successful theme change does not become an unrecorded or unusable transaction.
+24. As a Windows 用户, I want Windows Terminal, VS Code, TRAE and Codex to use the Light/Dark variant matching the Windows system mode when they support native following, so that switching Windows mode does not require reapplying the Plan.
+25. As a maintainer, I want binary Transaction report values to remain distinct from Snapshots, so that JSON diagnostics do not become an accidental rollback format.
 
 ## Implementation Decisions
 
@@ -57,31 +62,40 @@
 - Palette gains a small number of Tonal surface roles: surface, surface_subtle and surface_raised. Existing background, selection, border, foreground and semantic text roles remain shared where their meaning is the same.
 - Seed Color is immutable as the Theme anchor and Accent source. Large-area Tonal surfaces, editor backgrounds and wallpapers may use derived low-chroma colors rather than the raw Seed Color.
 - Palette generation uses OKLCH/OKLab-style perceptual lightness/chroma/hue control. Palette validation continues to use relative luminance for WCAG contrast and additionally checks appearance safety: bounded surface chroma, stable Accent hue, explicit mode tone ladders and no unjustified pure-black/pure-white fallback for ordinary roles.
+- Mode coherence additionally limits the OKLCH lightness difference of corresponding large-area roles to `0.35`; each mode keeps the same tonal role ordering and its own text contrast direction.
 - Each Target has a Field inventory based on its public stable theme schema. The inventory is the source of truth for generated-field tests and Verify reporting.
 - Field inventory records the official source, version baseline, technical field, Visual role, Mode support and field-level capability status. Fields without a stable official schema must not be guessed.
 - Version-sensitive fields are capability checked. Supported fields continue to Apply; unsupported fields remain unchanged and contribute to Target partial status.
 - Windows controls only user-visible color outputs that are safe and documented. Accent color and Taskbar accent display are separate fields; Mode selectors, automatic accent selection and high-contrast settings remain detect-only. Taskbar accent display may be `not-applicable` in pure Light mode and must not turn the whole Windows Target into failed.
-- Windows Terminal uses paired light/dark Schemes and a system-selected theme. VS Code and TRAE publish paired light/dark theme definitions in one installable theme package.
-- VS Code and TRAE Apply selects the actual contributed Light/Dark theme labels; it does not select a non-existent base label. Existing `window.autoDetectColorScheme` preference is preserved rather than forced.
+- Windows Terminal uses paired light/dark Schemes, a system-selected window theme, and paired `colorScheme` mappings for Profiles. VS Code and TRAE publish paired light/dark theme definitions in one installable theme package.
+- VS Code and TRAE Apply selects the actual contributed Light/Dark theme labels and enables `window.autoDetectColorScheme`; it does not select a non-existent base label.
+- Codex keeps `appearanceTheme = system`; Chrome produces paired artifacts but requires manual activation; Windows system mode remains unchanged and is not watched by a background service.
+- Transaction report values must be JSON-safe. Binary generated values use a lossless serialized report representation and remain separate from Snapshot data used for Rollback.
 - Chrome publishes exactly two user-facing canonical unpacked theme directories, one Light and one Dark. ZIPs, compatibility aliases and transaction copies are internal artifacts, not additional themes for users to choose.
 - TRAE-specific fields are optional discoveries from the installed application or its public theme data. They are never guessed from private implementation details; absence of a stable public schema is itself a reason to report the field as unsupported or partial.
 - Codex coverage is limited to the verified v1 color schema. Unknown configuration keys are preserved, not invented.
 - Field-level capability results roll up to the existing Target status vocabulary. A Target with successful supported fields and unsupported fields is partial; write failures or failed compensation remain failed.
+- Serialized report values are JSON-safe at the Transaction persistence boundary. Binary values use a lossless representation for reporting; Rollback continues to read only the Transaction's own Snapshot or artifact metadata.
+- Native system-mode following is configured only for paired-theme Targets: Windows Terminal Profiles use Light/Dark `colorScheme` mappings with `applicationTheme = system`; VS Code and TRAE enable `window.autoDetectColorScheme`; Codex keeps `appearanceTheme = system`.
+- Chrome remains a pair of manually activated canonical themes. Windows system mode is preserved and is neither changed nor watched by a background service.
 - The repository keeps one distributable Skill runtime and one root test harness. It does not introduce a new service, database or theme plugin framework.
 - The canonical development spec lives in the active docs/specs area. Historical design and implementation notes are not restored as active architecture.
 
 ## Testing Decisions
 
 - Tests verify observable generated plans, theme artifacts, persisted settings and status payloads; they do not assert private helper structure.
-- Palette tests cover both modes, immutable Theme anchor, low-chroma Tonal surfaces, stable Accent hue, no unjustified pure-black/pure-white ordinary roles, 1.2:1 passive separation, 3:1 interactive separation and existing text contrast across representative and extreme Seed Colors.
+- Palette tests cover both modes, immutable Theme anchor, low-chroma Tonal surfaces, stable Accent hue, no unjustified pure-black/pure-white ordinary roles, `0.35` cross-mode OKLCH lightness limits for large-area roles, 1.2:1 passive separation, 3:1 interactive separation and existing text contrast across representative and extreme Seed Colors.
 - Plan tests cover serializing both mode Palettes and field capability expectations while preserving hash integrity.
 - Plan tests cover the canonical `palettes` payload, rejection of legacy/malformed Plans, Palette validation on load, copy-on-read behavior and removal of direct `plan.palette` access.
 - Adapter tests cover the existing Windows, Terminal, VS Code-family, Codex and Chrome fixture seams. Each test compares generated fields with the Field inventory and checks mode-specific mappings.
 - Chrome tests inspect both canonical manifests and validate colors, tints and display properties; tests also assert that user-facing output contains only the two canonical unpacked directories.
 - VS Code-family tests verify the paired theme package, standard fields, and discovered TRAE fields when present.
-- VS Code-family tests verify that the selected settings values match the actual contributed Light/Dark labels and that existing auto-detect preferences are preserved.
+- Windows Terminal tests verify paired `colorScheme` mappings and `applicationTheme = system`; VS Code-family tests verify exact contributed Light/Dark labels and enabled auto-detect settings.
+- Transaction tests verify that Windows binary generated values can be persisted in the transaction report without changing Snapshot restoration semantics.
 - Transaction tests retain the existing per-Target Snapshot, persistence, compensation and rollback checks.
 - A separate real-desktop test matrix records manual screenshots for one dark Seed and one high-lightness Seed across the six Targets. It is explicitly excluded from the default fixture suite.
+- A transaction integration test exercises a Windows Adapter result containing a binary generated value through TransactionStore persistence and reload; it also verifies Snapshot-based Rollback remains exact.
+- Target fixture tests verify native following configuration: paired Terminal Profile mappings, VS Code/TRAE auto-detect enabled, Codex system mode preserved, and Chrome manual activation status.
 
 ## Out of Scope
 
@@ -92,6 +106,7 @@
 - Cursor as a user-visible Target.
 - Replacing the existing transaction model, adding a database or introducing a background service.
 - Treating a passing fixture test as proof that a real installed application renders every field.
+- Running a background watcher or service to react to later Windows mode changes.
 - Restoring the deleted historical archive and superpowers documents as active documentation.
 
 ## Further Notes

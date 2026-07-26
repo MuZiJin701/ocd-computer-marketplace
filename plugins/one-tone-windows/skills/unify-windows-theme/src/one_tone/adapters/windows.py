@@ -12,7 +12,7 @@ from typing import Any, Mapping, Protocol
 from ..inventory import inventory_groups, inventory_report
 from ..palette import parse_hex_color
 from ..plan import Plan
-from ..storage import atomic_write_text
+from ..storage import BYTES_MARKER, atomic_write_text, json_safe
 from .base import AdapterResult
 
 try:
@@ -39,7 +39,6 @@ THEME_VALUES = (
     "ColorizationColor",
     "ColorizationAfterglow",
 )
-_BYTES_MARKER = "__one_tone_bytes__"
 REGISTRY_PATHS = {
     "AutoColorization": DESKTOP_KEY,
     "AppsUseLightTheme": PERSONALIZE_KEY,
@@ -201,14 +200,12 @@ class WindowsDesktopBackend:
 
 
 def _json_safe_registry_value(value: Any) -> Any:
-    if isinstance(value, (bytes, bytearray)):
-        return {_BYTES_MARKER: base64.b64encode(bytes(value)).decode("ascii")}
-    return value
+    return json_safe(value)
 
 
 def _registry_value_from_json(value: Any) -> Any:
-    if isinstance(value, dict) and set(value) == {_BYTES_MARKER}:
-        return base64.b64decode(value[_BYTES_MARKER])
+    if isinstance(value, dict) and set(value) == {BYTES_MARKER}:
+        return base64.b64decode(value[BYTES_MARKER])
     return value
 
 

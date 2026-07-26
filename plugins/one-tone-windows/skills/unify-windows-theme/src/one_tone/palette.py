@@ -52,6 +52,7 @@ MODE_ACCENT_HUE_TOLERANCE = 0.04
 MODE_ACCENT_MIN_LIGHTNESS = 0.08
 MODE_ACCENT_MAX_LIGHTNESS = 0.92
 MODE_ACCENT_LIGHTNESS_DELTA = 0.45
+MODE_TONAL_LIGHTNESS_DELTA = 0.35
 MODE_LIGHT_SURFACE_MAX_LUMINANCE = 0.90
 MODE_DARK_SURFACE_MIN_LUMINANCE = 0.005
 
@@ -276,15 +277,15 @@ def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
     _lightness, seed_chroma, hue = _oklch_components(seed)
     tonal_chroma = min(0.045, max(0.018, seed_chroma * 0.22))
     if mode == "dark":
-        background = _oklch_color(hue, 0.18, tonal_chroma)
-        surface = _oklch_color(hue, 0.28, tonal_chroma)
-        surface_subtle = _oklch_color(hue, 0.20, tonal_chroma)
-        surface_raised = _oklch_color(hue, 0.38, tonal_chroma)
+        background = _oklch_color(hue, 0.24, tonal_chroma)
+        surface = _oklch_color(hue, 0.34, tonal_chroma)
+        surface_subtle = _oklch_color(hue, 0.26, tonal_chroma)
+        surface_raised = _oklch_color(hue, 0.42, tonal_chroma)
     else:
-        background = _oklch_color(hue, 0.72, tonal_chroma)
-        surface = _oklch_color(hue, 0.78, tonal_chroma)
-        surface_subtle = _oklch_color(hue, 0.71, tonal_chroma)
-        surface_raised = _oklch_color(hue, 0.86, tonal_chroma)
+        background = _oklch_color(hue, 0.44, tonal_chroma)
+        surface = _oklch_color(hue, 0.60, tonal_chroma)
+        surface_subtle = _oklch_color(hue, 0.50, tonal_chroma)
+        surface_raised = _oklch_color(hue, 0.70, tonal_chroma)
     background_foreground = _readable_foreground((background,), 7)
     foreground = _readable_foreground((surface,), 4.5)
     muted_foreground = _readable_foreground((surface,), 4.5, hue=0.52)
@@ -437,6 +438,15 @@ def validate_mode_coherence(
                 errors.append("mode coherence: Light Tonal surface is too close to white")
             if mode == "dark" and any(luminance <= MODE_DARK_SURFACE_MIN_LUMINANCE for luminance in large_area_luminances):
                 errors.append("mode coherence: Dark Tonal surface is too close to black")
+
+    for role in large_area_roles:
+        if role in light and role in dark:
+            lightness_delta = abs(_oklch_components(light[role])[0] - _oklch_components(dark[role])[0])
+            if lightness_delta > MODE_TONAL_LIGHTNESS_DELTA:
+                errors.append(
+                    f"mode coherence: {role} Light/Dark lightness changed by {lightness_delta:.2f}, "
+                    f"maximum is {MODE_TONAL_LIGHTNESS_DELTA:g}"
+                )
 
     if "accent" not in light or "accent" not in dark:
         return errors

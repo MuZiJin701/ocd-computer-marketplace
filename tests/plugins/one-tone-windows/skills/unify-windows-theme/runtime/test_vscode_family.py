@@ -82,7 +82,7 @@ def test_editor_theme_uses_contrast_safe_text_for_accented_tokens():
 
 def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     settings = tmp_path / "settings.json"
-    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+", "window.autoDetectColorScheme": True}), encoding="utf-8")
+    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+", "window.autoDetectColorScheme": False}), encoding="utf-8")
     spec = EditorSpec("trae", "trae", settings, tmp_path / "extensions", ai_panel_supported=False)
     def command_runner(command, **kwargs):
         actual = spec.extensions_dir / "one-tone.one-tone-trae-0.1.0"
@@ -105,6 +105,25 @@ def test_editor_adapter_snapshots_applies_verifies_and_restores(tmp_path):
     assert changed["workbench.preferredLightColorTheme"] == "One Tone trae Light"
     assert changed["window.autoDetectColorScheme"] is True
     assert adapter.rollback(tmp_path / "backup").verified is True
+
+
+def test_editor_apply_enables_auto_detect_when_setting_is_missing(tmp_path):
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"workbench.colorTheme": "Default Dark+"}), encoding="utf-8")
+    spec = EditorSpec("trae", "trae", settings, tmp_path / "extensions", ai_panel_supported=True)
+
+    def command_runner(command, **kwargs):
+        actual = spec.extensions_dir / "one-tone.one-tone-trae-0.1.0"
+        (actual / "themes").mkdir(parents=True)
+        (actual / "themes" / "one-tone-color-theme.json").write_text("{}", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0)
+
+    adapter = VSCodeFamilyAdapter(spec, command_runner=command_runner)
+    plan = create_plan("#7C3AED", ["trae"], plan_id="plan-editor-auto-detect-001")
+
+    assert adapter.apply(plan).status == "ok"
+    changed = json.loads(settings.read_text(encoding="utf-8"))
+    assert changed["window.autoDetectColorScheme"] is True
 
 
 def test_editor_apply_leaves_valid_installed_extension_for_cli_force(tmp_path):

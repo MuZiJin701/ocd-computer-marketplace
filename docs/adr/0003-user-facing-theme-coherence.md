@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-07-25
+Accepted — 2026-07-25; auto-detect preservation is superseded by ADR 0006.
 
 ## Context
 

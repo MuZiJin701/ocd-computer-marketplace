@@ -39,7 +39,7 @@ python .\scripts\run_one_tone.py verify plan-...
 python .\scripts\run_one_tone.py rollback tx-...
 ```
 
-Seed Color 是 Codex 和 Windows 的 Theme anchor/Accent source；Codex 的 `surface` 与 Windows 壁纸使用同一 Seed 派生的 Tonal surface。Codex 保持用户当前浅色/深色模式，并写入高对比度主题设置。Windows 自动取色开启时可能覆盖固定强调色；Chrome 主题仍需在 `chrome://extensions` 手动加载。
+Seed Color 是 Codex 和 Windows 的 Theme anchor/Accent source；Codex 的 `surface` 与 Windows 壁纸使用同一 Seed 派生的 Tonal surface，Light/Dark 大面积角色保持受控的明度跨度。Codex、Windows Terminal、VS Code 和 TRAE 跟随 Windows 系统模式；Windows 本身不被切换，Chrome 主题仍需在 `chrome://extensions` 手动加载。Windows 自动取色开启时可能覆盖固定强调色。
 
 Skill runtime 位于当前目录，使用 `uv` 运行：
 

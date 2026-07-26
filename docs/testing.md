@@ -16,14 +16,14 @@ The root project is a test harness. The Skill project owns the one-tone console 
 
 - Palette tests cover both light and dark modes, exact Seed Color anchor preservation, distinct surface roles, passive region separation and interactive boundary separation.
 - Palette tests also cover appearance-safe Tonal surfaces, Theme anchor hue retention, bounded chroma, no unjustified pure-black/pure-white ordinary roles and extreme Seed Colors such as red, yellow, cyan and near-black.
-- Palette and Plan tests also verify Mode coherence: explicit Light/Dark Accents retain one Seed Color identity, ordinary surfaces avoid near-white/near-black collapse, and incoherent persisted Mode pairs are rejected.
+- Palette and Plan tests also verify Mode coherence: explicit Light/Dark Accents retain one Seed Color identity, corresponding large-area roles stay within `0.35` OKLCH lightness difference, ordinary surfaces avoid near-white/near-black collapse, and incoherent persisted Mode pairs are rejected.
 - Plan tests cover mode Palettes, field capability expectations and stable Plan hashes.
 - Windows tests cover safe registry and wallpaper outputs, preserved mode/automatic-color/high-contrast settings, and field-level partial results.
-- Windows Terminal tests cover paired Schemes, all profile entries, all documented color fields, Tab/Tab Row/window fields and system mode selection.
-- VS Code and TRAE tests cover the standard public Workbench field inventory, exact contributed Light/Dark labels, preserved auto-detect preferences and discoverable TRAE-specific fields.
+- Windows Terminal tests cover paired Schemes, Profile `colorScheme` mappings, all profile entries, all documented color fields, Tab/Tab Row/window fields and system mode selection.
+- VS Code and TRAE tests cover the standard public Workbench field inventory, exact contributed Light/Dark labels, enabled auto-detect settings and discoverable TRAE-specific fields.
 - Codex tests cover every verified v1 color field in both theme tables and preserve unknown configuration keys.
 - Chrome tests cover exactly two canonical Light/Dark unpacked directories, internal ZIP manifests, all public colors, tints and display properties, plus manual activation status.
-- Transaction tests retain per-Target Snapshot, operation persistence, compensation and rollback behavior.
+- Transaction tests retain per-Target Snapshot, operation persistence, compensation and rollback behavior and cover JSON-safe binary report values.
 
 ## Test style
 

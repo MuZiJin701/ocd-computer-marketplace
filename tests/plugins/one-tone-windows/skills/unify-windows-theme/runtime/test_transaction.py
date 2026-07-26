@@ -6,6 +6,7 @@ from typing import Any, Mapping
 import pytest
 
 from one_tone.adapters import AdapterResult, UnsupportedAdapter
+from one_tone.adapters.windows import InMemoryDesktopBackend, InMemoryRegistryBackend, WindowsAdapter, WindowsConfig
 from one_tone.plan import create_plan
 from one_tone.transaction import TransactionRecord, TransactionStatus, TransactionStore, apply_plan
 import one_tone.transaction as transaction_module
@@ -70,6 +71,32 @@ def test_apply_creates_isolated_transaction_and_rollback_restores_only_it(tmp_pa
     restored = store.rollback(record.id, {"file-demo": adapter})
     assert restored.status == TransactionStatus.ROLLED_BACK
     assert config.read_text(encoding="utf-8") == '{"theme": "original"}'
+
+
+def test_windows_binary_report_value_is_persisted_and_snapshot_rollback_stays_exact(tmp_path):
+    original_palette = b"original accent palette"
+    registry = InMemoryRegistryBackend({
+        "CurrentBuild": "26200",
+        "AppsUseLightTheme": 0,
+        "AutoColorization": 0,
+        "AccentPalette": original_palette,
+    })
+    adapter = WindowsAdapter(WindowsConfig(tmp_path / "wallpaper"), registry, InMemoryDesktopBackend())
+    plan = create_plan("#7C3AED", ["windows"], plan_id="plan-windows-binary-report-001", mode="dark")
+    store = TransactionStore(tmp_path / "transactions")
+
+    record = apply_plan(plan, {"windows": adapter}, store, confirm=True)
+    loaded = store.load(record.id)
+    applied = next(item for item in loaded.results["windows"] if item["operation"] == "apply")
+    accent_entry = next(
+        item for item in applied["metadata"]["field_inventory"] if item["technical_field"] == "AccentPalette"
+    )
+
+    assert isinstance(accent_entry["generated_value"], dict)
+    assert set(accent_entry["generated_value"]) == {"__one_tone_bytes__"}
+    restored = store.rollback(record.id, {"windows": adapter})
+    assert restored.status == TransactionStatus.ROLLED_BACK
+    assert registry.values["AccentPalette"] == original_palette
 
 
 def test_apply_failure_rolls_back_only_failed_target(tmp_path):

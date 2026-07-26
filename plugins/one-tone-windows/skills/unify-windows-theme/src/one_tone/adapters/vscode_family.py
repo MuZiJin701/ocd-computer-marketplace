@@ -465,6 +465,7 @@ class VSCodeFamilyAdapter:
             settings["workbench.colorTheme"] = self._theme_label(plan.mode)
             settings["workbench.preferredDarkColorTheme"] = self._theme_label("dark")
             settings["workbench.preferredLightColorTheme"] = self._theme_label("light")
+            settings["window.autoDetectColorScheme"] = True
             atomic_write_text(
                 self.spec.settings_path,
                 json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
@@ -492,7 +493,7 @@ class VSCodeFamilyAdapter:
                     "theme_registration": "applied",
                     "theme_activation": "applied",
                     "theme_labels": list(self._theme_labels()),
-                    "auto_detect_preserved": "window.autoDetectColorScheme" in settings,
+                    "auto_detect_enabled": settings.get("window.autoDetectColorScheme") is True,
                 },
             )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile, subprocess.TimeoutExpired) as error:
@@ -514,6 +515,7 @@ class VSCodeFamilyAdapter:
                 settings.get("workbench.colorTheme") in self._theme_labels()
                 and settings.get("workbench.preferredDarkColorTheme") == self._theme_label("dark")
                 and settings.get("workbench.preferredLightColorTheme") == self._theme_label("light")
+                and settings.get("window.autoDetectColorScheme") is True
                 and extension_dir is not None
                 and labels_ok
             )
@@ -538,7 +540,7 @@ class VSCodeFamilyAdapter:
                     "theme_registration": "verified",
                     "theme_activation": "verified",
                     "theme_labels": list(self._theme_labels()),
-                    "auto_detect_preserved": "window.autoDetectColorScheme" in settings,
+                    "auto_detect_enabled": settings.get("window.autoDetectColorScheme") is True,
                 },
             )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:

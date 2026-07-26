@@ -52,10 +52,10 @@ Do not add a shared runtime or cross-Plugin import layer until two Plugins genui
 - Plugin envelope: provide Codex metadata and own its Skills.
 - Skill package: provide instructions, references, launcher and runtime for one capability.
 - Root test harness: run repository-wide marketplace, Plugin, Skill and runtime tests.
-- Palette: generate explicit Light/Dark Visual roles, preserve Mode coherence across one Seed Color and validate text, region contrast and cross-Mode appearance.
+- Palette: generate explicit Light/Dark Visual roles, preserve Mode coherence across one Seed Color, limit corresponding large-area OKLCH lightness difference to `0.35`, and validate text, region contrast and cross-Mode appearance.
 - Plan: serialize Seed Color, light/dark Mode Palettes, Target selection and field capability expectations with an integrity hash. `palettes` is the only persisted Palette representation; the selected `mode` is the default lookup mode, not a system-mode switch.
 - Storage: validate safe path components and perform atomic persistence.
-- Transaction: journal Apply operations, preserve Snapshots and coordinate compensation.
+- Transaction: journal Apply operations with JSON-safe report values, preserve Snapshots and coordinate compensation.
 - Target Adapters: map public field inventories to Palette roles and report field-level capability.
 - CLI: expose Preview, Apply, Verify and Rollback without bypassing the workflow.
 

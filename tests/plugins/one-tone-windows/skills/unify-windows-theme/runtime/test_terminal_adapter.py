@@ -41,8 +41,9 @@ def test_terminal_apply_registers_and_selects_a_valid_scheme(tmp_path):
     changed = json.loads(settings_path.read_text(encoding="utf-8"))
     scheme = next(item for item in changed["schemes"] if item["name"] == "One Tone")
     theme = next(item for item in changed["themes"] if item["name"] == "One Tone")
-    assert changed["profiles"]["defaults"]["colorScheme"] == "One Tone"
-    assert all(profile["colorScheme"] == "One Tone" for profile in changed["profiles"]["list"])
+    expected_mapping = {"light": "One Tone Light", "dark": "One Tone Dark"}
+    assert changed["profiles"]["defaults"]["colorScheme"] == expected_mapping
+    assert all(profile["colorScheme"] == expected_mapping for profile in changed["profiles"]["list"])
     assert changed["theme"] == "One Tone"
     palette = plan.palette_for(plan.mode)
     assert all(profile["tabColor"] == palette["accent"] for profile in changed["profiles"]["list"])
@@ -74,7 +75,7 @@ def test_terminal_adapter_applies_theme_to_all_profiles_and_restores(tmp_path):
     assert adapter.apply(plan).status == "ok"
     assert adapter.verify(plan).verified is True
     changed = json.loads(settings_path.read_text(encoding="utf-8"))
-    assert all(profile["colorScheme"] == "One Tone" for profile in changed["profiles"]["list"])
+    assert all(profile["colorScheme"] == {"light": "One Tone Light", "dark": "One Tone Dark"} for profile in changed["profiles"]["list"])
     assert all(profile["tabColor"] == plan.palette_for(plan.mode)["accent"] for profile in changed["profiles"]["list"])
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert settings_path.read_text(encoding="utf-8") == original_text

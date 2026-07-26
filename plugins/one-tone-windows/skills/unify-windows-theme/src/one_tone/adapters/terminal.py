@@ -11,6 +11,7 @@ from .base import AdapterResult, field_capabilities
 
 _SCHEME_NAME = "One Tone"
 _THEME_NAME = "One Tone"
+_SCHEME_MAPPING = {"light": f"{_SCHEME_NAME} Light", "dark": f"{_SCHEME_NAME} Dark"}
 
 
 def resolve_default_profile(settings: dict[str, Any]) -> tuple[int, str] | None:
@@ -96,7 +97,6 @@ class TerminalAdapter:
         self.settings_path = settings_path
         self._profile_index: int | None = None
         self._resolution_message = ""
-        self._expected_colors: dict[str, str] = {}
 
     def _read(self) -> dict[str, Any]:
         payload = json.loads(self.settings_path.read_text(encoding="utf-8"))
@@ -135,14 +135,15 @@ class TerminalAdapter:
                 return AdapterResult(self.target, "failed", False, False, "Terminal default Profile could not be resolved")
             self._profile_index, self._resolution_message = resolved
             profile_list = settings["profiles"]["list"]
-            self._expected_colors = _palette_colors(plan)
+            profile_color_keys = (*_palette_colors(plan), "cursorColor")
             for profile in profile_list:
                 if not isinstance(profile, dict):
                     continue
-                profile.update(self._expected_colors)
-                profile["colorScheme"] = _SCHEME_NAME
+                for key in profile_color_keys:
+                    profile.pop(key, None)
+                profile["colorScheme"] = dict(_SCHEME_MAPPING)
                 profile["tabColor"] = plan.palette_for(plan.mode)["accent"]
-            settings["profiles"].setdefault("defaults", {})["colorScheme"] = _SCHEME_NAME
+            settings["profiles"].setdefault("defaults", {})["colorScheme"] = dict(_SCHEME_MAPPING)
             schemes = [item for item in settings.get("schemes", []) if item.get("name") != _SCHEME_NAME]
             schemes = [item for item in schemes if not str(item.get("name", "")).startswith(f"{_SCHEME_NAME} ")]
             schemes.extend(_scheme_colors(plan, mode) for mode in ("light", "dark"))
@@ -190,12 +191,12 @@ class TerminalAdapter:
             verified = (
                 all(
                     isinstance(profile, dict)
-                    and all(profile.get(key) == value for key, value in expected.items())
-                    and profile.get("colorScheme") == _SCHEME_NAME
+                    and profile.get("colorScheme") == _SCHEME_MAPPING
+                    and not any(key in profile for key in (*expected, "cursorColor"))
                     and profile.get("tabColor") == plan.palette_for(plan.mode)["accent"]
                     for profile in profile_list
                 )
-                and settings.get("profiles", {}).get("defaults", {}).get("colorScheme") == _SCHEME_NAME
+                and settings.get("profiles", {}).get("defaults", {}).get("colorScheme") == _SCHEME_MAPPING
                 and isinstance(scheme, dict)
                 and all(scheme.get(key) == value for key, value in scheme_expected.items())
                 and settings.get("theme") == _THEME_NAME
