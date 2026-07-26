@@ -60,56 +60,37 @@ https://github.com/MuZiJin701/ocd-computer-marketplace.git
 
 ## 使用
 
-先让 Agent 预览，不要直接应用：
+直接告诉 Agent 你要做什么。每个 Skill 都会先预览，再等你确认。
+
+### 统一 Windows 主题
 
 ```text
-使用翠绿色 #10B981 统一我的电脑主题，先预览，不要立即应用。
+使用 $unify-windows-theme，把我的电脑主题统一为翠绿色 #10B981。先预览，不要立即应用。
 ```
 
-也可以直接运行命令：
+### 整理桌面
 
-```powershell
-# 如果当前目录已经是 plugins/one-tone-windows/skills/unify-windows-theme：
-python .\scripts\run_one_tone.py preview '#10B981'
-# 如果当前目录是仓库根目录：
-python .\plugins\one-tone-windows\skills\unify-windows-theme\scripts\run_one_tone.py preview '#10B981'
-python .\plugins\one-tone-windows\skills\unify-windows-theme\scripts\run_one_tone.py apply plan-... --confirm
-python .\plugins\one-tone-windows\skills\unify-windows-theme\scripts\run_one_tone.py verify plan-...
-python .\plugins\one-tone-windows\skills\unify-windows-theme\scripts\run_one_tone.py rollback tx-...
+```text
+使用 $desktop-zero，预览并整理当前用户桌面。删除快捷方式，把其他内容分类移动到 D:\data。先不要执行。
 ```
 
-流程是：`Preview → Apply → Verify → Rollback`。Apply 必须使用已有 Plan ID 并带 `--confirm`；Rollback 必须使用 Apply 返回的 Transaction ID。
+快捷方式会直接删除，无法恢复。其他文件和文件夹可以按明确的 Transaction ID 回滚。软件启动入口约定为 Windows 任务栏 Search；这个 Skill 不安装后台监控。
 
-结果状态包括 `ok`、`partial`、`failed` 和 `skipped`。
+### 配置基础工具链
 
-Desktop zero：
-
-```powershell
-python .\plugins\ocd-desktop-zero\skills\desktop-zero\scripts\run_desktop_zero.py preview
-python .\plugins\ocd-desktop-zero\skills\desktop-zero\scripts\run_desktop_zero.py apply <plan_id> --confirm
-python .\plugins\ocd-desktop-zero\skills\desktop-zero\scripts\run_desktop_zero.py verify <plan_id>
-python .\plugins\ocd-desktop-zero\skills\desktop-zero\scripts\run_desktop_zero.py rollback <transaction_id>
+```text
+使用 $scoop-toolchain，检查 Python、Git、uv 和 Node.js。缺失项优先通过 Scoop 安装到 D:\software\scoop，先预览，不要安装。
 ```
 
-快捷方式会被直接删除且不可恢复；其他桌面文件和文件夹按确定性规则移动到 `D:\data`。软件启动入口约定为 Windows 任务栏 Search，不安装后台监控。
+已有软件不会被卸载或重置。Scoop 无法提供时，Skill 才会建议使用 winget；winget 通常无法指定安装路径。
 
-Scoop toolchain：
+### 执行规则
 
-```powershell
-python .\plugins\ocd-scoop-toolchain\skills\scoop-toolchain\scripts\run_scoop_toolchain.py preview
-python .\plugins\ocd-scoop-toolchain\skills\scoop-toolchain\scripts\run_scoop_toolchain.py apply <plan_id> --confirm
-python .\plugins\ocd-scoop-toolchain\skills\scoop-toolchain\scripts\run_scoop_toolchain.py verify <plan_id>
-```
-
-Scoop 根目录固定为 `D:\software\scoop`。工具链只补齐缺失的 Python、Git、uv 和 Node.js，不卸载或重置已有软件；Scoop 无法提供时才考虑 winget，winget 的安装路径通常不可控。
-
-两者都必须先 Preview，Apply 必须使用已有 Plan ID 并显式确认。结果状态包括 `ok`、`partial`、`failed` 和 `skipped`。
-
-只处理指定目标时：
-
-```powershell
-python .\plugins\one-tone-windows\skills\unify-windows-theme\scripts\run_one_tone.py preview '#10B981' --targets windows,terminal,codex
-```
+- 先 Preview，再确认执行
+- Preview 不修改电脑
+- Apply 只执行已有且已确认的 Plan
+- Verify（verify）只检查结果
+- 结果会说明 `ok`、`partial`、`failed` 或 `skipped`
 
 ## 注意事项
 
@@ -123,15 +104,18 @@ python .\plugins\one-tone-windows\skills\unify-windows-theme\scripts\run_one_ton
 ## 仓库结构
 
 ```text
-.agents/plugins/marketplace.json                       # Marketplace manifest
-plugins/                                                # Plugin envelopes
-plugins/<plugin>/skills/<skill>/                       # Self-contained Skill packages
-tests/plugins/<plugin>/skills/<skill>/runtime/         # Runtime tests matching distribution
-tests/marketplace/                                     # Marketplace tests
-docs/specs/                                            # Active development specs
-docs/architecture.md                                   # Repository structure and seams
-docs/testing.md                                        # Verification contract
-CONTEXT.md                                             # Domain glossary
+.
+├─ .agents/plugins/marketplace.json       # Marketplace 清单
+├─ plugins/                               # 可安装的 Plugin
+│  ├─ one-tone-windows/                   # 统一 Windows 主题
+│  │  └─ skills/unify-windows-theme/      # Theme Skill 与 runtime
+│  ├─ ocd-desktop-zero/                   # 整理当前用户桌面
+│  │  └─ skills/desktop-zero/              # Desktop Skill 与 runtime
+│  └─ ocd-scoop-toolchain/                # 补齐基础开发工具
+│     └─ skills/scoop-toolchain/           # Toolchain Skill 与 runtime
+├─ tests/                                 # Marketplace、Plugin、Skill 测试
+├─ docs/                                  # 架构、测试、ADR 和开发说明
+└─ CONTEXT.md                             # 项目领域词汇
 ```
 
 更多细节见 [领域上下文](CONTEXT.md)、[统一主题 Skill](plugins/one-tone-windows/skills/unify-windows-theme/SKILL.md)、[Desktop zero Skill](plugins/ocd-desktop-zero/skills/desktop-zero/SKILL.md)、[Scoop toolchain Skill](plugins/ocd-scoop-toolchain/skills/scoop-toolchain/SKILL.md)、[目标矩阵](plugins/one-tone-windows/skills/unify-windows-theme/references/targets.md) 和 [测试说明](docs/testing.md)。任务使用 GitHub Issues；Agent 协作配置见 docs/agents/。
@@ -143,3 +127,5 @@ CONTEXT.md                                             # Domain glossary
 工作站 Plugin 的已执行开发说明见 [OCD 工作站规范插件开发说明](docs/specs/2026-07-26-ocd-workstation-plugins.md)。
 
 当前结构保留“根测试 harness + 可独立分发 Skill runtime”的边界；新增 docs/specs 作为主动开发说明目录，历史规划材料不作为当前架构入口。
+
+维护者验证 One-Tone 的流程是：`preview '#10B981'` → `apply plan-... --confirm` → `verify plan-...` → `rollback tx-...`。Skill 目录内的入口示例是 `python .\scripts\run_one_tone.py preview '#10B981'`。
