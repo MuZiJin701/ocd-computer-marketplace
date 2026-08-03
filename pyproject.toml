@@ -13,4 +13,4 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["plugins/one-tone-windows/skills/unify-windows-theme/src"]
+pythonpath = ["plugins/zen-one-tone-windows/skills/zen-one-tone-windows/src"]

@@ -22,7 +22,7 @@ def test_readme_documents_full_adapter_boundaries():
 def test_skill_package_contains_runtime_and_launcher():
     from pathlib import Path
 
-    root = Path("plugins/one-tone-windows/skills/unify-windows-theme")
+    root = Path("plugins/zen-one-tone-windows/skills/zen-one-tone-windows")
     assert (root / "SKILL.md").is_file()
     assert (root / "pyproject.toml").is_file()
     assert (root / "src/one_tone/cli.py").is_file()
@@ -33,15 +33,15 @@ def test_skill_package_contains_runtime_and_launcher():
 def test_distributable_skill_does_not_depend_on_plugin_root():
     from pathlib import Path
 
-    script = (Path("plugins/one-tone-windows/skills/unify-windows-theme") / "scripts/run_one_tone.py").read_text(encoding="utf-8")
-    assert "plugins/one-tone-windows/src" not in script
+    script = (Path("plugins/zen-one-tone-windows/skills/zen-one-tone-windows") / "scripts/run_one_tone.py").read_text(encoding="utf-8")
+    assert "plugins/zen-one-tone-windows/src" not in script
     assert "Path(__file__).resolve().parents[1]" in script
 
 
 def test_launcher_uses_skill_root_as_uv_project():
     from pathlib import Path
 
-    script = (Path("plugins/one-tone-windows/skills/unify-windows-theme") / "scripts/run_one_tone.py").read_text(encoding="utf-8")
+    script = (Path("plugins/zen-one-tone-windows/skills/zen-one-tone-windows") / "scripts/run_one_tone.py").read_text(encoding="utf-8")
     assert "skill_root = Path(__file__).resolve().parents[1]" in script
     assert '"--project", str(skill_root)' in script
 
@@ -61,13 +61,13 @@ def test_root_project_is_test_only_and_skill_owns_cli():
 
     root = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     skill = tomllib.loads(
-        Path("plugins/one-tone-windows/skills/unify-windows-theme/pyproject.toml")
+        Path("plugins/zen-one-tone-windows/skills/zen-one-tone-windows/pyproject.toml")
         .read_text(encoding="utf-8")
     )
 
     assert root["tool"]["uv"]["package"] is False
     assert "scripts" not in root["project"]
     assert root["tool"]["pytest"]["ini_options"]["pythonpath"] == [
-        "plugins/one-tone-windows/skills/unify-windows-theme/src"
+        "plugins/zen-one-tone-windows/skills/zen-one-tone-windows/src"
     ]
     assert skill["project"]["scripts"]["one-tone"] == "one_tone.cli:main"

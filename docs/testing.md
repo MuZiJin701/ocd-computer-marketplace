@@ -6,9 +6,9 @@ Run from the repository root:
 
 ~~~powershell
 uv run pytest
-uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone --help
-uv run --project plugins/ocd-desktop-zero/skills/desktop-zero desktop-zero --help
-uv run --project plugins/ocd-scoop-toolchain/skills/scoop-toolchain scoop-toolchain --help
+uv run --project plugins/zen-one-tone-windows/skills/zen-one-tone-windows one-tone --help
+uv run --project plugins/zen-desktop-zero/skills/zen-desktop-zero desktop-zero --help
+uv run --project plugins/zen-scoop-toolchain/skills/zen-scoop-toolchain scoop-toolchain --help
 git diff --check
 ~~~
 

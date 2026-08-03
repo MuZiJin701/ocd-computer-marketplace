@@ -107,24 +107,24 @@ https://github.com/MuZiJin701/zen-computer-marketplace.git
 .
 ├─ .agents/plugins/marketplace.json       # Marketplace 清单
 ├─ plugins/                               # 可安装的 Plugin
-│  ├─ one-tone-windows/                   # zen-one-tone-windows Plugin
-│  │  └─ skills/unify-windows-theme/      # zen-one-tone-windows Skill 与 runtime
-│  ├─ ocd-desktop-zero/                   # zen-desktop-zero Plugin
-│  │  └─ skills/desktop-zero/              # zen-desktop-zero Skill 与 runtime
-│  └─ ocd-scoop-toolchain/                # zen-scoop-toolchain Plugin
-│     └─ skills/scoop-toolchain/           # zen-scoop-toolchain Skill 与 runtime
+│  ├─ zen-one-tone-windows/               # zen-one-tone-windows Plugin
+│  │  └─ skills/zen-one-tone-windows/     # zen-one-tone-windows Skill 与 runtime
+│  ├─ zen-desktop-zero/                   # zen-desktop-zero Plugin
+│  │  └─ skills/zen-desktop-zero/         # zen-desktop-zero Skill 与 runtime
+│  └─ zen-scoop-toolchain/                # zen-scoop-toolchain Plugin
+│     └─ skills/zen-scoop-toolchain/      # zen-scoop-toolchain Skill 与 runtime
 ├─ tests/                                 # Marketplace、Plugin、Skill 测试
 ├─ docs/                                  # 架构、测试、ADR 和开发说明
 └─ CONTEXT.md                             # 项目领域词汇
 ```
 
-更多细节见 [领域上下文](CONTEXT.md)、[zen-one-tone-windows Skill](plugins/one-tone-windows/skills/unify-windows-theme/SKILL.md)、[zen-desktop-zero Skill](plugins/ocd-desktop-zero/skills/desktop-zero/SKILL.md)、[zen-scoop-toolchain Skill](plugins/ocd-scoop-toolchain/skills/scoop-toolchain/SKILL.md)、[目标矩阵](plugins/one-tone-windows/skills/unify-windows-theme/references/targets.md) 和 [测试说明](docs/testing.md)。任务使用 GitHub Issues；Agent 协作配置见 docs/agents/。
+更多细节见 [领域上下文](CONTEXT.md)、[zen-one-tone-windows Skill](plugins/zen-one-tone-windows/skills/zen-one-tone-windows/SKILL.md)、[zen-desktop-zero Skill](plugins/zen-desktop-zero/skills/zen-desktop-zero/SKILL.md)、[zen-scoop-toolchain Skill](plugins/zen-scoop-toolchain/skills/zen-scoop-toolchain/SKILL.md)、[目标矩阵](plugins/zen-one-tone-windows/skills/zen-one-tone-windows/references/targets.md) 和 [测试说明](docs/testing.md)。任务使用 GitHub Issues；Agent 协作配置见 docs/agents/。
 
 ## 开发说明
 
 已确认的主题字段覆盖、浅深模式、相邻区域可区分性、版本能力和验收范围见 [主题字段覆盖与相邻区域可区分性开发说明](docs/specs/2026-07-25-theme-field-coverage-and-separation.md)。当前结构审计见 [架构说明](docs/architecture.md)。
 
-工作站 Plugin 的已执行开发说明见 [Zen 工作站规范插件开发说明](docs/specs/2026-07-26-ocd-workstation-plugins.md)。
+工作站 Plugin 的已执行开发说明见 [Zen 工作站规范插件开发说明](docs/specs/2026-07-26-zen-workstation-plugins.md)。
 
 当前结构保留“根测试 harness + 可独立分发 Skill runtime”的边界；新增 docs/specs 作为主动开发说明目录，历史规划材料不作为当前架构入口。
 

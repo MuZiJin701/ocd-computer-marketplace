@@ -2,8 +2,8 @@ from pathlib import Path
 
 
 def test_desktop_zero_package_shape():
-    root = Path("plugins/ocd-desktop-zero")
-    skill = root / "skills/desktop-zero"
+    root = Path("plugins/zen-desktop-zero")
+    skill = root / "skills/zen-desktop-zero"
     assert (root / ".codex-plugin/plugin.json").is_file()
     assert (skill / "SKILL.md").is_file()
     assert (skill / "pyproject.toml").is_file()

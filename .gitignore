@@ -2,7 +2,7 @@
 __pycache__/
 .pytest_cache/
 .one-tone/
-plugins/one-tone-windows/plans/
+plugins/zen-one-tone-windows/plans/
 dist/
 build/
 *.egg-info/

@@ -11,7 +11,7 @@ def pytest_sessionstart(session):
     root = Path(__file__).resolve().parents[1]
     os.chdir(root)
     for relative in (
-        "plugins/ocd-desktop-zero/skills/desktop-zero/src",
-        "plugins/ocd-scoop-toolchain/skills/scoop-toolchain/src",
+        "plugins/zen-desktop-zero/skills/zen-desktop-zero/src",
+        "plugins/zen-scoop-toolchain/skills/zen-scoop-toolchain/src",
     ):
         sys.path.insert(0, str(root / relative))

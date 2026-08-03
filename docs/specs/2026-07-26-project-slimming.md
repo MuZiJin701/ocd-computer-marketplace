@@ -70,7 +70,7 @@
 - CLI 测试继续覆盖默认 Target、显式目标、Preview/Apply/Verify/Rollback 参数、路径探测和 Skill-local runtime root；移除 `file-demo` 专属入口测试。
 - 文档测试将 README 工作流的重复检查合并为一项，并继续验证安装命令、Preview/Verify/Transaction 信息、支持平台、分发路径和不支持 Cursor 的边界。
 - 文档清理后必须确认没有入口继续引用被删除的 spec，也没有把 ADR、architecture、testing、Skill 和 Target 矩阵的职责重新混淆。
-- 验收命令保持项目既定入口：`uv run pytest`、`uv run --project plugins/one-tone-windows/skills/unify-windows-theme one-tone --help` 和 `git diff --check`。
+- 验收命令保持项目既定入口：`uv run pytest`、`uv run --project plugins/zen-one-tone-windows/skills/zen-one-tone-windows one-tone --help` 和 `git diff --check`。
 
 ## Out of Scope
 

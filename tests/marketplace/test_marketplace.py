@@ -7,14 +7,14 @@ def test_repo_marketplace_points_to_plugin():
     assert payload["name"] == "zen-computer-marketplace"
     entry = payload["plugins"][0]
     assert entry["source"]["source"] == "local"
-    assert entry["source"]["path"] == "./plugins/one-tone-windows"
+    assert entry["source"]["path"] == "./plugins/zen-one-tone-windows"
     assert entry["policy"]["installation"] == "AVAILABLE"
     assert entry["policy"]["authentication"] == "ON_INSTALL"
 
 
 def test_plugin_contains_skill_runtime_source():
-    root = Path("plugins/one-tone-windows")
-    skill = root / "skills/unify-windows-theme"
+    root = Path("plugins/zen-one-tone-windows")
+    skill = root / "skills/zen-one-tone-windows"
     assert (skill / "src/one_tone/cli.py").is_file()
     assert (skill / "pyproject.toml").is_file()
     assert not (root / "src").exists()
@@ -22,8 +22,8 @@ def test_plugin_contains_skill_runtime_source():
 
 
 def test_skill_launcher_points_at_skill_runtime():
-    script = Path("plugins/one-tone-windows/skills/unify-windows-theme/scripts/run_one_tone.py").read_text(encoding="utf-8")
-    skill = Path("plugins/one-tone-windows/skills/unify-windows-theme/SKILL.md").read_text(encoding="utf-8")
+    script = Path("plugins/zen-one-tone-windows/skills/zen-one-tone-windows/scripts/run_one_tone.py").read_text(encoding="utf-8")
+    skill = Path("plugins/zen-one-tone-windows/skills/zen-one-tone-windows/SKILL.md").read_text(encoding="utf-8")
     assert "uv" in script
     assert "--project" in script
     assert "parents[1]" in script
@@ -32,16 +32,16 @@ def test_skill_launcher_points_at_skill_runtime():
 
 def test_readmes_document_root_and_skill_runtime_commands():
     root_readme = Path("README.md").read_text(encoding="utf-8")
-    plugin_readme = Path("plugins/one-tone-windows/README.md").read_text(encoding="utf-8")
+    plugin_readme = Path("plugins/zen-one-tone-windows/README.md").read_text(encoding="utf-8")
     assert "python .\\scripts\\run_one_tone.py preview" in root_readme
     assert "uv run --project . one-tone" in plugin_readme
 
 
 def test_readme_documents_repo_marketplace_and_plugin_runtime():
     root_readme = Path("README.md").read_text(encoding="utf-8")
-    plugin_readme = Path("plugins/one-tone-windows/README.md").read_text(encoding="utf-8")
+    plugin_readme = Path("plugins/zen-one-tone-windows/README.md").read_text(encoding="utf-8")
     assert ".agents/plugins/marketplace.json" in root_readme
-    assert "plugins/one-tone-windows" in root_readme
+    assert "plugins/zen-one-tone-windows" in root_readme
     assert "可独立分发" in plugin_readme
 
 
@@ -49,4 +49,4 @@ def test_marketplace_indexes_document_future_plugin_boundaries():
     assert Path("plugins/README.md").is_file()
     assert Path("tests/README.md").is_file()
     assert Path("docs/README.md").is_file()
-    assert Path("tests/plugins/one-tone-windows/skills/unify-windows-theme/runtime/test_palette.py").is_file()
+    assert Path("tests/plugins/zen-one-tone-windows/skills/zen-one-tone-windows/runtime/test_palette.py").is_file()

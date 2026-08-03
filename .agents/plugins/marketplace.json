@@ -8,7 +8,7 @@
       "name": "zen-one-tone-windows",
       "source": {
         "source": "local",
-        "path": "./plugins/one-tone-windows"
+        "path": "./plugins/zen-one-tone-windows"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -20,7 +20,7 @@
       "name": "zen-desktop-zero",
       "source": {
         "source": "local",
-        "path": "./plugins/ocd-desktop-zero"
+        "path": "./plugins/zen-desktop-zero"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -32,7 +32,7 @@
       "name": "zen-scoop-toolchain",
       "source": {
         "source": "local",
-        "path": "./plugins/ocd-scoop-toolchain"
+        "path": "./plugins/zen-scoop-toolchain"
       },
       "policy": {
         "installation": "AVAILABLE",
