@@ -78,7 +78,56 @@ _BASELINES = {
     "codex": "verified v1 color schema",
     "chrome": "Chrome Manifest V3 theme schema",
 }
-_INVENTORY_VERSION = "2026-07-25.v1"
+_INVENTORY_VERSION = "2026-08-03.v2"
+
+_REFERENCE_THEMES = {
+    "windows": "Windows user-visible color settings",
+    "terminal": "Windows Terminal built-in Light scheme",
+    "vscode": "VS Code Light Modern 1.131.0",
+    "trae": "TRAE Light Modern 2.3.61406",
+    "codex": "Codex verified v1 Light theme table",
+    "chrome": "Chrome Manifest V3 Light theme",
+}
+_EVIDENCE_SOURCES = {
+    "windows": "official schema",
+    "terminal": "official schema plus built-in Light scheme",
+    "vscode": "installed built-in Light theme plus official schema",
+    "trae": "installed built-in Light theme plus official schema",
+    "codex": "verified runtime schema",
+    "chrome": "official schema",
+}
+
+
+def _text_class(name: str) -> str:
+    lowered = name.casefold()
+    if any(token in lowered for token in ("placeholder", "disabled", "inactive", "description")):
+        return "secondary"
+    if any(token in lowered for token in (
+        "error", "warning", "success", "info", "hint", "selection", "findmatch", "badge", "button", "hover",
+    )):
+        return "state"
+    if any(token in lowered for token in ("ansi", "link", "semantic", "diffadded", "diffremoved", "skill")):
+        return "semantic"
+    if "foreground" in lowered or name.endswith(".ink") or lowered.endswith("_text"):
+        return "dense-primary"
+    if any(token in lowered for token in ("black", "red", "green", "yellow", "blue", "purple", "cyan", "white")):
+        return "semantic"
+    return "none"
+
+
+def _paired_background_role(name: str, text_class: str) -> str:
+    if text_class == "none":
+        return "not-applicable"
+    lowered = name.casefold()
+    if "selection" in lowered:
+        return "selection"
+    if "badge" in lowered or "button" in lowered:
+        return "accent"
+    return "surface"
+
+
+def _opacity_policy(text_class: str) -> str:
+    return "opaque" if text_class != "none" else "not-applicable"
 
 
 def _field_label(name: str) -> str:
@@ -120,21 +169,29 @@ def _field_role(name: str) -> str:
 
 def field_inventory_for(target: str) -> tuple[dict[str, str], ...]:
     """Return the evidence-backed, user-readable Field inventory for a Target."""
-    return tuple(
-        {
-            "technical_field": name,
-            "label": _field_label(name),
-            "field_category": "display_property" if "display" in name or "Prevalence" in name else "color",
-            "visual_role": _field_role(name),
-            "visual_region": _field_region(target, name),
-            "mode_support": "light,dark",
-            "official_source": _SOURCES.get(target, "unknown"),
-            "version_baseline": _BASELINES.get(target, "verified runtime schema"),
-            "inventory_version": _INVENTORY_VERSION,
-            "capability_status": "supported",
-        }
-        for name in inventory_for(target)
-    )
+    entries = []
+    for name in inventory_for(target):
+        text_class = _text_class(name)
+        entries.append(
+            {
+                "technical_field": name,
+                "label": _field_label(name),
+                "field_category": "display_property" if "display" in name or "Prevalence" in name else "color",
+                "visual_role": _field_role(name),
+                "visual_region": _field_region(target, name),
+                "mode_support": "light,dark",
+                "official_source": _SOURCES.get(target, "unknown"),
+                "version_baseline": _BASELINES.get(target, "verified runtime schema"),
+                "inventory_version": _INVENTORY_VERSION,
+                "capability_status": "supported",
+                "text_class": text_class,
+                "paired_background_role": _paired_background_role(name, text_class),
+                "opacity_policy": _opacity_policy(text_class),
+                "reference_theme": _REFERENCE_THEMES.get(target, "verified runtime schema"),
+                "evidence_source": _EVIDENCE_SOURCES.get(target, "official schema"),
+            }
+        )
+    return tuple(entries)
 
 
 def inventory_report(

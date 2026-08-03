@@ -27,6 +27,8 @@ def _tint(color: str) -> list[float]:
 def _manifest(plan: Plan, mode: str | None = None) -> dict[str, Any]:
     mode = mode or plan.mode
     palette = plan.palette_for(mode)
+    light_mode_surface = palette["surface"] if mode == "light" else palette["background"]
+    inactive_text = palette["muted_foreground"] if mode == "light" else palette["background_foreground"]
     return {
         "manifest_version": 3,
         "version": "1.0.0",
@@ -35,15 +37,15 @@ def _manifest(plan: Plan, mode: str | None = None) -> dict[str, Any]:
         "theme": {
             "colors": {
                 "frame": _rgb(palette["surface"]),
-                "frame_inactive": _rgb(palette["background"]),
-                "toolbar": _rgb(palette["surface_subtle"]),
+                "frame_inactive": _rgb(light_mode_surface),
+                "toolbar": _rgb(palette["surface"] if mode == "light" else palette["surface_subtle"]),
                 "toolbar_text": _rgb(palette["foreground"]),
                 "toolbar_button_icon": _rgb(palette["foreground"]),
                 "tab_background_text": _rgb(palette["foreground"]),
-                "tab_background_text_inactive": _rgb(palette["background_foreground"]),
+                "tab_background_text_inactive": _rgb(inactive_text),
                 "tab_text": _rgb(palette["foreground"]),
                 "bookmark_text": _rgb(palette["foreground"]),
-                "ntp_background": _rgb(palette["background"]),
+                "ntp_background": _rgb(light_mode_surface),
                 "ntp_header": _rgb(palette["foreground"]),
                 "ntp_link": _rgb(palette["accent_text"]),
                 "ntp_text": _rgb(palette["foreground"]),
@@ -52,7 +54,7 @@ def _manifest(plan: Plan, mode: str | None = None) -> dict[str, Any]:
                 "omnibox_background_tint": _rgb(palette["surface_subtle"]),
                 "omnibox_background_tab_switcher": _rgb(palette["surface_raised"]),
                 "incognito_tab": _rgb(palette["surface_raised"]),
-                "incognito_background": _rgb(palette["background"]),
+                "incognito_background": _rgb(light_mode_surface),
                 "button_background": _rgb(palette["accent"]),
                 "button_background_hover": _rgb(palette["selection_background"]),
                 "separator": _rgb(palette["border"]),

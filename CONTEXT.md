@@ -44,6 +44,21 @@ _Avoid_: 任意两个颜色、所有颜色必须不同
 某个 Target 公开主题 schema 中接受颜色、色调或显示属性的字段。  
 _Avoid_: 所有配置项
 
+**Field Evidence Matrix**
+
+按 Target、Mode、界面状态和相邻区域记录 Color field 的公开来源、实际语义与可读性证据，用于决定字段映射和验收；它不直接规定颜色值。
+_Avoid_: 主题颜色抄录表、截图集合
+
+**Dense primary text**
+
+Light Mode 中需要连续阅读或快速辨认的普通文字，例如编辑器/终端正文、命令行输出、表格内容、导航标签和常规控件标签；它不包括选中态、禁用态或装饰性文字。
+_Avoid_: 所有前景色、强调文字
+
+**Neutral primary text**
+
+供 Dense primary text 使用的低色度、接近中性的文字角色；它可以脱离 Seed Color 的色相，以保持阅读清晰度，而 Seed Color 身份由 Tonal surface、Accent 和语义状态保留。
+_Avoid_: 带主题色的所有文字、纯黑兜底
+
 **Accent color**
 
 Windows 或应用用于强调控件、链接、标题栏和边框的用户可见颜色。它可以存在于浅色和深色系统模式中。

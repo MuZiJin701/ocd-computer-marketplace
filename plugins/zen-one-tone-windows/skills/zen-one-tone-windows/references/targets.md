@@ -11,7 +11,7 @@
 
 Windows 10 支持 build `>= 19045`；Windows 11 支持 build `>= 22621`。
 
-目标结果使用 `ok`、`partial`、`failed` 或 `skipped`，至少包含 `target`、`status`、`changed`、`verified` 和 `message`。Palette 的 `background_foreground` 对深层背景目标为 `>= 7:1`，主文字和强调文字对实际 `surface` 目标为 `>= 4.5:1`（理论最大值不足时取最大可得值）；Accent 和选区背景上的文字也使用 `>= 4.5:1`。Seed 本身不因对比度计算被暗化。所有语义文字字段必须使用对比度安全的 `*_text` 变体，不能直接复用视觉强调色。
+目标结果使用 `ok`、`partial`、`failed` 或 `skipped`，至少包含 `target`、`status`、`changed`、`verified` 和 `message`。Palette 的 `background_foreground` 对深层背景目标为 `>= 7:1`；Light Mode 的 Dense primary text 对实际 `surface` 目标为 `>= 7:1`，其他普通/强调文字对实际 `surface` 目标为 `>= 4.5:1`（理论最大值不足时取最大可得值）；Accent 和选区背景上的文字也使用 `>= 4.5:1`。Dense primary text 必须使用不透明、低色度的 Neutral primary text 角色，不得复用 `muted_foreground`、透明色或状态色；后者只用于 inactive、placeholder、description 和语义状态。Seed 本身不因对比度计算被暗化。所有语义文字字段必须使用对比度安全的 `*_text` 变体，不能直接复用视觉强调色。
 
 `partial` 表示至少一个目标完成但存在失败、跳过或用户操作；若没有目标完成，或补偿回滚失败，则为 `failed`。目标名、Plan ID 和 Transaction ID 不得包含路径分隔符或 `..`。VS Code/TRAE 的路径可通过 `ONE_TONE_<TARGET>_EXECUTABLE`、`ONE_TONE_<TARGET>_SETTINGS`、`ONE_TONE_<TARGET>_EXTENSIONS` 覆盖；Windows Terminal 的 Store/Scoop 用户配置和 Codex 的 `CODEX_HOME` 配置也会自动探测。Skill 不要求 Everything，不使用固定盘符或开发机临时路径。
 
@@ -28,4 +28,4 @@ Windows 10 支持 build `>= 19045`；Windows 11 支持 build `>= 22621`。
 | codex | 已验证 v1 两套主题表的 surface、ink、accent、contrast 和 semanticColors 颜色字段 | 同一 Plan 同时更新 light/dark 表；保留未知键 |
 | chrome | 完整公开 colors、tints、display_properties；包括 frame、toolbar、tabs、bookmark、NTP、omnibox、separator、button、incognito 等稳定字段 | 生成两个 canonical unpacked 目录；内部 ZIP 不作为额外用户选项，用户手动加载 |
 
-相邻背景角色的目标为至少 1.2:1；边框、焦点、选区和强调控件相对邻近背景至少 3:1；文字继续使用 surface 4.5:1、deep background 7:1。字段清单不得把私有、实验或不可验证字段伪装成完整支持。
+相邻背景角色的目标为至少 1.2:1；边框、焦点、选区和强调控件相对邻近背景至少 3:1；Light Mode 的 Dense primary text 使用不透明 Neutral primary text 和 surface 7:1，其他文字使用 surface 4.5:1，deep background 文字使用 7:1。字段清单不得把私有、实验或不可验证字段伪装成完整支持。

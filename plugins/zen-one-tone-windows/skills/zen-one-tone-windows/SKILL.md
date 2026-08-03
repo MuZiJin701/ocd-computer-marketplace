@@ -19,7 +19,7 @@ description: >-
 
 Windows 使用 Palette `accent` 设置 Start/Taskbar、标题栏/窗口边框和 DWM 强调色，并生成使用 Tonal surface 的低饱和壁纸；不会修改 `AppsUseLightTheme`、`SystemUsesLightTheme` 或 `AutoColorization`。如果 Windows 自动取色已开启，必须提示用户手动关闭它，否则 Windows 可能在壁纸变化后覆盖固定强调色。Windows Terminal 会为所有 Profile 更新统一的 Light/Dark Scheme、ANSI、光标、Tab 颜色和窗口顶部 `theme`，其 `applicationTheme` 为 `system`，Profile 使用成对 `colorScheme` 映射跟随 Windows 模式。VS Code、TRAE 更新标准 Workbench、选择/光标、终端 ANSI、链接、通知、诊断和语义高亮字段，并启用 `window.autoDetectColorScheme`；TRAE 的专属 AI 面板仍可能不受标准字段控制。
 
-Seed Color 是 Theme anchor 和 Accent source；Codex 的浅色和深色主题表使用 appearance-safe 且保持 Mode coherence 的 Tonal surface，而不是把原始 Seed Color 铺到所有大面积区域。对应大面积 Visual role 的 Light/Dark OKLCH 明度差不得超过 `0.35`。两套主题的 `contrast` 写为 `100`，但不改变 `appearanceTheme`。`foreground`、`accent_text`、`error_text`、`warning_text` 和 `success_text` 针对实际 Surface 选择，文字对比度下限为 `4.5:1`；`background_foreground` 针对深层 `background` 保持 `7:1`。这些语义文字色专门供关键字、ANSI 和语义强调文字使用。Codex 的 `semanticColors.diffAdded`、`diffRemoved`、`skill` 也必须分别使用 `success_text`、`error_text`、`accent_text`，不能直接使用 `success`、`error` 或 `accent`；`accent` 只用于强调背景、边框和系统强调色。普通角色不得无理由使用纯黑或纯白作为对比度兜底。
+Seed Color 是 Theme anchor 和 Accent source；Codex 的浅色和深色主题表使用 appearance-safe 且保持 Mode coherence 的 Tonal surface，而不是把原始 Seed Color 铺到所有大面积区域。对应大面积 Visual role 的 Light/Dark OKLCH 明度差不得超过 `0.35`。两套主题的 `contrast` 写为 `100`，但不改变 `appearanceTheme`。Light Mode 的 Dense primary text 针对实际 Surface 使用不透明、低色度的 Neutral primary text 和 `7:1`，其他普通/强调文字使用 `4.5:1`；`background_foreground` 针对深层 `background` 保持 `7:1`。`muted_foreground` 仅供 inactive、placeholder、description 和语义状态使用，不得映射到 Dense primary text。这些语义文字色专门供关键字、ANSI 和语义强调文字使用。Codex 的 `semanticColors.diffAdded`、`diffRemoved`、`skill` 也必须分别使用 `success_text`、`error_text`、`accent_text`，不能直接使用 `success`、`error` 或 `accent`；`accent` 只用于强调背景、边框和系统强调色。普通角色不得无理由使用纯黑或纯白作为对比度兜底。
 
 Chrome 目标生成 Manifest V3 的 Light/Dark 两个 canonical unpacked 主题目录；ZIP 只作为内部打包产物，不是额外的用户选项。Chrome 不允许普通本地 Skill 对任意扩展或主题执行安全的静默安装；因此必须由用户在 `chrome://extensions` 确认加载。企业策略或 Chrome Web Store 发布的扩展属于另一种部署方式，不在本 Skill 的权限范围内。
 
@@ -40,7 +40,7 @@ Plan ID、Transaction ID 和 target 必须是安全路径组件。默认 `.one-t
 
 ## 已确认的主题字段开发范围
 
-下一阶段开发说明要求覆盖 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome 的公开主题颜色字段，并支持浅色/深色 Mode、Field inventory、字段级 capability status 和相邻 UI region 可区分性。普通相邻背景目标为 1.2:1，选区/焦点/边框/强调控件目标为 3:1，文字继续使用 4.5:1 和 7:1。
+下一阶段开发说明要求覆盖 Windows、Windows Terminal、VS Code、TRAE、Codex 和 Chrome 的公开主题颜色字段，并支持浅色/深色 Mode、Field inventory、字段级 capability status 和相邻 UI region 可区分性。普通相邻背景目标为 1.2:1，选区/焦点/边框/强调控件目标为 3:1，Light Mode 的 Dense primary text 使用不透明、低色度 Neutral primary text 和 7:1，其他文字使用 4.5:1，深层背景文字使用 7:1。
 
 同语义字段可以复用 Visual role，但相邻 UI region 不得复用同一背景色。Chrome 输出 Light/Dark 两个 canonical unpacked 目录和内部 ZIP；Windows Terminal 输出双 Scheme；Windows 分开报告 Accent color 与 Taskbar accent display，不改变系统模式、自动取色或高对比度设置；VS Code/TRAE 使用扩展实际贡献的 Light/Dark 标签；Codex 以已验证 v1 颜色 schema 为边界；TRAE 专属字段只处理可发现且可验证的字段。
 

@@ -81,6 +81,26 @@ def test_editor_theme_uses_matching_foregrounds_for_surface_and_background():
     assert colors["panel.foreground"] == palette["background_foreground"]
 
 
+def test_light_editor_theme_keeps_dense_primary_text_on_light_surfaces():
+    plan = create_plan("#10B981", ["trae"], plan_id="plan-editor-light-text-001", mode="light")
+
+    colors = build_theme_json(plan, "One Tone trae")["colors"]
+    palette = plan.palette_for("light")
+
+    for field in (
+        "editor.foreground",
+        "sideBar.foreground",
+        "activityBar.foreground",
+        "panel.foreground",
+        "input.foreground",
+        "dropdown.foreground",
+        "terminal.foreground",
+    ):
+        assert colors[field] == palette["foreground"]
+    for field in ("sideBar.background", "activityBar.background", "panel.background", "input.background"):
+        assert colors[field] in {palette["surface"], palette["surface_raised"]}
+
+
 def test_editor_theme_uses_contrast_safe_text_for_accented_tokens():
     plan = create_plan("#10B981", ["trae"], plan_id="plan-editor-accent-text-001")
 

@@ -17,7 +17,7 @@
 - 相邻 UI region 不得复用同一颜色；
 - 普通相邻背景的对比度至少为 1.2:1；
 - 选区、焦点、边框和强调控件相对邻近背景至少为 3:1；
-- 文字对比度继续保持 surface 上至少 4.5:1、深层 background 上至少 7:1；
+- Light Mode 的 Dense primary text 使用不透明、低色度的 Neutral primary text 角色，对实际 surface 至少 7:1；其他文字对实际 surface 至少 4.5:1，深层 background 上至少 7:1；
 - Seed Color 保持原样，不为满足对比度而暗化；
 - 字段或版本不支持时按字段记录 unsupported，并将 Target 聚合为 partial；
 - Chrome 生成独立的 light 和 dark 主题产物；
@@ -31,7 +31,7 @@
 2. As a Windows 用户, I want my Seed Color to remain the exact Theme anchor and Accent source, so that the theme still reflects the color I chose without covering large regions in an uncomfortable raw color.
 3. As a Windows 用户, I want adjacent background regions to be visibly different, so that toolbars, panels, tabs, inputs and content areas do not merge visually.
 4. As a Windows 用户, I want active, inactive, hover, focus and selected states to be distinguishable, so that I can understand the current UI state.
-5. As a Windows 用户, I want normal text to meet the 4.5:1 contrast target, so that labels and content remain readable.
+5. As a Windows 用户, I want Light Mode dense primary text to meet the 7:1 contrast target, so that labels and content remain readable in real screenshots.
 6. As a Windows 用户, I want deep-background text to meet the 7:1 target, so that secondary UI remains readable.
 7. As a Windows 用户, I want light and dark Palette variants, so that the same Seed Color remains coherent in both modes.
 8. As a Windows Terminal 用户, I want complete light and dark ANSI Schemes, so that terminal text, cursor and selection remain readable in either mode.
@@ -84,7 +84,7 @@
 ## Testing Decisions
 
 - Tests verify observable generated plans, theme artifacts, persisted settings and status payloads; they do not assert private helper structure.
-- Palette tests cover both modes, immutable Theme anchor, low-chroma Tonal surfaces, stable Accent hue, no unjustified pure-black/pure-white ordinary roles, `0.35` cross-mode OKLCH lightness limits for large-area roles, 1.2:1 passive separation, 3:1 interactive separation and existing text contrast across representative and extreme Seed Colors.
+- Palette and Adapter tests cover both modes, immutable Theme anchor, low-chroma Tonal surfaces, stable Accent hue, neutral Light primary text, no unjustified pure-black/pure-white ordinary roles, `0.35` cross-mode OKLCH lightness limits for large-area roles, 1.2:1 passive separation, 3:1 interactive separation, opaque Light dense-primary-text `7:1` contrast, other text `4.5:1` contrast and real Light screenshots across representative and extreme Seed Colors.
 - Plan tests cover serializing both mode Palettes and field capability expectations while preserving hash integrity.
 - Plan tests cover the canonical `palettes` payload, rejection of legacy/malformed Plans, Palette validation on load, copy-on-read behavior and removal of direct `plan.palette` access.
 - Adapter tests cover the existing Windows, Terminal, VS Code-family, Codex and Chrome fixture seams. Each test compares generated fields with the Field inventory and checks mode-specific mappings.

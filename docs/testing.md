@@ -29,6 +29,7 @@ The root project is a test harness. Each Skill owns its launcher and runtime; te
 - Palette tests cover both light and dark modes, exact Seed Color anchor preservation, distinct surface roles, passive region separation and interactive boundary separation.
 - Palette tests also cover appearance-safe Tonal surfaces, Theme anchor hue retention, bounded chroma, no unjustified pure-black/pure-white ordinary roles and extreme Seed Colors such as red, yellow, cyan and near-black.
 - Palette and Plan tests also verify Mode coherence: explicit Light/Dark Accents retain one Seed Color identity, corresponding large-area roles stay within `0.35` OKLCH lightness difference, ordinary surfaces avoid near-white/near-black collapse, and incoherent persisted Mode pairs are rejected.
+- Light Mode dense primary text uses an opaque primary role and `7:1` contrast on its actual surface; muted, transparent and semantic state colors remain limited to secondary or stateful fields and use the existing `4.5:1` target where applicable.
 - Plan tests cover mode Palettes, field capability expectations and stable Plan hashes.
 - Windows tests cover safe registry and wallpaper outputs, preserved mode/automatic-color/high-contrast settings, and field-level partial results.
 - Windows Terminal tests cover paired Schemes, Profile `colorScheme` mappings, all profile entries, all documented color fields, Tab/Tab Row/window fields and system mode selection.

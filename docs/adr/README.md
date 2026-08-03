@@ -13,4 +13,4 @@ Each ADR should record:
 
 Historical design and implementation notes are not automatically ADRs; promote only durable architectural decisions into this directory.
 
-The accepted decisions about field coverage, the canonical Plan Palette set, user-facing theme coherence, system-mode following and workstation Plugin boundaries are recorded in 0001-theme-field-coverage-and-separation.md, 0002-plan-palette-single-source.md, 0003-user-facing-theme-coherence.md, 0006-mode-coherence-and-system-following.md and 0007-workstation-plugin-boundaries.md.
+The accepted decisions about field coverage, the canonical Plan Palette set, user-facing theme coherence, system-mode following, workstation Plugin boundaries and evidence-backed Light text readability are recorded in 0001-theme-field-coverage-and-separation.md, 0002-plan-palette-single-source.md, 0003-user-facing-theme-coherence.md, 0006-mode-coherence-and-system-following.md, 0007-workstation-plugin-boundaries.md and 0008-light-text-evidence-and-readability.md.

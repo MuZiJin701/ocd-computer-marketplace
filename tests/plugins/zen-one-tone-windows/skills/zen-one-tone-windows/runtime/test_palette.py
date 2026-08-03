@@ -86,6 +86,16 @@ def test_surface_text_uses_the_4_5_minimum_to_preserve_more_seed_colors():
     assert 4.5 <= ratio < 5.5
 
 
+def test_light_dense_primary_text_is_opaque_neutral_and_7_to_1():
+    for seed in ("#10B981", "#FFD700"):
+        palette = generate_palette(seed, "light")
+        red, green, blue = parse_hex_color(palette["foreground"])
+
+        assert max(red, green, blue) - min(red, green, blue) <= 16
+        assert contrast_ratio(palette["foreground"], palette["surface"]) >= 7
+        assert validate_palette(palette, mode="light") == []
+
+
 def test_explicit_modes_keep_seed_anchor_and_separate_tonal_surface_roles():
     for mode in ("light", "dark"):
         palette = generate_palette("#7C3AED", mode)

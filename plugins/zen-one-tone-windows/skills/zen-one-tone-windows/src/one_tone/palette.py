@@ -51,7 +51,7 @@ INTERACTIVE_SEPARATION_PAIRS = (
 MODE_ACCENT_HUE_TOLERANCE = 0.04
 MODE_ACCENT_MIN_LIGHTNESS = 0.08
 MODE_ACCENT_MAX_LIGHTNESS = 0.92
-MODE_ACCENT_LIGHTNESS_DELTA = 0.45
+MODE_ACCENT_LIGHTNESS_DELTA = 0.55
 MODE_TONAL_LIGHTNESS_DELTA = 0.35
 MODE_LIGHT_SURFACE_MAX_LUMINANCE = 0.90
 MODE_DARK_SURFACE_MIN_LUMINANCE = 0.005
@@ -205,10 +205,15 @@ def _chromatic_foreground(
     )
 
 
-def _readable_foreground(backgrounds: tuple[str, ...], minimum_ratio: float, hue: float = 0.58) -> str:
+def _readable_foreground(
+    backgrounds: tuple[str, ...],
+    minimum_ratio: float,
+    hue: float = 0.58,
+    minimum_lightness: int = 4,
+) -> str:
     candidates = [
         _hls_color(hue, lightness / 100, saturation)
-        for lightness in range(4, 100)
+        for lightness in range(minimum_lightness, 100)
         for saturation in (0.08, 0.12, 0.18)
     ]
     valid = [
@@ -235,13 +240,19 @@ def _circular_hue_distance(first: float, second: float) -> float:
     return min(distance, 1 - distance)
 
 
-def _contrast_safe_accent(seed_color: str, background: str, preserve_identity: bool = False) -> str:
+def _contrast_safe_accent(
+    seed_color: str,
+    background: str,
+    preserve_identity: bool = False,
+    allow_low_chroma: bool = False,
+) -> str:
     seed_lightness, seed_chroma, hue = _oklch_components(seed_color)
     target_chroma = min(0.16, max(0.035, seed_chroma))
+    factors = (1.0, 0.8, 0.6, 0.4, 0.25) if allow_low_chroma else (1.0, 0.8, 0.6)
     candidates = [
         _oklch_color(hue, candidate_lightness / 100, min(0.16, max(0.035, seed_chroma * factor)))
         for candidate_lightness in range(8, 93)
-        for factor in (1.0, 0.8, 0.6)
+        for factor in factors
     ]
     candidates = [candidate for candidate in candidates if candidate not in {"#000000", "#FFFFFF"}]
     valid = [candidate for candidate in candidates if contrast_ratio(candidate, background) >= 3]
@@ -283,13 +294,15 @@ def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
         surface_raised = _oklch_color(hue, 0.42, tonal_chroma)
     else:
         background = _oklch_color(hue, 0.44, tonal_chroma)
-        surface = _oklch_color(hue, 0.60, tonal_chroma)
-        surface_subtle = _oklch_color(hue, 0.50, tonal_chroma)
-        surface_raised = _oklch_color(hue, 0.70, tonal_chroma)
+        surface = _oklch_color(hue, 0.686, tonal_chroma)
+        surface_subtle = _oklch_color(hue, 0.58, tonal_chroma)
+        surface_raised = _oklch_color(hue, 0.75, tonal_chroma)
     background_foreground = _readable_foreground((background,), 7)
-    foreground = _readable_foreground((surface,), 4.5)
+    foreground = _readable_foreground(
+        (surface,), 7 if mode == "light" else 4.5, minimum_lightness=2 if mode == "light" else 4
+    )
     muted_foreground = _readable_foreground((surface,), 4.5, hue=0.52)
-    accent = _contrast_safe_accent(seed, surface, preserve_identity=True)
+    accent = _contrast_safe_accent(seed, surface, preserve_identity=True, allow_low_chroma=True)
     accent_lightness, accent_chroma, accent_hue = _oklch_components(accent)
     selection_background = _oklch_color(accent_hue, accent_lightness, accent_chroma * 0.72)
     if (
@@ -325,7 +338,7 @@ def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
         "success": success,
         "success_text": _readable_foreground((surface,), 4.5, hue=0.40),
     }
-    errors = validate_palette(palette)
+    errors = validate_palette(palette, mode=mode)
     if errors:
         raise ValueError("Generated palette failed validation: " + "; ".join(errors))
     return palette
@@ -372,7 +385,7 @@ def generate_palette(seed_color: str, mode: str | None = None) -> dict[str, str]
     return palette
 
 
-def validate_palette(palette: Mapping[str, str]) -> list[str]:
+def validate_palette(palette: Mapping[str, str], *, mode: str | None = None) -> list[str]:
     errors: list[str] = []
     missing = [key for key in REQUIRED_KEYS if key not in palette]
     if missing:
@@ -384,6 +397,8 @@ def validate_palette(palette: Mapping[str, str]) -> list[str]:
             except ValueError as error:
                 errors.append(f"{key}: {error}")
     for foreground, background, minimum_ratio in _CONTRAST_PAIRS:
+        if mode == "light" and foreground == "foreground":
+            minimum_ratio = 7
         if foreground in palette and background in palette:
             ratio = contrast_ratio(palette[foreground], palette[background])
             if ratio < minimum_ratio:
