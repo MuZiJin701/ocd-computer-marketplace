@@ -314,6 +314,9 @@ def build_target_adapters(targets, state_dir: Path, target_instances: dict[str, 
         "ONE_TONE_TERMINAL_SETTINGS",
         _terminal_settings_candidates(terminal_executable, localappdata, userprofile),
     )
+    terminal_instance = target_instances.get("terminal", {}) if target_instances is not None else {}
+    if terminal_instance.get("status") == "ok" and terminal_instance.get("settings_path"):
+        terminal_settings = Path(str(terminal_instance["settings_path"]))
     if target_instances is None:
         vscode_defaults = [(appdata / "Code/User/settings.json", userprofile / ".vscode/extensions", "standard")]
         vscode_spec = _resolve_editor_spec(
@@ -357,7 +360,11 @@ def build_target_adapters(targets, state_dir: Path, target_instances: dict[str, 
         if target == "windows":
             registry[target] = WindowsAdapter(WindowsConfig(state_dir / "windows-wallpapers"), WindowsRegistryBackend(), WindowsDesktopBackend())
         elif target == "terminal":
-            registry[target] = TerminalAdapter(terminal_settings)
+            registry[target] = TerminalAdapter(
+                terminal_settings,
+                target_instance=terminal_instance or None,
+                discover_shell=target_instances is None,
+            )
         elif target == "vscode":
             registry[target] = VSCodeFamilyAdapter(vscode_spec)
         elif target == "cursor":

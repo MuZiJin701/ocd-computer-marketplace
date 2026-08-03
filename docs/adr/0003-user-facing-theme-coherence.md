@@ -19,7 +19,7 @@ Several Target behaviors are easy to confuse:
 ## Decision
 
 1. Seed Color is the single visual source across Targets. Light and Dark are presentation variants of that Seed Color. One-Tone does not change Windows system mode, automatic accent selection or high-contrast settings.
-2. Windows reports Accent color and Taskbar accent display separately. A Taskbar accent display that is unavailable in pure Light mode is `not-applicable` and contributes to `partial`; it does not make the whole Windows Target fail.
+2. Windows reports Accent color and Taskbar accent display separately. Light and Dark both attempt Taskbar accent display; a native Light-mode limitation is reported as `partial` without making the whole Windows Target fail. This supersedes the former Light-mode `not-applicable` rule; see ADR 0009.
 3. VS Code and TRAE install one paired theme extension. Activation uses the exact contributed Light/Dark labels. The existing `window.autoDetectColorScheme` preference is preserved; automatic switching is not silently enabled or disabled.
 4. Chrome exposes exactly two canonical user-facing unpacked directories: Light and Dark. ZIP files, compatibility aliases and transaction copies are internal artifacts and must not be presented as additional themes.
 5. Every Target has a versioned Field inventory. The inventory records the official source, version baseline, technical field, Visual role, Mode support and capability status. Fields without a stable official schema are not guessed; TRAE-specific fields are used only when discovered and verifiable.

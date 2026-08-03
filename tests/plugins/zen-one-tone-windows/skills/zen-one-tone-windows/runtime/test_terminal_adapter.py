@@ -1,7 +1,21 @@
 import json
+import subprocess
 
 from one_tone.adapters.terminal import TerminalAdapter, resolve_default_profile
 from one_tone.plan import create_plan
+
+
+def _psreadline_probe_runner(command, **kwargs):
+    return subprocess.CompletedProcess(
+        command,
+        0,
+        stdout=json.dumps({
+            "profile": str(kwargs["profile_path"]),
+            "version": "2.4.5",
+            "fields": ["InlinePrediction", "ListPrediction", "ListPredictionSelected"],
+        }),
+        stderr="",
+    )
 
 
 def test_null_default_uses_first_local_profile():
@@ -79,3 +93,84 @@ def test_terminal_adapter_applies_theme_to_all_profiles_and_restores(tmp_path):
     assert all(profile["tabColor"] == plan.palette_for(plan.mode)["accent"] for profile in changed["profiles"]["list"])
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert settings_path.read_text(encoding="utf-8") == original_text
+
+
+def test_terminal_adapter_discovers_and_rolls_back_psreadline_profile(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    profile_path = tmp_path / "profile.ps1"
+    settings_path.write_text(json.dumps({
+        "profiles": {"default": "{one}", "list": [{"name": "PowerShell", "guid": "{one}"}]},
+    }), encoding="utf-8")
+    original_profile = "Set-Alias ll Get-ChildItem\n"
+    profile_path.write_text(original_profile, encoding="utf-8")
+
+    def runner(command, **kwargs):
+        return _psreadline_probe_runner(command, profile_path=profile_path)
+
+    adapter = TerminalAdapter(settings_path, powershell_executable=tmp_path / "pwsh", command_runner=runner)
+    plan = create_plan("#10B981", ["terminal"], plan_id="plan-terminal-psreadline-001")
+
+    assert adapter.detect().status == "ok"
+    instance = adapter.target_instance()
+    assert instance["profile_path"] == str(profile_path)
+    assert adapter.snapshot(tmp_path / "backup").status == "ok"
+    assert adapter.apply(plan).status == "ok"
+    changed_profile = profile_path.read_text(encoding="utf-8")
+    assert "Set-Alias ll Get-ChildItem" in changed_profile
+    assert "if ($env:WT_SESSION)" in changed_profile
+    assert "InlinePrediction = $oneToneInlinePrediction" in changed_profile
+    assert "ListPredictionSelected = $oneToneListPredictionSelected" in changed_profile
+    assert adapter.apply(plan).status == "ok"
+    assert profile_path.read_text(encoding="utf-8") == changed_profile
+    assert adapter.verify(plan).verified is True
+    with profile_path.open("a", encoding="utf-8", newline="") as handle:
+        handle.write("Set-Location C:\\Users\n")
+    assert adapter.rollback(tmp_path / "backup").verified is True
+    assert profile_path.read_text(encoding="utf-8") == original_profile + "\nSet-Location C:\\Users\n"
+
+
+def test_terminal_rollback_removes_only_managed_profile_block(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    profile_path = tmp_path / "new-profile.ps1"
+    settings_path.write_text(json.dumps({
+        "profiles": {"default": "{one}", "list": [{"name": "PowerShell", "guid": "{one}"}]},
+    }), encoding="utf-8")
+
+    def runner(command, **kwargs):
+        return _psreadline_probe_runner(command, profile_path=profile_path)
+
+    adapter = TerminalAdapter(settings_path, powershell_executable=tmp_path / "pwsh", command_runner=runner)
+    plan = create_plan("#10B981", ["terminal"], plan_id="plan-terminal-profile-preserve-001")
+    assert adapter.detect().status == "ok"
+    assert adapter.snapshot(tmp_path / "backup").status == "ok"
+    assert adapter.apply(plan).status == "ok"
+    with profile_path.open("a", encoding="utf-8", newline="") as handle:
+        handle.write("Set-Alias ll Get-ChildItem\n")
+
+    assert adapter.rollback(tmp_path / "backup").verified is True
+    assert profile_path.read_text(encoding="utf-8") == "\nSet-Alias ll Get-ChildItem\n"
+
+
+def test_terminal_adapter_reports_unsupported_prediction_fields_without_guessing(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    profile_path = tmp_path / "profile.ps1"
+    settings_path.write_text(json.dumps({
+        "profiles": {"default": "{one}", "list": [{"name": "PowerShell", "guid": "{one}"}]},
+    }), encoding="utf-8")
+    profile_path.write_text("Write-Host ready\n", encoding="utf-8")
+
+    def runner(command, **kwargs):
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps({"profile": str(profile_path), "version": "2.0.0", "fields": ["InlinePrediction"]}),
+            stderr="",
+        )
+
+    adapter = TerminalAdapter(settings_path, powershell_executable=tmp_path / "pwsh", command_runner=runner)
+    plan = create_plan("#10B981", ["terminal"], plan_id="plan-terminal-psreadline-unsupported-001")
+    assert adapter.detect().status == "partial"
+    assert adapter.snapshot(tmp_path / "backup").status == "ok"
+    result = adapter.apply(plan)
+    assert result.status == "partial"
+    assert profile_path.read_text(encoding="utf-8") == "Write-Host ready\n"

@@ -54,6 +54,16 @@ _Avoid_: 主题颜色抄录表、截图集合
 Light Mode 中需要连续阅读或快速辨认的普通文字，例如编辑器/终端正文、命令行输出、表格内容、导航标签和常规控件标签；它不包括选中态、禁用态或装饰性文字。
 _Avoid_: 所有前景色、强调文字
 
+**Git decoration**
+文件或资源管理器旁显示的版本控制状态标记，例如 added、modified、untracked、ignored 或 conflicting；它是语义状态文字，不等同于普通文件名或 Dense primary text。
+
+_Avoid_: 把所有 Git 状态当作普通前景色、把 Git decoration 当作私有字段
+
+**Inline prediction**
+Shell 在用户已输入命令后、命令尚未接受前显示的预测补全文字；它由 Shell/命令行编辑器提供，不等同于 shell prompt、命令输出或 Windows Terminal Scheme 的普通 foreground。
+
+_Avoid_: 提示符、命令输出、ANSI 语义文字
+
 **Neutral primary text**
 
 供 Dense primary text 使用的低色度、接近中性的文字角色；它可以脱离 Seed Color 的色相，以保持阅读清晰度，而 Seed Color 身份由 Tonal surface、Accent 和语义状态保留。
@@ -268,6 +278,8 @@ _Avoid_: 自动换盘、备用安装盘
 - Seed Color 生成 Palette。
 - Palette 提供 Visual role。
 - Target Adapter 把 Color field 映射到 Visual role。
+- Git decoration 是 Target 的语义状态 Color field，使用语义文字 role 和实际相邻背景。
+- Inline prediction 属于 `terminal` Target 的可选 Shell/PSReadLine 子能力，Profile 位置和能力在 Preview 中发现，并受同一 Transaction 安全流程约束。
 - Field inventory 定义应覆盖的 Color field。
 - Plan 保存一次 Preview 的 Target 和 Mode 预期。
 - Preview 为需要配置实例发现的 Target 解析唯一 Active Target instance；Apply 与 Verify 不重新猜测路径。

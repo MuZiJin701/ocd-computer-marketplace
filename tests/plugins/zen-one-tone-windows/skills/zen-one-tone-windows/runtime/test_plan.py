@@ -83,6 +83,26 @@ def test_plan_persists_target_instance_paths_and_hashes_them(tmp_path):
         load_plan("plan-instance-001", tmp_path / "plans")
 
 
+def test_plan_persists_terminal_profile_discovery_inputs(tmp_path):
+    instances = {
+        "terminal": {
+            "status": "ok",
+            "settings_path": str(tmp_path / "settings.json"),
+            "powershell_executable": str(tmp_path / "pwsh.exe"),
+            "profile_path": str(tmp_path / "profile.ps1"),
+            "psreadline": {
+                "status": "supported",
+                "version": "2.4.5",
+                "fields": ["InlinePrediction", "ListPrediction", "ListPredictionSelected"],
+            },
+        },
+    }
+    plan = create_plan("#10B981", ["terminal"], plan_id="plan-terminal-instance-001", target_instances=instances)
+    save_plan(plan, tmp_path / "plans")
+
+    assert load_plan("plan-terminal-instance-001", tmp_path / "plans").target_instances == instances
+
+
 def test_plan_persists_only_canonical_palettes_and_reads_a_copy(tmp_path):
     plan = create_plan("#7C3AED", ["chrome"], plan_id="plan-canonical-001")
     payload = plan.to_dict()

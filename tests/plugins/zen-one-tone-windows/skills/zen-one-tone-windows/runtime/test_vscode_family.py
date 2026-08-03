@@ -71,6 +71,22 @@ def test_editor_theme_uses_surface_for_primary_backgrounds():
     assert colors["panel.background"] == palette["background"]
 
 
+def test_editor_theme_maps_git_decorations_without_recoloring_sidebar_text():
+    plan = create_plan("#10B981", ["trae"], plan_id="plan-editor-git-decoration-001", mode="light")
+    colors = build_theme_json(plan, "One Tone trae")["colors"]
+    palette = plan.palette_for("light")
+
+    assert colors["sideBar.foreground"] == palette["foreground"]
+    assert colors["gitDecoration.addedResourceForeground"] == palette["success_text"]
+    assert colors["gitDecoration.untrackedResourceForeground"] == palette["success_text"]
+    assert colors["gitDecoration.modifiedResourceForeground"] == palette["warning_text"]
+    assert colors["gitDecoration.renamedResourceForeground"] == palette["accent_text"]
+    assert colors["gitDecoration.submoduleResourceForeground"] == palette["accent_text"]
+    assert colors["gitDecoration.deletedResourceForeground"] == palette["error_text"]
+    assert colors["gitDecoration.conflictingResourceForeground"] == palette["error_text"]
+    assert colors["gitDecoration.ignoredResourceForeground"] == palette["muted_foreground"]
+
+
 def test_editor_theme_uses_matching_foregrounds_for_surface_and_background():
     plan = create_plan("#10B981", ["trae"], plan_id="plan-editor-contrast-001")
 

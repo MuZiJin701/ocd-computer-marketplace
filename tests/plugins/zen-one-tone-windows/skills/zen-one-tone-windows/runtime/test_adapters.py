@@ -57,3 +57,17 @@ def test_field_inventory_classifies_text_evidence_and_opacity_policy():
 
     assert fields["editor.placeholder.foreground"]["text_class"] == "secondary"
     assert fields["editorError.foreground"]["text_class"] == "state"
+
+
+def test_field_inventory_keeps_git_and_prediction_text_semantic():
+    from one_tone.inventory import field_inventory_for
+
+    fields = {entry["technical_field"]: entry for entry in field_inventory_for("trae")}
+    assert fields["gitDecoration.untrackedResourceForeground"]["visual_role"] == "success_text"
+    assert fields["gitDecoration.modifiedResourceForeground"]["visual_role"] == "warning_text"
+    assert fields["gitDecoration.ignoredResourceForeground"]["visual_role"] == "muted_foreground"
+    assert fields["gitDecoration.untrackedResourceForeground"]["text_class"] == "semantic"
+
+    terminal = {entry["technical_field"]: entry for entry in field_inventory_for("terminal")}
+    assert terminal["InlinePrediction"]["visual_role"] == "muted_foreground"
+    assert terminal["ListPredictionSelected"]["paired_background_role"] == "selection"

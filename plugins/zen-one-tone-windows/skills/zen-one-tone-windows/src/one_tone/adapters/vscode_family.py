@@ -10,6 +10,7 @@ from typing import Any, Callable, Mapping
 
 from ..plan import Plan
 from ..inventory import inventory_groups, inventory_report
+from ..palette import contrast_ratio
 from ..storage import atomic_write_text
 from .base import AdapterResult, field_capabilities
 
@@ -25,6 +26,11 @@ class EditorSpec:
     resolution_status: str = "ok"
     resolution_message: str = ""
     resolution_source: str = ""
+
+
+def _checked_text_color(palette: Mapping[str, str], role: str, background: str) -> str:
+    color = palette[role]
+    return color if contrast_ratio(color, background) >= 4.5 else palette["foreground"]
 
 
 def build_theme_json(plan: Plan, theme_name: str, mode: str | None = None) -> dict[str, Any]:
@@ -62,6 +68,16 @@ def build_theme_json(plan: Plan, theme_name: str, mode: str | None = None) -> di
             "editorGroupHeader.tabsBorder": palette["border"],
             "sideBar.background": sidebar_surface,
             "sideBar.foreground": palette["foreground"],
+            "gitDecoration.addedResourceForeground": _checked_text_color(palette, "success_text", sidebar_surface),
+            "gitDecoration.modifiedResourceForeground": _checked_text_color(palette, "warning_text", sidebar_surface),
+            "gitDecoration.deletedResourceForeground": _checked_text_color(palette, "error_text", sidebar_surface),
+            "gitDecoration.untrackedResourceForeground": _checked_text_color(palette, "success_text", sidebar_surface),
+            "gitDecoration.conflictingResourceForeground": _checked_text_color(palette, "error_text", sidebar_surface),
+            "gitDecoration.ignoredResourceForeground": _checked_text_color(palette, "muted_foreground", sidebar_surface),
+            "gitDecoration.renamedResourceForeground": _checked_text_color(palette, "accent_text", sidebar_surface),
+            "gitDecoration.stageModifiedResourceForeground": _checked_text_color(palette, "success_text", sidebar_surface),
+            "gitDecoration.stageDeletedResourceForeground": _checked_text_color(palette, "error_text", sidebar_surface),
+            "gitDecoration.submoduleResourceForeground": _checked_text_color(palette, "accent_text", sidebar_surface),
             "sideBar.border": palette["border"],
             "sideBarTitle.background": sidebar_surface,
             "sideBarTitle.foreground": palette["foreground"],

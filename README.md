@@ -95,8 +95,8 @@ https://github.com/MuZiJin701/zen-computer-marketplace.git
 ## 注意事项
 
 - Seed Color 作为 Codex 和 Windows 的 Theme anchor/Accent source；大面积 Codex Surface 和 Windows 壁纸使用 appearance-safe 的 Tonal surface，避免纯色铺满。Codex 主题保持用户当前 `appearanceTheme`，并使用高对比度配置。
-- Windows Terminal 会为所有已发现 Profile 写入成对 Light/Dark Scheme、ANSI 颜色和 Tab 颜色，Profile 随 Windows 系统模式切换，窗口主题使用 `system`，不强制 Windows 深色模式。
-- VS Code 和 TRAE 主题覆盖标准 Workbench、编辑器选择/光标、终端 ANSI、链接、通知和语义高亮字段，并启用应用自带的系统模式自动跟随；各自的 AI 专属面板仍由应用自行决定。
+- Windows Terminal 会为所有已发现 Profile 写入成对 Light/Dark Scheme、ANSI 颜色和 Tab 颜色，Profile 随 Windows 系统模式切换，窗口主题使用 `system`，不强制 Windows 深色模式；可选地发现并回滚 Windows Terminal 会话中的 PSReadLine 预测颜色。
+- VS Code 和 TRAE 主题覆盖标准 Workbench、Git decoration、编辑器选择/光标、终端 ANSI、链接、通知和语义高亮字段，并启用应用自带的系统模式自动跟随；各自的 AI 专属面板仍由应用自行决定。
 - Windows 开启“自动从背景中选取强调色”时，系统可能覆盖固定强调色；想保持稳定颜色，请在 Windows 设置中关闭该选项。
 - Chrome 会生成 Manifest V3 本地主题的 Light/Dark 两个 canonical unpacked 目录；ZIP 是内部打包产物，需到 `chrome://extensions` 手动加载；普通本地 Skill 不能静默安装 Chrome 扩展。
 - `.one-tone` 默认固定在 Skill 根目录下，与 Agent 当前工作目录无关；Target 路径仍通过用户目录、PATH、launcher 参数或环境变量探测，不依赖开发机盘符、Everything 或机器临时路径。仅测试或明确的高级用法可以覆盖运行时目录。
@@ -123,6 +123,8 @@ https://github.com/MuZiJin701/zen-computer-marketplace.git
 ## 开发说明
 
 已确认的主题字段覆盖、浅深模式、相邻区域可区分性、版本能力和验收范围见 [主题字段覆盖与相邻区域可区分性开发说明](docs/specs/2026-07-25-theme-field-coverage-and-separation.md)。当前结构审计见 [架构说明](docs/architecture.md)。
+
+TRAE Git decoration、Windows Terminal PSReadLine 预测颜色和 Windows 任务栏模式恢复见 [主题回归与可移植 Shell 集成开发说明](docs/specs/2026-08-03-theme-regressions-and-portable-shell-integration.md)。
 
 工作站 Plugin 的已执行开发说明见 [Zen 工作站规范插件开发说明](docs/specs/2026-07-26-zen-workstation-plugins.md)。
 

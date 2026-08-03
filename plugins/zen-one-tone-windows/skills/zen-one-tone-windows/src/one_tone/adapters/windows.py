@@ -293,15 +293,15 @@ def _theme_registry_values(plan: Plan) -> dict[str, int | bytes]:
         "ColorizationColor": windows_colorization_value(palette["accent"]),
         "ColorizationAfterglow": windows_colorization_value(palette["accent"]),
     }
-    if plan.mode == "dark":
-        values["StartTaskbarColorPrevalence"] = 1
+    values["StartTaskbarColorPrevalence"] = 1
     return values
 
 
 def _field_statuses(plan: Plan, status: str, auto_colorization: bool) -> dict[str, str]:
     statuses = {name: status for name in _theme_registry_values(plan)}
     statuses["wallpaper"] = status
-    statuses["StartTaskbarColorPrevalence"] = "not-applicable" if plan.mode == "light" else status
+    if plan.mode == "light":
+        statuses["StartTaskbarColorPrevalence"] = "partial"
     statuses.update({
         "AppsUseLightTheme": "unsupported",
         "SystemUsesLightTheme": "unsupported",
@@ -408,7 +408,7 @@ class WindowsAdapter:
             if auto_colorization or plan.mode == "light":
                 message = "theme colors and generated wallpaper applied"
                 if plan.mode == "light":
-                    message += "; taskbar accent display is not applicable in Light mode"
+                    message += "; Light-mode taskbar display requires native visual verification"
                 if auto_colorization:
                     message += "; turn off Windows automatic accent color to keep the selected accent"
                 return AdapterResult(
@@ -444,7 +444,7 @@ class WindowsAdapter:
         if verified and (auto_colorization or plan.mode == "light"):
             message = "Windows theme and wallpaper verified"
             if plan.mode == "light":
-                message += "; taskbar accent display is not applicable in Light mode"
+                message += "; registry state verified; Light-mode taskbar display requires native visual verification"
             if auto_colorization:
                 message += "; automatic accent color is still enabled and may overwrite the accent later"
             return AdapterResult(

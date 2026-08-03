@@ -33,7 +33,8 @@ The root project is a test harness. Each Skill owns its launcher and runtime; te
 - Plan tests cover mode Palettes, field capability expectations and stable Plan hashes.
 - Windows tests cover safe registry and wallpaper outputs, preserved mode/automatic-color/high-contrast settings, and field-level partial results.
 - Windows Terminal tests cover paired Schemes, Profile `colorScheme` mappings, all profile entries, all documented color fields, Tab/Tab Row/window fields and system mode selection.
-- VS Code and TRAE tests cover the standard public Workbench field inventory, exact contributed Light/Dark labels, enabled auto-detect settings and discoverable TRAE-specific fields.
+- Windows Terminal tests also cover optional PSReadLine prediction capability discovery, supported `InlinePrediction`/list prediction fields, Windows Terminal session guarding, Profile preservation and local rollback.
+- VS Code and TRAE tests cover the standard public Workbench field inventory, Git decoration fields, exact contributed Light/Dark labels, enabled auto-detect settings and discoverable TRAE-specific fields.
 - VS Code/TRAE instance tests cover standard and portable layouts, multiple-instance ambiguity, read-only path discovery, Plan-persisted paths, registration evidence, and non-zero CLI results with successful installation evidence.
 - Codex tests cover every verified v1 color field in both theme tables and preserve unknown configuration keys.
 - Chrome tests cover exactly two canonical Light/Dark unpacked directories, internal ZIP manifests, all public colors, tints and display properties, plus manual activation status.
@@ -52,5 +53,7 @@ Tests cross the highest available Seam and assert external behavior:
 - Real installed applications only in separately marked, risk-documented tests.
 
 A passing fixture test is not proof that a real desktop Target renders every public field. Manual screenshots remain required for visual acceptance.
+
+The focused regression gate additionally covers TRAE Git decorations, Windows Terminal PSReadLine prediction colors and Windows Light/Dark taskbar Accent mode cycling. Taskbar registry state is not treated as visual proof when the OS ignores the requested Light-mode display.
 
 The runtime Plan stores both `light` and `dark` Palettes under one canonical `palettes` field. The legacy persisted `palette` field is rejected rather than guessed or migrated. `Plan.palette_for(mode)` returns a copy; single-mode Adapters use the Plan's selected mode, while paired artifact Adapters explicitly cover both modes. Existing v1 callers that invoke `generate_palette(seed)` retain the original single-palette shape; new Plan and artifact paths use explicit modes.

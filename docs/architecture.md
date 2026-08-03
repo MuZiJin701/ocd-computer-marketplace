@@ -59,6 +59,7 @@ Do not add a shared runtime or cross-Plugin import layer until two Plugins genui
 - Storage: validate safe path components and perform atomic persistence.
 - Transaction: journal Apply operations with JSON-safe report values, preserve Snapshots and coordinate compensation.
 - Target Adapters: map public field inventories to Palette roles, resolve one Active Target instance during Preview, and report field-level capability.
+- The Terminal Adapter also owns an optional Shell/PSReadLine sub-capability: Preview discovers supported PowerShell Profiles and public prediction color fields, while Apply/Verify/Rollback use the Plan-persisted inputs and preserve unrelated Profile content.
 - Editor instance resolution: discover candidate settings and extension paths read-only, persist the selected paths in the Plan, and make Apply/Verify use that same path set.
 - CLI: expose Preview, Apply, Verify and Rollback without bypassing the workflow, and emit recursively JSON-safe machine-readable reports.
 - Workstation Plugin runtime: remain self-contained per Skill; use structured `ok`, `partial`, `failed` and `skipped` results, safe path validation and atomic Plan/Transaction persistence without importing another Plugin's runtime.

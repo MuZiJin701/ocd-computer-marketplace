@@ -13,6 +13,7 @@ FIELD_INVENTORY: dict[str, tuple[str, ...]] = {
         "black", "red", "green", "yellow", "blue", "purple", "cyan", "white", "brightBlack", "brightRed",
         "brightGreen", "brightYellow", "brightBlue", "brightPurple", "brightCyan", "brightWhite",
         "profile.colorScheme", "profile.tabColor", "theme.applicationTheme", "window.frame", "window.unfocusedFrame",
+        "InlinePrediction", "ListPrediction", "ListPredictionSelected",
         "tabRow.background", "tabRow.unfocusedBackground", "tab.background", "tab.unfocusedBackground",
     ),
     "vscode": (
@@ -40,6 +41,11 @@ FIELD_INVENTORY: dict[str, tuple[str, ...]] = {
         "errorForeground", "notifications.foreground", "notificationCenterHeader.foreground", "focusBorder", "button.background", "button.foreground",
         "editorWidget.background", "editorWidget.border", "settings.headerForeground", "settings.modifiedItemIndicator", "breadcrumb.background",
         "breadcrumb.foreground", "breadcrumb.focusForeground",
+        "gitDecoration.addedResourceForeground", "gitDecoration.modifiedResourceForeground",
+        "gitDecoration.deletedResourceForeground", "gitDecoration.untrackedResourceForeground",
+        "gitDecoration.conflictingResourceForeground", "gitDecoration.ignoredResourceForeground",
+        "gitDecoration.renamedResourceForeground", "gitDecoration.stageModifiedResourceForeground",
+        "gitDecoration.stageDeletedResourceForeground", "gitDecoration.submoduleResourceForeground",
     ),
     "trae": (),
     "codex": (
@@ -100,6 +106,10 @@ _EVIDENCE_SOURCES = {
 
 def _text_class(name: str) -> str:
     lowered = name.casefold()
+    if lowered.startswith("gitdecoration."):
+        return "semantic"
+    if lowered in {"inlineprediction", "listprediction", "listpredictionselected"}:
+        return "secondary" if lowered != "listpredictionselected" else "state"
     if any(token in lowered for token in ("placeholder", "disabled", "inactive", "description")):
         return "secondary"
     if any(token in lowered for token in (
@@ -119,8 +129,10 @@ def _paired_background_role(name: str, text_class: str) -> str:
     if text_class == "none":
         return "not-applicable"
     lowered = name.casefold()
-    if "selection" in lowered:
+    if "selection" in lowered or lowered == "listpredictionselected":
         return "selection"
+    if lowered.startswith("gitdecoration."):
+        return "surface"
     if "badge" in lowered or "button" in lowered:
         return "accent"
     return "surface"
@@ -141,6 +153,8 @@ def _field_region(target: str, name: str) -> str:
     if target == "terminal":
         return "terminal tabs" if "tab" in lowered else "terminal"
     if target in {"vscode", "trae"}:
+        if lowered.startswith("gitdecoration."):
+            return "workbench git decorations"
         return "editor" if lowered.startswith("editor") or lowered.startswith("terminal") else "workbench"
     if target == "chrome":
         return "browser chrome"
@@ -151,6 +165,21 @@ def _field_region(target: str, name: str) -> str:
 
 def _field_role(name: str) -> str:
     lowered = name.casefold()
+    if lowered.startswith("gitdecoration."):
+        if any(token in lowered for token in ("added", "untracked", "stagemodified")):
+            return "success_text"
+        if "modified" in lowered:
+            return "warning_text"
+        if any(token in lowered for token in ("renamed", "submodule")):
+            return "accent_text"
+        if any(token in lowered for token in ("deleted", "conflicting", "stagedeleted")):
+            return "error_text"
+        if any(token in lowered for token in ("ignored", "inactive")):
+            return "muted_foreground"
+    if lowered in {"inlineprediction", "listprediction"}:
+        return "muted_foreground"
+    if lowered == "listpredictionselected":
+        return "selection"
     for token, role in (
         ("background", "surface"),
         ("foreground", "foreground"),
