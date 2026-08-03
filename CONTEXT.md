@@ -70,7 +70,7 @@ _Avoid_: 提示符、命令输出、ANSI 语义文字
 _Avoid_: 带主题色的所有文字、纯黑兜底
 
 **Prediction foreground**
-专供 Inline prediction 和未选中列表预测使用的中性、弱化文字角色；它必须与 Neutral primary text 保持可验证的感知距离，并在实际预测背景上保持可读性。
+专供 Inline prediction 和未选中列表预测使用的可辨识文字角色；它由 Seed Color 派生，可使用受控色相偏移，但必须在实际预测背景上保持可读性，并与 Neutral primary text 保持可验证的感知距离。
 _Avoid_: 直接复用 muted_foreground、Terminal foreground 或固定机器颜色
 
 **Accent color**

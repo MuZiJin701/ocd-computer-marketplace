@@ -108,6 +108,39 @@ def test_prediction_foreground_is_readable_and_perceptually_distinct():
             assert any("prediction_foreground" in error for error in validate_palette(invalid, mode=mode))
 
 
+def test_prediction_foreground_is_seed_derived_and_visibly_distinct_across_modes():
+    predictions = []
+    for seed in ("#10B981", "#FFD700", "#3B82F6", "#EF4444", "#8B5CF6", "#F97316"):
+        light = generate_palette(seed, "light")
+        dark = generate_palette(seed, "dark")
+        predictions.extend((light["prediction_foreground"], dark["prediction_foreground"]))
+
+        assert validate_palette(light, mode="light") == []
+        assert validate_palette(dark, mode="dark") == []
+        assert _circular_hue_distance(light["prediction_foreground"], dark["prediction_foreground"]) <= 0.08
+
+    assert len(set(predictions)) >= 4
+
+
+def test_prediction_foreground_avoids_semantic_text_hues_when_possible():
+    for seed in ("#10B981", "#FFD700", "#3B82F6", "#EF4444", "#8B5CF6", "#F97316"):
+        for mode in ("light", "dark"):
+            palette = generate_palette(seed, mode)
+            assert validate_palette(palette, mode=mode) == []
+            invalid = dict(palette)
+            invalid["prediction_foreground"] = palette["accent_text"]
+            assert any("semantic text hue" in error for error in validate_palette(invalid, mode=mode))
+
+
+def test_prediction_foreground_is_deterministic_and_stable_for_nearby_seeds():
+    first = generate_palette("#10B981", "light")["prediction_foreground"]
+    repeated = generate_palette("#10B981", "light")["prediction_foreground"]
+    nearby = generate_palette("#10B982", "light")["prediction_foreground"]
+
+    assert first == repeated
+    assert _circular_hue_distance(first, nearby) <= 0.04
+
+
 def test_explicit_modes_keep_seed_anchor_and_separate_tonal_surface_roles():
     for mode in ("light", "dark"):
         palette = generate_palette("#7C3AED", mode)

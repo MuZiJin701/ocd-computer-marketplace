@@ -1,6 +1,7 @@
 import json
 import subprocess
 
+import one_tone.palette as palette_module
 from one_tone.adapters.terminal import TerminalAdapter, resolve_default_profile
 from one_tone.palette import parse_hex_color
 from one_tone.plan import create_plan
@@ -181,6 +182,28 @@ def test_terminal_adapter_reports_missing_prediction_role_without_writing_profil
     assert result.status == "partial"
     assert "prediction colors unavailable" in result.message
     assert "one-tone windows-terminal prediction colors" not in profile_path.read_text(encoding="utf-8")
+
+
+def test_terminal_adapter_reports_no_valid_prediction_candidate_without_writing_profile(tmp_path, monkeypatch):
+    settings_path = tmp_path / "settings.json"
+    profile_path = tmp_path / "profile.ps1"
+    settings_path.write_text(json.dumps({
+        "profiles": {"default": "{one}", "list": [{"name": "PowerShell", "guid": "{one}"}]},
+    }), encoding="utf-8")
+    profile_path.write_text("Set-Alias ll Get-ChildItem\n", encoding="utf-8")
+
+    def runner(command, **kwargs):
+        return _psreadline_probe_runner(command, profile_path=profile_path)
+
+    monkeypatch.setattr(palette_module, "_prediction_foreground", lambda *args, **kwargs: None)
+    adapter = TerminalAdapter(settings_path, powershell_executable=tmp_path / "pwsh", command_runner=runner)
+    plan = create_plan("#10B981", ["terminal"], mode="light")
+
+    result = adapter.apply(plan)
+
+    assert result.status == "partial"
+    assert "prediction colors unavailable" in result.message
+    assert profile_path.read_text(encoding="utf-8") == "Set-Alias ll Get-ChildItem\n"
 
 
 def test_terminal_rollback_removes_only_managed_profile_block(tmp_path):

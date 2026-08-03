@@ -57,9 +57,12 @@ MODE_TONAL_LIGHTNESS_DELTA = 0.35
 MODE_LIGHT_SURFACE_MAX_LUMINANCE = 0.90
 MODE_DARK_SURFACE_MIN_LUMINANCE = 0.005
 PREDICTION_MIN_CONTRAST = 4.5
-PREDICTION_MIN_DISTANCE = 0.08
-PREDICTION_MAX_CHROMA = 0.04
-PREDICTION_HUE = 0.58
+PREDICTION_MIN_DISTANCE = 0.20
+PREDICTION_TARGET_CHROMA = 0.10
+PREDICTION_MAX_CHROMA = 0.14
+PREDICTION_SEMANTIC_HUE_TOLERANCE = 0.04
+PREDICTION_HUE_OFFSETS = (0.5, 1 / 3, 2 / 3, 1 / 6, 5 / 6, 0.0)
+PREDICTION_CHROMA_STEPS = (0.04, 0.06, 0.08, 0.10, 0.12, 0.14)
 
 
 def parse_hex_color(value: str) -> tuple[int, int, int]:
@@ -245,29 +248,85 @@ def _readable_foreground(
     )
 
 
-def _prediction_foreground(surface: str, foreground: str) -> str | None:
-    candidates = [
-        (_hls_color(PREDICTION_HUE, lightness / 100, saturation), lightness / 100, saturation)
-        for lightness in range(4, 97)
-        for saturation in (0.08, 0.12, 0.18)
-    ]
-    valid = [
-        candidate
-        for candidate in candidates
-        if contrast_ratio(candidate[0], surface) >= PREDICTION_MIN_CONTRAST
-        and _oklch_components(candidate[0])[1] <= PREDICTION_MAX_CHROMA
-        and _oklab_delta_e(candidate[0], foreground) >= PREDICTION_MIN_DISTANCE
-    ]
-    if not valid:
-        return None
+def _prediction_hue(
+    seed_color: str,
+    semantic_colors: tuple[str, ...] = (),
+    mode_pairs: tuple[tuple[str, str], ...] = (),
+) -> float:
+    seed_hue = _oklch_components(seed_color)[2]
+    semantic_hues = tuple(_oklch_components(color)[2] for color in semantic_colors)
+    for offset in PREDICTION_HUE_OFFSETS:
+        hue = (seed_hue + offset) % 1
+        if all(
+            _circular_hue_distance(hue, semantic_hue) >= PREDICTION_SEMANTIC_HUE_TOLERANCE
+            for semantic_hue in semantic_hues
+        ) and all(
+            _prediction_foreground(surface, foreground, hue, semantic_colors, require_semantic_separation=True) is not None
+            for surface, foreground in mode_pairs
+        ):
+            return hue
+    return (seed_hue + PREDICTION_HUE_OFFSETS[0]) % 1
+
+
+def _prediction_foreground(
+    surface: str,
+    foreground: str,
+    prediction_hue: float,
+    semantic_colors: tuple[str, ...] = (),
+    require_semantic_separation: bool = False,
+) -> str | None:
     desired_lightness = 0.20 if relative_luminance(surface) > 0.179 else 0.72
-    return min(
-        valid,
-        key=lambda candidate: (
-            abs(candidate[1] - desired_lightness),
-            candidate[2],
-        ),
-    )[0]
+    semantic_hues = tuple(_oklch_components(color)[2] for color in semantic_colors)
+
+    for chroma_limit in (PREDICTION_TARGET_CHROMA, PREDICTION_MAX_CHROMA):
+        candidates = []
+        lightness_values = range(8, 56) if relative_luminance(surface) > 0.179 else range(45, 93)
+        for lightness in lightness_values:
+            for chroma in PREDICTION_CHROMA_STEPS:
+                if chroma > chroma_limit:
+                    continue
+                candidate = _oklch_color(prediction_hue, lightness / 100, chroma)
+                _actual_lightness, actual_chroma, actual_hue = _oklch_components(candidate)
+                contrast = contrast_ratio(candidate, surface)
+                distance = _oklab_delta_e(candidate, foreground)
+                semantic_distance = min(
+                    (_circular_hue_distance(actual_hue, semantic_hue) for semantic_hue in semantic_hues),
+                    default=0.5,
+                )
+                if (
+                    candidate not in {"#000000", "#FFFFFF"}
+                    and contrast >= PREDICTION_MIN_CONTRAST
+                    and actual_chroma <= PREDICTION_MAX_CHROMA
+                    and distance >= PREDICTION_MIN_DISTANCE
+                ):
+                    candidates.append((
+                        candidate,
+                        lightness / 100,
+                        actual_chroma,
+                        contrast,
+                        distance,
+                        semantic_distance,
+                    ))
+        if not candidates:
+            continue
+        separated = [
+            candidate for candidate in candidates
+            if candidate[5] >= PREDICTION_SEMANTIC_HUE_TOLERANCE
+        ]
+        if require_semantic_separation and not separated:
+            continue
+        candidates = separated or candidates
+        return max(
+            candidates,
+            key=lambda candidate: (
+                candidate[4],
+                candidate[5],
+                candidate[3] - PREDICTION_MIN_CONTRAST,
+                -abs(candidate[2] - PREDICTION_TARGET_CHROMA),
+                -abs(candidate[1] - desired_lightness),
+            ),
+        )[0]
+    return None
 
 
 def _chromatic_saturation(color: str) -> float:
@@ -378,9 +437,6 @@ def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
         "success": success,
         "success_text": _readable_foreground((surface,), 4.5, hue=0.40),
     }
-    prediction_foreground = _prediction_foreground(surface, foreground)
-    if prediction_foreground is not None:
-        palette["prediction_foreground"] = prediction_foreground
     errors = validate_palette(palette, mode=mode)
     if errors:
         raise ValueError("Generated palette failed validation: " + "; ".join(errors))
@@ -424,7 +480,36 @@ def generate_palette(seed_color: str, mode: str | None = None) -> dict[str, str]
         return palette
     if mode not in {"light", "dark"}:
         raise ValueError("mode must be 'light' or 'dark'")
-    palette = _generate_palette(seed_color, mode)
+    base_palettes = {
+        candidate_mode: _generate_palette(seed_color, candidate_mode)
+        for candidate_mode in ("light", "dark")
+    }
+    semantic_colors = tuple(
+        dict.fromkeys(
+            color
+            for candidate_palette in base_palettes.values()
+            for role in ("accent_text", "error_text", "warning_text", "success_text")
+            for color in (candidate_palette[role],)
+        )
+    )
+    prediction_hue = _prediction_hue(
+        seed_color,
+        semantic_colors,
+        tuple((candidate_palette["surface"], candidate_palette["foreground"]) for candidate_palette in base_palettes.values()),
+    )
+    palette = base_palettes[mode]
+    semantic_colors = tuple(palette[key] for key in ("accent_text", "error_text", "warning_text", "success_text"))
+    prediction_foreground = _prediction_foreground(
+        palette["surface"],
+        palette["foreground"],
+        prediction_hue,
+        semantic_colors,
+    )
+    if prediction_foreground is not None:
+        palette["prediction_foreground"] = prediction_foreground
+    errors = validate_palette(palette, mode=mode)
+    if errors:
+        raise ValueError("Generated palette failed validation: " + "; ".join(errors))
     return palette
 
 
@@ -480,7 +565,17 @@ def validate_palette(palette: Mapping[str, str], *, mode: str | None = None) -> 
                     f"required >= {PREDICTION_MIN_DISTANCE:.2f}"
                 )
             if _oklch_components(palette["prediction_foreground"])[1] > PREDICTION_MAX_CHROMA:
-                errors.append(f"neutrality: prediction_foreground chroma exceeds {PREDICTION_MAX_CHROMA:.2f}")
+                errors.append(f"prediction: prediction_foreground chroma exceeds {PREDICTION_MAX_CHROMA:.2f}")
+            semantic_roles = ("accent_text", "error_text", "warning_text", "success_text")
+            semantic_hues = tuple(
+                _oklch_components(palette[role])[2]
+                for role in semantic_roles
+                if role in palette and role not in invalid_keys
+            )
+            if semantic_hues:
+                prediction_hue = _oklch_components(palette["prediction_foreground"])[2]
+                if min(_circular_hue_distance(prediction_hue, hue) for hue in semantic_hues) < PREDICTION_SEMANTIC_HUE_TOLERANCE:
+                    errors.append("prediction: prediction_foreground is too close to a semantic text hue")
     return errors
 
 
