@@ -96,6 +96,18 @@ def test_light_dense_primary_text_is_opaque_neutral_and_7_to_1():
         assert validate_palette(palette, mode="light") == []
 
 
+def test_prediction_foreground_is_readable_and_perceptually_distinct():
+    for seed in ("#10B981", "#FFD700", "#FF0000", "#FAFAFA"):
+        for mode in ("light", "dark"):
+            palette = generate_palette(seed, mode)
+            assert validate_palette(palette, mode=mode) == []
+            invalid = dict(palette)
+            invalid["prediction_foreground"] = palette["foreground"]
+            assert any("distance" in error for error in validate_palette(invalid, mode=mode))
+            invalid["prediction_foreground"] = "not-a-color"
+            assert any("prediction_foreground" in error for error in validate_palette(invalid, mode=mode))
+
+
 def test_explicit_modes_keep_seed_anchor_and_separate_tonal_surface_roles():
     for mode in ("light", "dark"):
         palette = generate_palette("#7C3AED", mode)

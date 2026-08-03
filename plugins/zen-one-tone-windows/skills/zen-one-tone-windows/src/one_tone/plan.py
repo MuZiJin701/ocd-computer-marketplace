@@ -159,7 +159,7 @@ def load_plan(plan_id: str, plans_dir: Path) -> Plan:
     for mode, palette in palettes.items():
         if not isinstance(palette, dict) or set(palette) < required_palette_keys:
             raise PlanIntegrityError(f"Plan {mode} palette is incomplete for {plan_id}")
-        errors = validate_palette(palette)
+        errors = validate_palette(palette, mode=mode)
         if errors:
             raise PlanIntegrityError(f"Plan {mode} palette is invalid: {'; '.join(errors)}")
     coherence_errors = validate_mode_coherence(payload["seed_color"], palettes)

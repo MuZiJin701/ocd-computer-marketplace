@@ -28,6 +28,7 @@ _CONTRAST_PAIRS = (
     ("background_foreground", "background", 7),
     ("foreground", "surface", 4.5),
     ("muted_foreground", "surface", 4.5),
+    ("prediction_foreground", "surface", 4.5),
     ("accent_text", "surface", 4.5),
     ("error_text", "surface", 4.5),
     ("warning_text", "surface", 4.5),
@@ -55,6 +56,10 @@ MODE_ACCENT_LIGHTNESS_DELTA = 0.55
 MODE_TONAL_LIGHTNESS_DELTA = 0.35
 MODE_LIGHT_SURFACE_MAX_LUMINANCE = 0.90
 MODE_DARK_SURFACE_MIN_LUMINANCE = 0.005
+PREDICTION_MIN_CONTRAST = 4.5
+PREDICTION_MIN_DISTANCE = 0.08
+PREDICTION_MAX_CHROMA = 0.04
+PREDICTION_HUE = 0.58
 
 
 def parse_hex_color(value: str) -> tuple[int, int, int]:
@@ -93,6 +98,16 @@ def _oklch_components(color: str) -> tuple[float, float, float]:
     a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
     b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
     return lightness, math.hypot(a, b), math.atan2(b, a) / (2 * math.pi) % 1
+
+
+def _oklab_components(color: str) -> tuple[float, float, float]:
+    lightness, chroma, hue = _oklch_components(color)
+    angle = hue * 2 * math.pi
+    return lightness, chroma * math.cos(angle), chroma * math.sin(angle)
+
+
+def _oklab_delta_e(first: str, second: str) -> float:
+    return math.dist(_oklab_components(first), _oklab_components(second))
 
 
 def _oklch_color(hue: float, lightness: float, chroma: float) -> str:
@@ -230,6 +245,31 @@ def _readable_foreground(
     )
 
 
+def _prediction_foreground(surface: str, foreground: str) -> str | None:
+    candidates = [
+        (_hls_color(PREDICTION_HUE, lightness / 100, saturation), lightness / 100, saturation)
+        for lightness in range(4, 97)
+        for saturation in (0.08, 0.12, 0.18)
+    ]
+    valid = [
+        candidate
+        for candidate in candidates
+        if contrast_ratio(candidate[0], surface) >= PREDICTION_MIN_CONTRAST
+        and _oklch_components(candidate[0])[1] <= PREDICTION_MAX_CHROMA
+        and _oklab_delta_e(candidate[0], foreground) >= PREDICTION_MIN_DISTANCE
+    ]
+    if not valid:
+        return None
+    desired_lightness = 0.20 if relative_luminance(surface) > 0.179 else 0.72
+    return min(
+        valid,
+        key=lambda candidate: (
+            abs(candidate[1] - desired_lightness),
+            candidate[2],
+        ),
+    )[0]
+
+
 def _chromatic_saturation(color: str) -> float:
     red, green, blue = parse_hex_color(color)
     return colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)[2]
@@ -338,6 +378,9 @@ def _generate_palette(seed_color: str, mode: str) -> dict[str, str]:
         "success": success,
         "success_text": _readable_foreground((surface,), 4.5, hue=0.40),
     }
+    prediction_foreground = _prediction_foreground(surface, foreground)
+    if prediction_foreground is not None:
+        palette["prediction_foreground"] = prediction_foreground
     errors = validate_palette(palette, mode=mode)
     if errors:
         raise ValueError("Generated palette failed validation: " + "; ".join(errors))
@@ -387,19 +430,28 @@ def generate_palette(seed_color: str, mode: str | None = None) -> dict[str, str]
 
 def validate_palette(palette: Mapping[str, str], *, mode: str | None = None) -> list[str]:
     errors: list[str] = []
-    missing = [key for key in REQUIRED_KEYS if key not in palette]
+    invalid_keys: set[str] = set()
+    required_keys = REQUIRED_KEYS
+    missing = [key for key in required_keys if key not in palette]
     if missing:
         errors.append("missing keys: " + ", ".join(missing))
-    for key in REQUIRED_KEYS:
+    for key in required_keys:
         if key in palette:
             try:
                 parse_hex_color(palette[key])
             except ValueError as error:
+                invalid_keys.add(key)
                 errors.append(f"{key}: {error}")
+    if "prediction_foreground" in palette:
+        try:
+            parse_hex_color(palette["prediction_foreground"])
+        except ValueError as error:
+            invalid_keys.add("prediction_foreground")
+            errors.append(f"prediction_foreground: {error}")
     for foreground, background, minimum_ratio in _CONTRAST_PAIRS:
         if mode == "light" and foreground == "foreground":
             minimum_ratio = 7
-        if foreground in palette and background in palette:
+        if foreground in palette and background in palette and not ({foreground, background} & invalid_keys):
             ratio = contrast_ratio(palette[foreground], palette[background])
             if ratio < minimum_ratio:
                 errors.append(f"contrast: {foreground}/{background} is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
@@ -415,10 +467,20 @@ def validate_palette(palette: Mapping[str, str], *, mode: str | None = None) -> 
             if role in tonal_roles and _oklch_components(color)[1] > 0.06:
                 errors.append(f"appearance safety: {role} chroma is too high for a large area")
         for foreground, background, minimum_ratio in REGION_SEPARATION_PAIRS + INTERACTIVE_SEPARATION_PAIRS:
-            if foreground in palette and background in palette:
+            if foreground in palette and background in palette and not ({foreground, background} & invalid_keys):
                 ratio = contrast_ratio(palette[foreground], palette[background])
                 if ratio < minimum_ratio:
                     errors.append(f"separation: {foreground}/{background} is {ratio:.2f}:1, required >= {minimum_ratio:g}:1")
+    if "prediction_foreground" in palette and "foreground" in palette:
+        if "prediction_foreground" not in invalid_keys:
+            distance = _oklab_delta_e(palette["prediction_foreground"], palette["foreground"])
+            if distance < PREDICTION_MIN_DISTANCE:
+                errors.append(
+                    f"distance: prediction_foreground/foreground is {distance:.3f}, "
+                    f"required >= {PREDICTION_MIN_DISTANCE:.2f}"
+                )
+            if _oklch_components(palette["prediction_foreground"])[1] > PREDICTION_MAX_CHROMA:
+                errors.append(f"neutrality: prediction_foreground chroma exceeds {PREDICTION_MAX_CHROMA:.2f}")
     return errors
 
 

@@ -2,6 +2,7 @@ import json
 import subprocess
 
 from one_tone.adapters.terminal import TerminalAdapter, resolve_default_profile
+from one_tone.palette import parse_hex_color
 from one_tone.plan import create_plan
 
 
@@ -120,6 +121,8 @@ def test_terminal_adapter_discovers_and_rolls_back_psreadline_profile(tmp_path):
     assert "if ($env:WT_SESSION)" in changed_profile
     assert "InlinePrediction = $oneToneInlinePrediction" in changed_profile
     assert "ListPredictionSelected = $oneToneListPredictionSelected" in changed_profile
+    red, green, blue = parse_hex_color(plan.palette_for("light")["prediction_foreground"])
+    assert f"[38;2;{red};{green};{blue}m" in changed_profile
     assert adapter.apply(plan).status == "ok"
     assert profile_path.read_text(encoding="utf-8") == changed_profile
     assert adapter.verify(plan).verified is True
@@ -127,6 +130,57 @@ def test_terminal_adapter_discovers_and_rolls_back_psreadline_profile(tmp_path):
         handle.write("Set-Location C:\\Users\n")
     assert adapter.rollback(tmp_path / "backup").verified is True
     assert profile_path.read_text(encoding="utf-8") == original_profile + "\nSet-Location C:\\Users\n"
+
+
+def test_terminal_adapter_upgrades_existing_prediction_block_in_place(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    profile_path = tmp_path / "profile.ps1"
+    settings_path.write_text(json.dumps({
+        "profiles": {"default": "{one}", "list": [{"name": "PowerShell", "guid": "{one}"}]},
+    }), encoding="utf-8")
+    profile_path.write_text(
+        "before\n"
+        "# >>> one-tone windows-terminal prediction colors >>>\n"
+        "old prediction settings\n"
+        "# <<< one-tone windows-terminal prediction colors <<<\n"
+        "after\n",
+        encoding="utf-8",
+    )
+
+    def runner(command, **kwargs):
+        return _psreadline_probe_runner(command, profile_path=profile_path)
+
+    adapter = TerminalAdapter(settings_path, powershell_executable=tmp_path / "pwsh", command_runner=runner)
+    plan = create_plan("#10B981", ["terminal"], mode="light")
+
+    assert adapter.apply(plan).status == "ok"
+    changed_profile = profile_path.read_text(encoding="utf-8")
+    assert changed_profile.count("# >>> one-tone windows-terminal prediction colors >>>") == 1
+    assert "old prediction settings" not in changed_profile
+    assert changed_profile.startswith("before\n")
+    assert changed_profile.endswith("after\n")
+
+
+def test_terminal_adapter_reports_missing_prediction_role_without_writing_profile(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    profile_path = tmp_path / "profile.ps1"
+    settings_path.write_text(json.dumps({
+        "profiles": {"default": "{one}", "list": [{"name": "PowerShell", "guid": "{one}"}]},
+    }), encoding="utf-8")
+    profile_path.write_text("Set-Alias ll Get-ChildItem\n", encoding="utf-8")
+
+    def runner(command, **kwargs):
+        return _psreadline_probe_runner(command, profile_path=profile_path)
+
+    adapter = TerminalAdapter(settings_path, powershell_executable=tmp_path / "pwsh", command_runner=runner)
+    plan = create_plan("#10B981", ["terminal"], mode="light")
+    plan.palettes["light"].pop("prediction_foreground")
+
+    result = adapter.apply(plan)
+
+    assert result.status == "partial"
+    assert "prediction colors unavailable" in result.message
+    assert "one-tone windows-terminal prediction colors" not in profile_path.read_text(encoding="utf-8")
 
 
 def test_terminal_rollback_removes_only_managed_profile_block(tmp_path):

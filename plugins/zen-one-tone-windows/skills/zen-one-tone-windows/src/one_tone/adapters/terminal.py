@@ -57,15 +57,20 @@ def _ansi_expression(color: str, background: bool = False) -> str:
 
 
 def _checked_text_color(palette: Mapping[str, str], role: str, background: str) -> str:
-    color = palette[role]
-    return color if contrast_ratio(color, background) >= 4.5 else palette["foreground"]
+    try:
+        color = palette[role]
+    except KeyError as error:
+        raise ValueError(f"{role} is unavailable in the Plan Palette") from error
+    if contrast_ratio(color, background) < 4.5:
+        raise ValueError(f"{role} does not meet the required contrast against the Terminal surface")
+    return color
 
 
 def _prediction_profile_block(plan: Plan) -> str:
     light = plan.palette_for("light")
     dark = plan.palette_for("dark")
-    light_prediction = _checked_text_color(light, "muted_foreground", light["surface"])
-    dark_prediction = _checked_text_color(dark, "muted_foreground", dark["surface"])
+    light_prediction = _checked_text_color(light, "prediction_foreground", light["surface"])
+    dark_prediction = _checked_text_color(dark, "prediction_foreground", dark["surface"])
     lines = [
         _PROFILE_START,
         "if ($env:WT_SESSION) {",
@@ -331,7 +336,10 @@ class TerminalAdapter:
                 newline="",
             )
             return "applied", "PSReadLine prediction colors updated for Windows Terminal sessions"
-        except (OSError, ValueError) as error:
+        except ValueError as error:
+            self._shell_info.update({"status": "unsupported", "reason": f"PSReadLine Profile update skipped: {error}"})
+            return "unsupported", f"PSReadLine prediction colors unavailable: {error}"
+        except OSError as error:
             self._shell_info.update({"status": "unsupported", "reason": f"PSReadLine Profile update failed: {error}"})
             return "failed", f"PSReadLine Profile update failed: {error}"
 
@@ -345,7 +353,10 @@ class TerminalAdapter:
             content = self._read_profile() if self._profile_path.is_file() else ""
             expected = _prediction_profile_block(plan)
             return "verified", content.find(expected) >= 0, "PSReadLine prediction colors verified"
-        except (OSError, ValueError) as error:
+        except ValueError as error:
+            self._shell_info.update({"status": "unsupported", "reason": f"PSReadLine Profile verify skipped: {error}"})
+            return "unsupported", True, f"PSReadLine prediction colors unavailable: {error}"
+        except OSError as error:
             return "failed", False, f"PSReadLine Profile verify failed: {error}"
 
     def _read_profile(self) -> str:
